@@ -12,6 +12,16 @@ So we, the ones who extend and make WordPress better for everyone, can continue 
 
 Without fear of retaliation or repression.
 
+## Screenshots
+
+[![UnrePress updates, pending core update](.wp-meta/screenshot-01.png)](https://github.com/TCattd/UnrePress/blob/main/.wp-meta/screenshot-01.png)
+
+[![UnrePress, updating core](.wp-meta/screenshot-02.png)](https://github.com/TCattd/UnrePress/blob/main/.wp-meta/screenshot-02.png)
+
+[![UnrePress, updating core](.wp-meta/screenshot-03.png)](https://github.com/TCattd/UnrePress/blob/main/.wp-meta/screenshot-03.png)
+
+[![UnrePress, core updated](.wp-meta/screenshot-04.png)](https://github.com/TCattd/UnrePress/blob/main/.wp-meta/screenshot-04.png)
+
 ## Features
 
 - Fetches WordPress core updates from the official WordPress GitHub repository.
@@ -42,7 +52,7 @@ For now, download the zip from the `main` branch, and install it as any other Wo
 2. Navigate to Dashboard > Updates.
 3. Update your Core.
 
-Now, when WordPress checks for updates, it will use the GitHub repository for core updates and all other providers for plugin and theme updates.
+Now, when WordPress checks for updates, it will use the official GitHub repository for core updates and all other providers for plugin and theme updates.
 
 ## Development
 
