@@ -6,7 +6,7 @@ UnrePress is a WordPress plugin that allows you to update WordPress core and plu
 
 Although I'm grateful to him for co-creating WordPress (along with Mike Little), I'm even more grateful to the WordPress community and their work throughout all these years.
 
-(I feel that) This is something that WordPress now needs: to liberate the core and plugin/theme updates, so we — the people who work with and on WordPress and sustain our lives and families with it — don't have to depend on a single person and live in uncertainty about their moods.
+(I feel that) This is something that WordPress now needs: to liberate the core and plugin/theme updates, so we — the people who work with and on WordPress and sustain their lives and families with it — don't have to depend on a single person and live in uncertainty about their moods.
 
 So we, the ones who extend and make WordPress better for everyone, can continue contributing and extending it freely and in peace.
 
