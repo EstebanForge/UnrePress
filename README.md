@@ -67,7 +67,7 @@ To set up the development environment:
 
 Contributions are welcome! Please feel free to submit a Pull Request. But please, follow the PHP-CS-Fixer rules.
 
-Consider opening a discussion if you wan't to help out in any planned feature.
+Consider opening a discussion if you want to help out in any planned feature.
 
 ## License
 
