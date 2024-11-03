@@ -5,4 +5,4 @@
 * UnrePress can update WordPress core from GitHub. TODO: Add support for BitBucket and GitLab.
 
 ## 0.0.1 - 2024-10-03
-* Proyect started
+* Project started
