@@ -1,0 +1,35 @@
+{
+    "package": "tcattd/unrepress",
+    "type": "wordpress-plugin",
+    "license": "GPL-2.0-or-later",
+    "name": "UnrePress",
+    "description": "WordPress plugin to obtain updates directly from git providers (like GitHub, BitBucket or GitLab)",
+    "homepage": "https://github.com/TCattd/UnrePress",
+    "authors": [
+        {
+            "name": "Esteban Cuevas",
+            "email": "esteban@attitude.cl",
+            "homepage": "https://actitud.xyz"
+        }
+    ],
+    "thumbnail": "screenshot-01.png",
+    "icon": "screenshot-01.png",
+    "screenshots": [
+        "screenshot-01.png",
+        "screenshot-02.png",
+        "screenshot-03.png",
+        "screenshot-04.png"
+    ],
+    "published": "2024-11-03",
+    "updated": "2024-11-03",
+    "requirements": {
+        "php": "8.1",
+        "mysql": "8.0",
+        "mariadb": "10.5",
+        "wordpress": "6.5"
+    },
+    "support": {
+        "issues": "https://github.com/TCattd/UnrePress/issues",
+        "discussions": "https://github.com/TCattd/UnrePress/discussions"
+    }
+}
