@@ -46,7 +46,7 @@ Without fear of retaliation or repression.
 
 ## Installation
 
-For now, download the zip from the `main` branch, and install it as any other WordPress plugin.
+For now, download the zip from the `main` branch (code > download zip), and install it as any other WordPress plugin.
 
 ## Usage
 
