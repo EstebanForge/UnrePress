@@ -5,6 +5,7 @@
 .php-cs-fixer.cache
 
 # PHPUnit
+
 .phpunit.result.cache
 
 # WordPress
