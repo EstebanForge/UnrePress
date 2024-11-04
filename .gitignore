@@ -1,11 +1,8 @@
-# Composer dependencies
-/vendor/
-
 # PHP-CS-Fixer
 .php-cs-fixer.cache
 
 # PHPUnit
-
+.phpunit.cache/
 .phpunit.result.cache
 
 # WordPress
@@ -40,3 +37,5 @@ access_log
 *.bak
 *.swp
 *.swo
+
+rules-wordpress.md

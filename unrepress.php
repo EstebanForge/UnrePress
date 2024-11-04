@@ -23,6 +23,7 @@ define('UNREPRESS_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('UNREPRESS_BLOCKED_HOSTS', 'api.wordpress.org,*.wordpress.org,*.wordpress.com');
 define('UNREPRESS_PREFIX', 'unrepress_');
 define('UNREPRESS_TEMP_PATH', WP_CONTENT_DIR . '/upgrade/');
+define('UNREPRESS_INDEX', 'https://raw.githubusercontent.com/tcattd/unrepress-index/main/');
 
 // Define transient expiration time (60 minutes by default)
 if (! defined('UNREPRESS_TRANSIENT_EXPIRATION')) {

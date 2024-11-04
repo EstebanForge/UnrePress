@@ -1,6 +1,7 @@
 {
     "package": "tcattd/unrepress",
-    "type": "wordpress-plugin",
+    "type": "plugin",
+    "access": "free",
     "license": "GPL-2.0-or-later",
     "name": "UnrePress",
     "description": "WordPress plugin to obtain updates directly from git providers (like GitHub, BitBucket or GitLab)",
