@@ -33,7 +33,7 @@ Without fear of retaliation or repression.
 - Auto-update UnrePress itself from GitHub.
 - Plugin updates from git providers.
 - Theme updates from git providers.
-- Create a community curated index of plugins and themes, so UnrePress can update them. Somewhat like package managers do (dnf, brew, npm, etc.).
+- Create a community maintained index of plugins and themes, so UnrePress can update them. Somewhat like package managers do (dnf, brew, npm, etc.).
 - Integrate the index into WordPress itself, so users can search and install plugins/themes from within the admin panel.
 - Add more git providers: BitBucket, GitLab, etc.
 - Configuration interface.
