@@ -12,6 +12,12 @@ So we, the ones who extend and make WordPress better for everyone, can continue 
 
 Without fear of retaliation or repression.
 
+## Main goal
+
+To serve as a drop-in replacement for all "my personal site" functionality embeded into WordPress, but managed and administrated by the community itself.
+
+UnrePress should eventually replace: WP core updates (done), plugins and themes installation, plugins and themes search and discover, plugins and themes updates, and all functionality that comes from dot-org.
+
 ## Screenshots
 
 [![UnrePress updates, pending core update](.wp-meta/screenshot-01.png)](https://github.com/TCattd/UnrePress/blob/main/.wp-meta/screenshot-01.png)
@@ -67,9 +73,11 @@ To set up the development environment:
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request. But please, follow the PHP-CS-Fixer rules.
+Contributions are welcome! Please feel free to submit a Pull Request. Please: follow the PHP-CS-Fixer rules. Easier to read pull requests, and peace and some order in this chaotic drama.
 
-Consider opening a discussion if you want to help out in any planned feature.
+Jump in into [an existing discussion](https://github.com/TCattd/UnrePress/discussions) if you want to help on any of the planned features.
+
+Some of them will get priority over others. For example, having a functional website is really the last thing we should care about for now.
 
 ## License
 
