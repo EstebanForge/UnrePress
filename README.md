@@ -2,6 +2,14 @@
 
 UnrePress is a WordPress plugin that allows you to update WordPress core and plugins/themes directly from git providers (like GitHub, BitBucket or GitLab), instead of the "official" WordPress dot org repository.
 
+## Main goal
+
+To serve as a drop-in replacement for all "my personal site" functionality embeded into WordPress, but managed and administrated by the community itself.
+
+UnrePress should eventually replace: WP core updates (done), plugins and themes installation, plugins and themes search and discover, plugins and themes updates, and all functionality that comes from dot-org.
+
+Hoping to serve all this, all planned things, for free. Gratis.
+
 ## Why?
 
 Although I'm grateful to him for co-creating WordPress (along with Mike Little), I'm even more grateful to the WordPress community and their work throughout all these years.
@@ -11,14 +19,6 @@ Although I'm grateful to him for co-creating WordPress (along with Mike Little),
 So we, the ones who extend and make WordPress better for everyone, can continue contributing and extending it freely and in peace.
 
 Without fear of retaliation or repression.
-
-## Main goal
-
-To serve as a drop-in replacement for all "my personal site" functionality embeded into WordPress, but managed and administrated by the community itself.
-
-UnrePress should eventually replace: WP core updates (done), plugins and themes installation, plugins and themes search and discover, plugins and themes updates, and all functionality that comes from dot-org.
-
-Hoping to serve all this, all planned things, for free. Gratis.
 
 ## Screenshots
 
