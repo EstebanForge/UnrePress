@@ -8,7 +8,7 @@ To serve as a drop-in replacement for all "my personal site" functionality embed
 
 UnrePress should eventually replace: WP core updates (done), plugins and themes installation, plugins and themes search and discover, plugins and themes updates, and all functionality that comes from dot-org.
 
-Hoping to serve all this, all planned things, for free. Gratis.
+Hoping to serve all of this, for free. Gratis.
 
 ## Why?
 
