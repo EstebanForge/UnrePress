@@ -40,3 +40,5 @@ access_log
 *.bak
 *.swp
 *.swo
+
+rules-wordpress.md

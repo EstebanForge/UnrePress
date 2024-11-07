@@ -4,7 +4,7 @@ namespace UnrePress\UpdaterProvider;
 
 use UnrePress\Debugger;
 
-class GitHub
+class GitHub implements ProviderInterface
 {
     private const GITHUB_API_URL = 'https://api.github.com/repos/';
     private const GITHUB_TAGS = '/tags';
