@@ -6,6 +6,11 @@ class Hider
 {
     public function __construct()
     {
+        // If debug is on, don't hide WP updates menu
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            return;
+        }
+
         add_action('admin_menu', [$this, 'removeMenus']);
         add_action('admin_head', [$this, 'removeMenus']);
         add_action('current_screen', [$this, 'redirectWPCoreUpdate']);

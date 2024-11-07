@@ -38,4 +38,6 @@ access_log
 *.swp
 *.swo
 
+index-demo/
+
 rules-wordpress.md

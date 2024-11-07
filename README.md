@@ -47,6 +47,8 @@ Without fear of retaliation or repression.
 - Configuration interface.
 - Expose the index vía web, for easy plugin/theme discoverability.
 
+See more in [Planned Features Discussions](https://github.com/TCattd/UnrePress/discussions/categories/planned-features).
+
 ## Requirements
 
 - PHP 8.1 or higher
@@ -54,7 +56,9 @@ Without fear of retaliation or repression.
 
 ## Installation
 
-For now, download the zip from the `main` branch (code > download zip), and install it as any other WordPress plugin.
+For now, go to [tags](https://github.com/TCattd/UnrePress/tags) and download the zip of the most recent one.
+
+Consider that this proyect is still in active development and not stable. Don't use this on production, until 1.0 is released.
 
 ## Usage
 

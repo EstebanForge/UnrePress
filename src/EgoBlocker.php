@@ -7,6 +7,11 @@ class EgoBlocker
     public function __construct()
     {
         add_action('pre_http_request', [$this, 'BlockOrg'], 10, 3);
+
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            add_filter('https_ssl_verify', '__return_false');
+            add_filter('https_local_ssl_verify', '__return_false');
+        }
     }
 
     /**
