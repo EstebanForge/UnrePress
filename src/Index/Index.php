@@ -4,7 +4,9 @@ namespace UnrePress\Index;
 
 class Index
 {
-    public function __construct() {}
+    public function __construct()
+    {
+    }
 
     /**
      * Retrieve the main index json from GitHub

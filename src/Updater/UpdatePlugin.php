@@ -9,20 +9,23 @@ use UnrePress\UpdaterProvider\GitHub;
 class UpdatePlugin
 {
     private $helpers;
+
     private $updateLock;
+
     private $provider = 'github';
+
     private $base_url = UNREPRESS_INDEX;
+
     private $cache_time = DAY_IN_SECONDS;
 
     public function __construct()
     {
-        $this->helpers    = new Helpers();
+        $this->helpers = new Helpers();
         $this->updateLock = new UpdateLock();
 
         add_filter('pre_set_site_transient_update_plugins', [$this, 'check_for_updates']);
         add_filter('plugins_api', [$this, 'plugin_info'], 20, 3);
     }
-
 
     /**
      * Downloads remote data from $url and returns the JSON decoded response.
@@ -33,12 +36,12 @@ class UpdatePlugin
      */
     private function get_remote_data($url)
     {
-        $response = wp_remote_get($url, array(
-            'headers' => array(
+        $response = wp_remote_get($url, [
+            'headers' => [
                 'Accept' => 'application/json',
-                'User-Agent' => 'WordPress/Plugin-Update-Checker'
-            )
-        ));
+                'User-Agent' => 'WordPress/Plugin-Update-Checker',
+            ],
+        ]);
 
         if (is_wp_error($response)) {
             return false;
@@ -67,7 +70,7 @@ class UpdatePlugin
             }
         }
 
-        if (empty($tags) || !is_array($tags)) {
+        if (empty($tags) || ! is_array($tags)) {
             return false;
         }
 
@@ -78,11 +81,12 @@ class UpdatePlugin
 
         // Return latest version info
         $latest = $tags[0];
-        return array(
+
+        return [
             'version' => ltrim($latest['name'], 'v'),
             'download_url' => $latest['zipball_url'],
-            'tag_data' => $latest
-        );
+            'tag_data' => $latest,
+        ];
     }
 
     /**
@@ -129,7 +133,7 @@ class UpdatePlugin
 
             // Get latest version from GitHub tags
             $version_info = $this->get_latest_version($metadata['tags']);
-            if (!$version_info) {
+            if (! $version_info) {
                 continue;
             }
 
@@ -168,7 +172,7 @@ class UpdatePlugin
             return $result;
         }
 
-        if (!isset($args->slug)) {
+        if (! isset($args->slug)) {
             return $result;
         }
 
@@ -191,7 +195,7 @@ class UpdatePlugin
 
         // Get latest version from GitHub tags
         $version_info = $this->get_latest_version($metadata['tags']);
-        if (!$version_info) {
+        if (! $version_info) {
             return $result;
         }
 
@@ -203,9 +207,9 @@ class UpdatePlugin
         $info->author = '<a href="' . esc_url($metadata['author_url']) . '">' . esc_html($metadata['author']) . '</a>';
         $info->homepage = $metadata['homepage'];
         $info->download_link = $version_info['download_url'];
-        $info->sections = array(
-            'description' => $metadata['description']
-        );
+        $info->sections = [
+            'description' => $metadata['description'],
+        ];
 
         // Add extra metadata
         $info->last_updated = date('Y-m-d');
