@@ -29,7 +29,7 @@
         }
     },
     "scripts": {
-        "test": "phpunit",
+        "test": "./vendor/bin/pest",
         "cs:check": "php-cs-fixer fix --dry-run --diff",
         "cs:fix": "php-cs-fixer fix",
         "release": "php-cs-fixer fix && composer dump-autoload --optimize && composer test"
