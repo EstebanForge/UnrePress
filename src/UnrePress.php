@@ -24,6 +24,6 @@ class UnrePress
         $indexPlugins = new Index\PluginsIndex();
         $indexThemes = new Index\ThemesIndex();
 
-        $updatePlugin = new Updater\UpdatePlugin();
+        $updatePlugins = new Updater\UpdatePlugins();
     }
 }
