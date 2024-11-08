@@ -2,228 +2,183 @@
 
 namespace UnrePress\Updater;
 
-use stdClass;
 use UnrePress\Helpers;
 use UnrePress\UpdaterProvider\GitHub;
 
 class UpdatePlugin
 {
     private $helpers;
-
-    private $updateLock;
-
     private $provider = 'github';
-
-    private $base_url = UNREPRESS_INDEX;
-
-    private $cache_time = DAY_IN_SECONDS;
+    public $version;
+    public $cache_key;
+    public $cache_results;
 
     public function __construct()
     {
-        $this->helpers = new Helpers();
-        $this->updateLock = new UpdateLock();
+        $this->helpers       = new Helpers();
+        $this->version       = '';
+        $this->cache_key     = UNREPRESS_PREFIX . 'updates_plugin_';
+        $this->cache_results = true;
 
-        add_filter('pre_set_site_transient_update_plugins', [$this, 'check_for_updates']);
-        add_filter('plugins_api', [$this, 'plugin_info'], 20, 3);
+        add_filter('plugins_api', [ $this, 'getInformation' ], 20, 3);
+        add_filter('site_transient_update_plugins', [ $this, 'doUpdate' ]);
+        add_action('upgrader_process_complete', [ $this, 'cleanAfterUpdate' ], 10, 2);
     }
 
-    /**
-     * Downloads remote data from $url and returns the JSON decoded response.
-     *
-     * @param string $url The URL to download data from.
-     *
-     * @return array|false The JSON decoded data or false if the request fails.
-     */
-    private function get_remote_data($url)
+    public function requestRemoteInfo($slug = null)
     {
-        $response = wp_remote_get($url, [
-            'headers' => [
-                'Accept' => 'application/json',
-                'user-agent' => 'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_7_1) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15',
-            ],
-        ]);
-
-        if (is_wp_error($response)) {
+        if (! $slug) {
             return false;
         }
 
-        return json_decode(wp_remote_retrieve_body($response), true);
-    }
+        $remote = get_transient($this->cache_key . $slug);
 
-    /**
-     * Get the latest version data of a given plugin from the GitHub releases API.
-     *
-     * @param string $tags_url The URL to the GitHub releases API.
-     *
-     * @return array|false The version data or false if the request fails.
-     */
-    private function get_latest_version($tags_url)
-    {
-        // Get cached tags
-        $cache_key = UNREPRESS_PREFIX . 'plugin_tags_' . md5($tags_url);
-        $tags = get_transient($cache_key);
+        // Get the first letter of the slug
+        $first_letter = mb_strtolower(mb_substr($slug, 0, 1));
 
-        if (false === $tags) {
-            $tags = $this->get_remote_data($tags_url);
-            if ($tags) {
-                set_transient($cache_key, $tags, $this->cache_time);
+        if ($remote === false || ! $this->cache_results) {
+
+            $remote = wp_remote_get(
+                UNREPRESS_INDEX . 'plugins/' . $first_letter . '/' . $slug . '.json',
+                [
+                    'timeout' => 10,
+                    'headers' => [
+                        'Accept' => 'application/json'
+                    ]
+                ]
+            );
+
+            if (is_wp_error($remote) || 200 !== wp_remote_retrieve_response_code($remote) || empty(wp_remote_retrieve_body($remote))) {
+                return false;
             }
+
+            set_transient($this->cache_key . $slug, $remote, DAY_IN_SECONDS);
         }
 
-        if (empty($tags) || ! is_array($tags)) {
-            return false;
-        }
+        $remote = json_decode(wp_remote_retrieve_body($remote));
 
-        // Sort tags by version number (newest first)
-        usort($tags, function ($a, $b) {
-            return version_compare($b['name'], $a['name']);
-        });
-
-        // Return latest version info
-        $latest = $tags[0];
-
-        return [
-            'version' => ltrim($latest['name'], 'v'),
-            'download_url' => $latest['zipball_url'],
-            'tag_data' => $latest,
-        ];
+        return $remote;
     }
 
-    /**
-     * Checks for available updates to plugins.
-     *
-     * Checks against the custom GitHub JSON metadata repository.
-     *
-     * @since 1.0.0
-     *
-     * @param object $transient The update transient object.
-     *
-     * @return object The update transient object.
-     */
-    public function check_for_updates($transient)
+    public function getInformation($response, $action, $args)
+    {
+        // do nothing if you're not getting plugin information right now
+        if ($action !== 'plugin_information') {
+            return $response;
+        }
+
+        if (empty($args->slug)) {
+            return $response;
+        }
+
+        // get updates
+        $remote = $this->requestRemoteInfo($args->slug);
+
+        if (! $remote) {
+            return $response;
+        }
+
+        $response = new \stdClass();
+
+        $response->name           = $remote->name;
+        $response->slug           = $remote->slug;
+        $response->version        = $remote->version;
+        $response->tested         = $remote->tested;
+        $response->requires       = $remote->requires;
+        $response->author         = $remote->author;
+        $response->author_profile = $remote->author_profile;
+        $response->donate_link    = $remote->donate_link;
+        $response->homepage       = $remote->homepage;
+        $response->download_link  = $remote->download_url;
+        $response->trunk          = $remote->download_url;
+        $response->requires_php   = $remote->requires_php;
+        $response->last_updated   = $remote->last_updated;
+
+        $response->sections = [
+            'description'  => $remote->sections->description,
+            'installation' => $remote->sections->installation,
+            'changelog'    => $remote->sections->changelog
+        ];
+
+        if (! empty($remote->banners)) {
+            $response->banners = [
+                'low'  => $remote->banners->low,
+                'high' => $remote->banners->high
+            ];
+        }
+
+        return $response;
+
+    }
+
+    public function doUpdate($transient)
     {
         if (empty($transient->checked)) {
             return $transient;
         }
 
-        $installed_plugins = get_plugins();
+        // Get the plugin being updated slug
+        $slug = $transient->checked[0];
 
-        foreach ($installed_plugins as $plugin_file => $plugin_data) {
-            $slug = dirname(plugin_basename($plugin_file));
-            if ($slug === '.') {
-                continue;
-            }
+        $remoteData = $this->requestRemoteInfo($slug);
 
-            // Get first letter of slug for the directory structure
-            $first_letter = strtolower(substr($slug, 0, 1));
-            $json_url = $this->base_url . $first_letter . '/' . $slug . '.json';
+        if ($remoteData && version_compare($this->version, $remoteData->version, '<') && version_compare($remoteData->requires, get_bloginfo('version'), '<=') && version_compare($remoteData->requires_php, PHP_VERSION, '<')) {
+            $response              = new \stdClass();
+            $response->slug        = $slug;
+            $response->plugin      = "{$slug}/{$slug}.php";
+            $response->tested      = $remoteData->tested;
+            $response->package     = $remoteData->download_url;
+            $response->new_version = $this->getRemoteVersion($slug, $remoteData->tags);
 
-            // Get cached metadata
-            $metadata = get_transient(UNREPRESS_PREFIX . 'plugin_metadata_' . $slug);
-            if (false === $metadata) {
-                $metadata = $this->get_remote_data($json_url);
-                if ($metadata) {
-                    set_transient(UNREPRESS_PREFIX . 'plugin_metadata_' . $slug, $metadata, $this->cache_time);
-                }
-            }
+            $transient->response[ $response->plugin ] = $response;
 
-            if (empty($metadata) || empty($metadata['tags'])) {
-                continue;
-            }
-
-            // Get latest version from GitHub tags
-            $version_info = $this->get_latest_version($metadata['tags']);
-            if (! $version_info) {
-                continue;
-            }
-
-            $current_version = $plugin_data['Version'];
-            if (version_compare($version_info['version'], $current_version, '>')) {
-                $item = new stdClass();
-                $item->slug = $slug;
-                $item->plugin = $plugin_file;
-                $item->new_version = $version_info['version'];
-                $item->url = $metadata['homepage'];
-                $item->package = $version_info['download_url'];
-
-                $transient->response[$plugin_file] = $item;
-            }
         }
 
         return $transient;
     }
 
-    /**
-     * Filters the plugin information for the WordPress.org Plugin Directory.
-     *
-     * Used to add custom metadata to the plugin information object.
-     *
-     * @since 1.0.0
-     *
-     * @param array  $result The plugin information object.
-     * @param string $action The type of information being requested.
-     * @param object $args   Additional arguments passed to the API request.
-     *
-     * @return array The modified plugin information object.
-     */
-    public function plugin_info($result, $action, $args)
+    public function cleanAfterUpdate($upgrader, $options)
     {
-        if ($action !== 'plugin_information') {
-            return $result;
+        if ($this->cache_results && $options['action'] === 'update' && $options[ 'type' ] === 'plugin') {
+            // Get the updated plugin slug
+            $slug = $options['plugins'][0];
+
+            // Clean the cache for this plugin
+            delete_transient($this->cache_key . $slug);
         }
+    }
 
-        if (! isset($args->slug)) {
-            return $result;
-        }
+    /**
+     * Get the latest available version from the remote tags
+     *
+     * @param string $slug Plugin slug
+     * @param string $tagUrl URL for the remote tags
+     *
+     * @return string
+     */
+    private function getRemoteVersion($slug, $tagUrl) {
+        $remote = get_transient($this->cache_key . 'remote-version-' . $slug);
 
-        // Get first letter of slug
-        $first_letter = strtolower(substr($args->slug, 0, 1));
-        $json_url = $this->base_url . $first_letter . '/' . $args->slug . '.json';
+        if ($remote === false) {
+            $remote = wp_remote_get($tagUrl, [
+                'timeout' => 10,
+                'headers' => [
+                    'Accept' => 'application/json'
+                ]
+            ]);
 
-        // Get cached metadata
-        $metadata = get_transient(UNREPRESS_PREFIX . 'plugin_metadata_' . $args->slug);
-        if (false === $metadata) {
-            $metadata = $this->get_remote_data($json_url);
-            if ($metadata) {
-                set_transient(UNREPRESS_PREFIX . 'plugin_metadata_' . $args->slug, $metadata, $this->cache_time);
+            if (is_wp_error($remote) || 200 !== wp_remote_retrieve_response_code($remote) || empty(wp_remote_retrieve_body($remote))) {
+                return false;
             }
+
+            $body = json_decode(wp_remote_retrieve_body($remote));
+
+            // Just retrieve the first tag if there are multiple and we are using GitHub
+            $remote = $body[0]->name;
+
+            set_transient($this->cache_key . 'remote-version-' . $slug, $remote, DAY_IN_SECONDS);
         }
 
-        if (empty($metadata) || empty($metadata['tags'])) {
-            return $result;
-        }
-
-        // Get latest version from GitHub tags
-        $version_info = $this->get_latest_version($metadata['tags']);
-        if (! $version_info) {
-            return $result;
-        }
-
-        // Create the plugin info object
-        $info = new stdClass();
-        $info->name = $metadata['name'];
-        $info->slug = $args->slug;
-        $info->version = $version_info['version'];
-        $info->author = '<a href="' . esc_url($metadata['author_url']) . '">' . esc_html($metadata['author']) . '</a>';
-        $info->homepage = $metadata['homepage'];
-        $info->download_link = $version_info['download_url'];
-        $info->sections = [
-            'description' => $metadata['description'],
-        ];
-
-        // Add extra metadata
-        $info->last_updated = date('Y-m-d');
-        $info->requires = '5.0'; // Set default or fetch from readme
-        $info->tested = get_bloginfo('version');
-        $info->requires_php = '7.0'; // Set default or fetch from readme
-
-        // Add additional metadata from your JSON
-        $info->added = $metadata['date_added'];
-        $info->license = $metadata['license'];
-        $info->license_url = $metadata['license_url'];
-        $info->free = $metadata['free'];
-        $info->paid_features = $metadata['paid_features'];
-
-        return $info;
+        return $remote;
     }
 }

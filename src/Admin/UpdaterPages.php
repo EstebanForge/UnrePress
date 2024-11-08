@@ -162,7 +162,7 @@ class UpdaterPages
             $updateNeeded = true;
         }
 
-        include_once UNREPRESS_PLUGIN_PATH . 'views/unrepress-updater.php';
+        include_once UNREPRESS_PLUGIN_PATH . 'views/updater/unrepress-updater.php';
     }
 
     /**
@@ -173,7 +173,7 @@ class UpdaterPages
      */
     public function renderUpdatingCorePage(): void
     {
-        include_once UNREPRESS_PLUGIN_PATH . 'views/unrepress-doing-core-update.php';
+        include_once UNREPRESS_PLUGIN_PATH . 'views/updater/unrepress-doing-core-update.php';
     }
 
     /**
