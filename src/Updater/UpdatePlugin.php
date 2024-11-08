@@ -21,7 +21,7 @@ class UpdatePlugin
         $this->cache_results = true;
 
         add_filter('plugins_api', [ $this, 'getInformation' ], 20, 3);
-        add_filter('site_transient_update_plugins', [ $this, 'doUpdate' ]);
+        add_filter('site_transient_update_plugins', [ $this, 'hasUpdate' ]);
         add_action('upgrader_process_complete', [ $this, 'cleanAfterUpdate' ], 10, 2);
     }
 
@@ -111,7 +111,7 @@ class UpdatePlugin
 
     }
 
-    public function doUpdate($transient)
+    public function hasUpdate($transient)
     {
         if (empty($transient->checked)) {
             return $transient;
