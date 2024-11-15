@@ -27,7 +27,7 @@ class UpdatePlugins
         $this->cache_results = true;
 
         // If force-check=1 and page=unrepress-updates, then empty all update transients
-        if (isset($_GET['force-check']) && $_GET['force-check'] === '1' && isset($_GET['page']) && $_GET['page'] === 'unrepress-updates') {
+        if (isset($_GET['force-check']) && $_GET['force-check'] === '1' && isset($_GET['page']) && $_GET['page'] === 'unrepress-updater') {
             $this->deleteAllUpdateTransients();
         }
 
@@ -36,6 +36,8 @@ class UpdatePlugins
         add_filter('plugins_api', [$this, 'getInformation'], 20, 3);
         add_filter('site_transient_update_plugins', [$this, 'hasUpdate']);
         add_action('upgrader_process_complete', [$this, 'cleanAfterUpdate'], 10, 2);
+        // Add filter to handle GitHub folder renaming
+        add_filter('upgrader_source_selection', [$this, 'fixSourceDir'], 10, 4);
     }
 
     /**
@@ -359,7 +361,7 @@ class UpdatePlugins
                 // Clean version number (remove 'v' prefix if present)
                 $remoteVersion = ltrim($remoteVersion, 'v');
 
-                set_transient( $this->cache_key . 'download-url-' . $slug, $remoteZip, DAY_IN_SECONDS );
+                set_transient($this->cache_key . 'download-url-' . $slug, $remoteZip, DAY_IN_SECONDS);
                 set_transient($this->cache_key . 'remote-version-' . $slug, $remoteVersion, DAY_IN_SECONDS);
 
                 // Log
@@ -384,11 +386,70 @@ class UpdatePlugins
      */
     private function deleteAllUpdateTransients()
     {
-        // Delete all transients that begins with UNREPRESS_PREFIX . 'updates_plugin'
         global $wpdb;
 
         Debugger::log('UnrePress: deleting all update transients');
 
-        $wpdb->query("DELETE FROM {$wpdb->options} WHERE option_name LIKE '" . $this->cache_key . "%'");
+        // Delete both transients and their timeout entries
+        $wpdb->query(
+            $wpdb->prepare(
+                "DELETE FROM {$wpdb->options}
+                WHERE option_name LIKE %s
+                OR option_name LIKE %s",
+                '_transient_' . $this->cache_key . '%',
+                '_transient_timeout_' . $this->cache_key . '%'
+            )
+        );
+    }
+
+    /**
+     * Fix the source directory name during plugin updates
+     * This prevents GitHub's repository naming format from being used
+     *
+     * @param string       $source        File source location
+     * @param string       $remote_source Remote file source location
+     * @param WP_Upgrader $upgrader      WordPress Upgrader instance
+     * @param array       $args          Extra arguments passed to hooked filters
+     * @return string
+     */
+    public function fixSourceDir($source, $remote_source, $upgrader, $args)
+    {
+        if (!is_object($upgrader->skin)) {
+            return $source;
+        }
+
+        // Check if we're dealing with a plugin update
+        if (!isset($args['plugin'])) {
+            return $source;
+        }
+
+        // Get the plugin slug from the plugin file path (e.g., 'my-plugin/my-plugin.php' -> 'my-plugin')
+        $plugin_slug = dirname($args['plugin']);
+
+        // Get the current plugin directory name
+        $current_dir = basename($source);
+
+        // If it's already the correct name, return
+        if ($current_dir === $plugin_slug) {
+            return $source;
+        }
+
+        // Get parent directory
+        $parent_dir = dirname($source);
+        $new_source = $parent_dir . '/' . $plugin_slug;
+
+        // If target exists, remove it first
+        if (is_dir($new_source)) {
+            $this->helpers->removeDirectoryWPFS($new_source);
+        }
+
+        // Try to rename using WP_Filesystem
+        if ($this->helpers->renameDirectoryWPFS($source, $new_source)) {
+            Debugger::log('Plugin Update: Successfully renamed update directory from ' . $current_dir . ' to ' . $plugin_slug);
+            return $new_source;
+        }
+
+        Debugger::log('Plugin Update: Failed to rename update directory from ' . $current_dir . ' to ' . $plugin_slug);
+        return $source;
     }
 }

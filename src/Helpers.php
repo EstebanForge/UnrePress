@@ -89,6 +89,27 @@ class Helpers
     }
 
     /**
+     * Remove a directory and its contents using WP_Filesystem.
+     *
+     * @param string $directory The directory to remove.
+     *
+     * @return bool True on success, false on failure.
+     */
+    public function removeDirectoryWPFSNew($directory): bool
+    {
+        if (! class_exists('WP_Filesystem')) {
+            require_once(ABSPATH . '/wp-admin/includes/file.php');
+        }
+
+        // Initialize the WP_Filesystem
+        global $wp_filesystem;
+        WP_Filesystem();
+
+        // Use delete() to remove the directory and its contents
+        return $wp_filesystem->delete($directory, true);
+    }
+
+    /**
      * Recursively copies all files and directories from one directory to another.
      *
      * @param string $source Full path to the source directory.
@@ -193,5 +214,27 @@ class Helpers
         }
 
         file_put_contents($updateLogFile, '');
+    }
+
+    /**
+     * Rename a directory, using WP_Filesystem.
+     *
+     * @param string $source The source directory to rename.
+     * @param string $destination The new directory name.
+     *
+     * @return bool True on success, false on failure.
+     */
+    public function renameDirectoryWPFS($source, $destination): bool
+    {
+        if (! class_exists('WP_Filesystem')) {
+            require_once(ABSPATH . '/wp-admin/includes/file.php');
+        }
+
+        // Initialize the WP_Filesystem
+        global $wp_filesystem;
+        WP_Filesystem();
+
+        // Use move() to rename the directory
+        return $wp_filesystem->move($source, $destination);
     }
 }
