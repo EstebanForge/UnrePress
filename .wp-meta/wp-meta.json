@@ -1,7 +1,7 @@
 {
     "package": "tcattd/unrepress",
     "type": "plugin",
-    "access": "free",
+    "update_from": "tags",
     "license": "GPL-2.0-or-later",
     "name": "UnrePress",
     "description": "WordPress plugin to obtain updates directly from git providers (like GitHub, BitBucket or GitLab)",
@@ -21,14 +21,6 @@
         "screenshot-03.png",
         "screenshot-04.png"
     ],
-    "published": "2024-11-03",
-    "updated": "2024-11-03",
-    "requirements": {
-        "php": "8.1",
-        "mysql": "8.0",
-        "mariadb": "10.5",
-        "wordpress": "6.5"
-    },
     "support": {
         "issues": "https://github.com/TCattd/UnrePress/issues",
         "discussions": "https://github.com/TCattd/UnrePress/discussions"

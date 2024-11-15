@@ -54,7 +54,7 @@ class EgoBlocker
         if (! empty($wildcard_regex)) {
             $results = preg_match($wildcard_regex, $check['host']);
             if ($results > 0) {
-                Debugger::log(sprintf("Blocking %s://%s%s", $check['scheme'], $check['host'], $check['path']));
+                //Debugger::log(sprintf("Blocking %s://%s%s", $check['scheme'], $check['host'], $check['path']));
             }
 
             return $results > 0;
@@ -62,7 +62,7 @@ class EgoBlocker
             $results = in_array($check['host'], $blocked_hosts, true); // Inverse logic, if it's in the array, then block it.
 
             if ($results) {
-                Debugger::log(sprintf("Blocking %s://%s%s", $check['scheme'], $check['host'], $check['path']));
+                //Debugger::log(sprintf("Blocking %s://%s%s", $check['scheme'], $check['host'], $check['path']));
             }
 
             return $results;

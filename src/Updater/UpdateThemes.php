@@ -5,7 +5,7 @@ namespace UnrePress\Updater;
 use UnrePress\Debugger;
 use UnrePress\Helpers;
 
-class UpdatePlugins
+class UpdateThemes
 {
     private $helpers;
 
@@ -23,7 +23,7 @@ class UpdatePlugins
     {
         $this->helpers = new Helpers();
         $this->version = '';
-        $this->cache_key = UNREPRESS_PREFIX . 'updates_plugin_';
+        $this->cache_key = UNREPRESS_PREFIX . 'updates_theme_';
         $this->cache_results = true;
 
         // If force-check=1 and page=unrepress-updates, then empty all update transients
@@ -33,37 +33,28 @@ class UpdatePlugins
 
         $this->checkforUpdates();
 
-        add_filter('plugins_api', [$this, 'getInformation'], 20, 3);
-        add_filter('site_transient_update_plugins', [$this, 'hasUpdate']);
+        add_filter('themes_api', [$this, 'getInformation'], 20, 3);
+        add_filter('site_transient_update_themes', [$this, 'hasUpdate']);
         add_action('upgrader_process_complete', [$this, 'cleanAfterUpdate'], 10, 2);
         add_filter('upgrader_source_selection', [$this, 'maybeFixSourceDir'], 10, 4);
     }
 
     /**
-     * Check for plugin updates
-     * This metod will check for updates on every installed plugin.
+     * Check for theme updates
+     * This method will check for updates on every installed theme.
      *
      * @return void
      */
     private function checkforUpdates()
     {
-        // Get all installed plugins
-        if (! function_exists('get_plugins')) {
-            require_once ABSPATH . 'wp-admin/includes/plugin.php';
-        }
+        $themes = wp_get_themes();
 
-        $plugins = get_plugins();
-
-        foreach ($plugins as $key => $plugin) {
-            // Check for update, by slug
-            // Re-create the slug from the file path. Like WP does: $plugin_slug = dirname( plugin_basename( $plugin_file ) );
-            $slug = basename(dirname($key));
-
-            $this->checkForPluginUpdate($slug);
+        foreach ($themes as $slug => $theme) {
+            $this->checkForThemeUpdate($slug);
         }
     }
 
-    private function checkForPluginUpdate($slug)
+    private function checkForThemeUpdate($slug)
     {
         $remoteData = $this->requestRemoteInfo($slug);
         $installedVersion = $this->getInstalledVersion($slug);
@@ -73,45 +64,47 @@ class UpdatePlugins
             if (version_compare($installedVersion, $latestVersion, '<')) {
                 $updateInfo = new \stdClass();
 
-                $updateInfo->requires = $remoteData->requires;
-                $updateInfo->tested = $remoteData->tested;
-                $updateInfo->requires_php = $remoteData->requires_php;
-                $updateInfo->name = $remoteData->name;
-                $updateInfo->plugin_uri = $remoteData->homepage;
-                $updateInfo->description = $remoteData->sections->description;
-                $updateInfo->author = $remoteData->author;
-                $updateInfo->author_uri = $remoteData->author_profile;
-                $updateInfo->banner = $remoteData->banners;
+                $theme = wp_get_theme($slug);
 
-                $updateInfo->last_updated = $remoteData->last_updated;
-                $updateInfo->changelog = $remoteData->sections->changelog;
+                // Get data from the remote source
+                $updateInfo->requires = $remoteData->requires ?? '';
+                $updateInfo->tested = $remoteData->tested ?? '';
+                $updateInfo->requires_php = $remoteData->requires_php ?? '';
+
+                // Get data from the local theme object
+                $updateInfo->name = $theme->get('Name');
+                $updateInfo->theme_uri = $theme->get('ThemeURI');
+                $updateInfo->description = $theme->get('Description');
+                $updateInfo->author = $theme->get('Author');
+                $updateInfo->author_uri = $theme->get('AuthorURI');
+                $updateInfo->tags = $theme->get('Tags');
+                $updateInfo->textdomain = $theme->get('TextDomain');
+                $updateInfo->template = $theme->get_template();
+
+                // Remote data for updates
+                $updateInfo->last_updated = $remoteData->last_updated ?? time();
+                $updateInfo->changelog = isset($remoteData->sections->changelog) ? $remoteData->sections->changelog : '';
+                $updateInfo->screenshot = $remoteData->screenshot_url ?? '';
 
                 $updateInfo->version = $latestVersion;
                 $updateInfo->download_link = get_transient($this->cache_key . 'download-url-' . $slug);
 
                 // Store this information for later use
                 $this->updateInfo[$slug] = $updateInfo;
+
+                Debugger::log('UnrePress: Theme update available for ' . $slug);
+                Debugger::log('Current version: ' . $installedVersion);
+                Debugger::log('Latest version: ' . $latestVersion);
             }
         }
     }
 
     private function getInstalledVersion($slug)
     {
-        if (! function_exists('get_plugins')) {
-            require_once ABSPATH . 'wp-admin/includes/plugin.php';
-        }
+        $theme = wp_get_theme($slug);
+        $version = $theme->get('Version');
 
-        $plugins = get_plugins();
-
-        foreach ($plugins as $plugin_file => $plugin_data) {
-            if (strpos($plugin_file, $slug . '/') === 0) {
-                $plugin_data = get_plugin_data(WP_PLUGIN_DIR . '/' . $plugin_file, false, false);
-
-                return $plugin_data['Version'];
-            }
-        }
-
-        return false;
+        return ! empty($version) ? $version : false;
     }
 
     public function requestRemoteInfo($slug = null)
@@ -126,9 +119,8 @@ class UpdatePlugins
         $first_letter = mb_strtolower(mb_substr($slug, 0, 1));
 
         if ($remote === false || ! $this->cache_results) {
-
             $remote = wp_remote_get(
-                UNREPRESS_INDEX . 'plugins/' . $first_letter . '/' . $slug . '.json',
+                UNREPRESS_INDEX . 'themes/' . $first_letter . '/' . $slug . '.json',
                 [
                     'timeout' => 10,
                     'headers' => [
@@ -151,8 +143,13 @@ class UpdatePlugins
 
     public function getInformation($response, $action, $args)
     {
-        // do nothing if you're not getting plugin information right now
-        if ($action !== 'plugin_information') {
+        Debugger::log('UnrePress: getting theme information');
+        Debugger::log($response);
+        Debugger::log($action);
+        Debugger::log($args);
+
+        // do nothing if you're not getting theme information right now
+        if ($action !== 'theme_information') {
             return $response;
         }
 
@@ -187,6 +184,7 @@ class UpdatePlugins
         $response->trunk = $remote->download_url;
         $response->requires_php = $remote->requires_php;
         $response->last_updated = $remote->last_updated;
+        $response->screenshot_url = $remote->screenshot_url;
 
         $response->sections = [
             'description' => $remote->sections->description,
@@ -194,52 +192,56 @@ class UpdatePlugins
             'changelog' => $remote->sections->changelog,
         ];
 
-        if (! empty($remote->banners)) {
-            $response->banners = [
-                'low' => $remote->banners->low,
-                'high' => $remote->banners->high,
-            ];
-        }
-
         return $response;
     }
 
     public function hasUpdate($transient)
     {
-        // If there's no checked plugins, initialize it
         if (! is_object($transient)) {
             $transient = new \stdClass();
         }
 
         if (empty($transient->checked)) {
             $transient->checked = [];
-            // Get all plugins
-            if (! function_exists('get_plugins')) {
-                require_once ABSPATH . 'wp-admin/includes/plugin.php';
+            // Get all themes and their versions
+            $themes = wp_get_themes();
+            foreach ($themes as $slug => $theme) {
+                $transient->checked[$slug] = $theme->get('Version');
             }
-            $plugins = get_plugins();
-            foreach ($plugins as $plugin_file => $plugin_data) {
-                $transient->checked[$plugin_file] = $plugin_data['Version'];
-            }
-            // Now that we've populated checked, run our update check
-            $this->checkforUpdates();
         }
 
-        foreach ($transient->checked as $plugin => $version) {
-            $slug = dirname($plugin);
-            if (isset($this->updateInfo[$slug])) {
-                $updateInfo = $this->updateInfo[$slug];
-                if (version_compare($version, $updateInfo->version, '<')) {
-                    $response = new \stdClass();
-                    $response->slug = $slug;
-                    $response->plugin = $plugin;
-                    $response->new_version = $updateInfo->version;
-                    $response->tested = $updateInfo->tested;
-                    $response->package = $updateInfo->download_link;
+        foreach ($this->updateInfo as $slug => $updateInfo) {
+            if (isset($transient->checked[$slug])) {
+                $currentVersion = $transient->checked[$slug];
+
+                if (
+                    ! empty($currentVersion) && ! empty($updateInfo->version) &&
+                    version_compare($currentVersion, $updateInfo->version, '<')
+                ) {
                     if (! isset($transient->response)) {
                         $transient->response = [];
                     }
-                    $transient->response[$plugin] = $response;
+
+                    // Format response according to WordPress theme update structure
+                    $transient->response[$slug] = [
+                        'theme' => $slug,
+                        'new_version' => $updateInfo->version,
+                        'url' => $updateInfo->theme_uri,
+                        'package' => $updateInfo->download_link,
+                        'requires' => $updateInfo->requires,
+                        'requires_php' => $updateInfo->requires_php,
+                    ];
+
+                    Debugger::log('UnrePress: Adding theme update response for ' . $slug);
+                    Debugger::log($transient->response[$slug]);
+                    if (empty($transient->checked)) {
+                        $transient->checked = [];
+                        // Get all themes and their versions
+                        $themes = wp_get_themes();
+                        foreach ($themes as $slug => $theme) {
+                            $transient->checked[$slug] = $theme->get('Version');
+                        }
+                    }
                 }
             }
         }
@@ -249,11 +251,11 @@ class UpdatePlugins
 
     public function cleanAfterUpdate($upgrader, $options)
     {
-        if ($this->cache_results && $options['action'] === 'update' && $options['type'] === 'plugin') {
-            // Get the updated plugin slug
-            $slug = $options['plugins'][0];
+        if ($this->cache_results && $options['action'] === 'update' && $options['type'] === 'theme') {
+            // Get the updated theme slug
+            $slug = $options['themes'][0];
 
-            // Clean the cache for this plugin
+            // Clean the cache for this theme
             delete_transient($this->cache_key . $slug);
             delete_transient($this->cache_key . 'remote-version-' . $slug);
             delete_transient($this->cache_key . 'download-url-' . $slug);
@@ -263,7 +265,7 @@ class UpdatePlugins
     /**
      * Get the latest available version from the remote tags
      *
-     * @param string $slug Plugin slug
+     * @param string $slug Theme slug
      *
      * @return string|false Version string or false on failure
      */
@@ -274,8 +276,8 @@ class UpdatePlugins
         if ($remoteVersion === false) {
             $first_letter = mb_strtolower(mb_substr($slug, 0, 1));
 
-            // Get plugin info from UnrePress index
-            $remote = wp_remote_get(UNREPRESS_INDEX . 'plugins/' . $first_letter . '/' . $slug . '.json', [
+            // Get theme info from UnrePress index
+            $remote = wp_remote_get(UNREPRESS_INDEX . 'themes/' . $first_letter . '/' . $slug . '.json', [
                 'timeout' => 10,
                 'headers' => [
                     'Accept' => 'application/json',
@@ -336,7 +338,7 @@ class UpdatePlugins
             }
 
             // Get the newest version from tags
-            $latestTag = $tagBody[0];
+            $latestTag = $this->helpers->getNewestVersionFromTags($tagBody);
             $remoteVersion = $latestTag->name;
             $remoteZip = $latestTag->zipball_url;
 
@@ -359,7 +361,7 @@ class UpdatePlugins
      * Deletes all transients used by the updates API.
      *
      * All transients used by the updates API have a name that begins with
-     * UNREPRESS_PREFIX . 'updates_plugin'. This method will delete all
+     * UNREPRESS_PREFIX . 'updates_theme'. This method will delete all
      * transients with names that match this pattern.
      *
      * @since 1.0.0
@@ -368,7 +370,7 @@ class UpdatePlugins
     {
         global $wpdb;
 
-        Debugger::log('UnrePress: deleting all update transients');
+        Debugger::log('UnrePress: deleting all theme update transients');
 
         // Delete both transients and their timeout entries
         $wpdb->query(
@@ -383,7 +385,7 @@ class UpdatePlugins
     }
 
     /**
-     * Fix the source directory name during plugin updates
+     * Fix the source directory name during theme updates
      * This prevents GitHub's repository naming format from being used
      *
      * @param string       $source        File source location
@@ -400,45 +402,30 @@ class UpdatePlugins
             return $source;
         }
 
-        // Check if we're dealing with a plugin update
-        if (! isset($args['plugin'])) {
+        // Check if we're dealing with a theme update
+        if (! isset($args['theme'])) {
             return $source;
         }
 
-        // Get the desired slug based on the plugin file path
-        $plugin_file = $args['plugin'];
-        $desired_slug = dirname($plugin_file); // e.g., 'unrepress'
+        // Get the expected theme slug
+        $slug = $args['theme'];
+        $correct_source = trailingslashit($remote_source) . $slug;
 
-        // Get the current directory name without trailing slash
-        $subdir_name = untrailingslashit(str_replace(trailingslashit($remote_source), '', $source));
-
-        if (empty($subdir_name)) {
+        // If we don't need to fix the source, return original
+        if ($source === $correct_source) {
             return $source;
         }
 
-        // Only rename if the directory name is different from what we want
-        if ($subdir_name !== $desired_slug) {
-            $from_path = untrailingslashit($source);
-            $to_path = trailingslashit($remote_source) . $desired_slug;
+        // Otherwise, rename the source to match the expected theme slug
+        $upgraded = move_dir($source, $correct_source);
 
-            if (true === $wp_filesystem->move($from_path, $to_path)) {
-                return trailingslashit($to_path);
-            }
-
-            return new \WP_Error(
-                'rename_failed',
-                sprintf(
-                    'The plugin package directory "%s" could not be renamed to match the slug "%s"',
-                    $subdir_name,
-                    $desired_slug
-                ),
-                [
-                    'found' => $subdir_name,
-                    'expected' => $desired_slug,
-                ]
-            );
+        if ($upgraded) {
+            return $correct_source;
         }
 
-        return $source;
+        return new \WP_Error(
+            'rename_failed',
+            sprintf('Unable to rename the update to match the expected theme directory: %s', $slug)
+        );
     }
 }

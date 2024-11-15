@@ -75,10 +75,8 @@ class UpdateCore
 
         // Download the update
         $downloadPath = $this->downloadUpdate($downloadUrl);
-        Debugger::log('File path: ' . $downloadPath);
 
         if (is_wp_error($downloadPath) || ! file_exists($downloadPath)) {
-            Debugger::log('Error downloading update: ' . $downloadPath);
             $this->helpers->writeUpdateLog(__('Error downloading update. No URL or Path found.', 'unrepress'));
             $this->helpers->writeUpdateLog(':(');
             $this->updateLock->unlock();
@@ -96,7 +94,6 @@ class UpdateCore
         $this->helpers->writeUpdateLog(__('Expanding update...', 'unrepress'));
 
         if (is_wp_error($unzipfile)) {
-            Debugger::log('Error extracting update: ' . $unzipfile->get_error_message());
             $this->helpers->writeUpdateLog(__('Error expanding update file.', 'unrepress'));
             $this->helpers->writeUpdateLog(':(');
             $this->updateLock->unlock();
@@ -115,12 +112,9 @@ class UpdateCore
             }
         }
 
-        Debugger::log('Temporary core directory: ' . $tempCoreDir);
-
         // Check if we found the directory
         if (empty($tempCoreDir)) {
             // If we didn't find a directory, log an error and return false
-            Debugger::log('Failed to find WordPress core directory in extracted update.');
             $this->helpers->writeUpdateLog(__('Failed to find WordPress core directory in extracted update.', 'unrepress'));
             $this->helpers->writeUpdateLog(':(');
             $this->updateLock->unlock();
@@ -136,9 +130,7 @@ class UpdateCore
         // Can we get a no-content zip somewhere? other than the Ego's site?
         $wpContentDir = $tempCoreDir . '/wp-content';
         if (is_dir($wpContentDir)) {
-            Debugger::log('Removing wp-content directory: ' . $wpContentDir);
             $removeResult = $helpers->removeDirectoryWPFS($wpContentDir);
-            Debugger::log('Remove result: ' . $removeResult);
         }
 
         $this->helpers->writeUpdateLog(__('Copying update files...', 'unrepress'));
@@ -146,21 +138,17 @@ class UpdateCore
         // Apply the update. Copying the files from the temporary directory to the WP root directory
         // Get the WordPress root directory
         $wpRootDir = ABSPATH;
-        Debugger::log('WordPress root directory: ' . $wpRootDir);
 
         // Copy files from temporary directory to WordPress root
         $copyResult = $helpers->copyFilesWPFS($tempCoreDir, $wpRootDir);
-        Debugger::log('Copy result: ' . $copyResult);
 
         $this->helpers->writeUpdateLog(__('Removing old temporary files...', 'unrepress'));
 
         // Clean up, use helpers removeDirectory method
         $removeResult = $helpers->removeDirectoryWPFS($tempCoreDir);
-        Debugger::log('Remove result: ' . $removeResult);
 
         // Remove $downloadPath
         wp_delete_file($downloadPath);
-        Debugger::log('Download path removed: ' . $downloadPath);
 
         // Delete the update lock
         $this->updateLock->unlock();
@@ -187,12 +175,9 @@ class UpdateCore
         // Check if the transient exists
         $cachedVersion = get_transient(self::TRANSIENT_NAME);
         if ($cachedVersion !== false) {
-            Debugger::log("Returning cached version: " . $cachedVersion);
-
             return $cachedVersion;
         }
 
-        Debugger::log("Fetching latest version from " . $this->provider);
         $latestVersion = $updaterProvider->getLatestVersion('WordPress/WordPress');
 
         if ($latestVersion) {
@@ -201,8 +186,6 @@ class UpdateCore
 
             // Save unrepress_last_checked
             update_option(UNREPRESS_PREFIX . 'last_checked', time());
-
-            Debugger::log("Latest version fetched and cached: " . $latestVersion);
         } else {
             Debugger::log("Latest version fetch failed");
         }

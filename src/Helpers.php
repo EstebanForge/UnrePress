@@ -89,6 +89,27 @@ class Helpers
     }
 
     /**
+     * Remove a directory and its contents using WP_Filesystem.
+     *
+     * @param string $directory The directory to remove.
+     *
+     * @return bool True on success, false on failure.
+     */
+    public function removeDirectoryWPFSNew($directory): bool
+    {
+        if (! class_exists('WP_Filesystem')) {
+            require_once(ABSPATH . '/wp-admin/includes/file.php');
+        }
+
+        // Initialize the WP_Filesystem
+        global $wp_filesystem;
+        WP_Filesystem();
+
+        // Use delete() to remove the directory and its contents
+        return $wp_filesystem->delete($directory, true);
+    }
+
+    /**
      * Recursively copies all files and directories from one directory to another.
      *
      * @param string $source Full path to the source directory.
@@ -193,5 +214,137 @@ class Helpers
         }
 
         file_put_contents($updateLogFile, '');
+    }
+
+    /**
+     * Move/rename a directory, using WP_Filesystem.
+     *
+     * @param string $source The source directory to rename.
+     * @param string $destination The new directory name.
+     *
+     * @return bool True on success, false on failure.
+     */
+    public function moveDirectoryWPFS($source, $destination): bool
+    {
+        if (! class_exists('WP_Filesystem')) {
+            require_once(ABSPATH . '/wp-admin/includes/file.php');
+        }
+
+        // Initialize the WP_Filesystem
+        global $wp_filesystem;
+        WP_Filesystem();
+
+        // Use move() to rename the directory
+        return $wp_filesystem->move($source, $destination);
+    }
+
+    /**
+     * Normalize a Github Tags URL, to be used with the Github API.
+     *
+     * @param string $url The URL to normalize.
+     *
+     * @return string The normalized URL.
+     */
+    public function normalizeTagUrl($url)
+    {
+        // Is github.com url?
+        if (! str_contains($url, 'github.com')) {
+            return $url;
+        }
+
+        // Does it has "api." on it?
+        if (str_contains($url, 'api.')) {
+            return $url;
+        }
+
+        return str_replace('github.com', 'api.github.com/repos', $url);
+    }
+
+    /**
+     * Gets the newest version from a list of tags.
+     *
+     * @param array $tags a json body response
+     *
+     * @return object|null The newest version, or null if none was found.
+     */
+    public function getNewestVersionFromTags($tags)
+    {
+        if (empty($tags)) {
+            return null;
+        }
+
+        // First, separate tags into groups (v-prefixed, numeric-only, and others)
+        $v_tags = [];
+        $numeric_tags = [];
+        $other_tags = [];
+
+        foreach ($tags as $tag) {
+            $name = $tag->name;
+
+            // Remove 'v' prefix if it exists for comparison
+            $version = ltrim($name, 'v');
+
+            // Check if the remaining string contains only numbers and dots
+            if (preg_match('/^[\d.]+$/', $version)) {
+                if (strpos($name, 'v') === 0) {
+                    $v_tags[] = [
+                        'tag' => $tag,
+                        'normalized' => $version,
+                    ];
+                } else {
+                    $numeric_tags[] = [
+                        'tag' => $tag,
+                        'normalized' => $version,
+                    ];
+                }
+            } else {
+                $other_tags[] = [
+                    'tag' => $tag,
+                    'normalized' => $version,
+                ];
+            }
+        }
+
+        // Custom version comparison function
+        $version_compare = function ($a, $b) {
+            $a_parts = explode('.', $a['normalized']);
+            $b_parts = explode('.', $b['normalized']);
+
+            // Pad arrays to equal length
+            $max_length = max(count($a_parts), count($b_parts));
+            $a_parts = array_pad($a_parts, $max_length, '0');
+            $b_parts = array_pad($b_parts, $max_length, '0');
+
+            // Compare each part numerically
+            for ($i = 0; $i < $max_length; $i++) {
+                $a_num = intval($a_parts[$i]);
+                $b_num = intval($b_parts[$i]);
+
+                if ($a_num !== $b_num) {
+                    return $b_num - $a_num; // Descending order
+                }
+            }
+
+            return 0;
+        };
+
+        // Sort each group
+        usort($v_tags, $version_compare);
+        usort($numeric_tags, $version_compare);
+        usort($other_tags, $version_compare);
+
+        // Return the highest version in order of preference:
+        // 1. Numeric tags (e.g., "9.4.5")
+        // 2. v-prefixed tags (e.g., "v2.7.7")
+        // 3. Other tags
+        if (! empty($numeric_tags)) {
+            return $numeric_tags[0]['tag'];
+        } elseif (! empty($v_tags)) {
+            return $v_tags[0]['tag'];
+        } elseif (! empty($other_tags)) {
+            return $other_tags[0]['tag'];
+        }
+
+        return null;
     }
 }

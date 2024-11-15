@@ -13,7 +13,8 @@ define('ABSPATH', dirname(dirname(dirname(dirname(__DIR__)))) . '/');
 require_once ABSPATH . 'wp-load.php';
 
 // Load our plugin
-function _manually_load_plugin() {
+function _manually_load_plugin()
+{
     require dirname(__DIR__) . '/unrepress.php';
 }
 

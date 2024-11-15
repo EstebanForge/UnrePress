@@ -4,7 +4,7 @@
  * Plugin Name: UnrePress for WordPress
  * Plugin URI: https://github.com/TCattd/unrepress
  * Description: Liberate WordPress ecosystem. Core, Plugins and Themes updates, directly from their developers. Using git providers like GitHub, BitBucket or GitLab.
- * Version: 0.1.0
+ * Version: 0.1.4
  * Author: Esteban Cuevas
  * Author URI: https://actitud.xyz
  * License: GPL-2.0+
