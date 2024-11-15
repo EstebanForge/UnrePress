@@ -3,21 +3,27 @@
 namespace UnrePress\Updater;
 
 use UnrePress\Helpers;
-use UnrePress\UpdaterProvider\GitHub;
+use UnrePress\Debugger;
 
 class UpdatePlugins
 {
     private $helpers;
+
     private $provider = 'github';
+
     public $version;
+
     public $cache_key;
+
     public $cache_results;
+
+    private $updateInfo = [];
 
     public function __construct()
     {
-        $this->helpers       = new Helpers();
-        $this->version       = '';
-        $this->cache_key     = UNREPRESS_PREFIX . 'updates_plugin_';
+        $this->helpers = new Helpers();
+        $this->version = '';
+        $this->cache_key = UNREPRESS_PREFIX . 'updates_plugin_';
         $this->cache_results = true;
 
         // If force-check=1 and page=unrepress-updates, then empty all update transients
@@ -59,11 +65,15 @@ class UpdatePlugins
     private function checkForPluginUpdate($slug)
     {
         $remoteData = $this->requestRemoteInfo($slug);
-        $currentVersion = $this->getCurrentVersion($slug);
+        $installedVersion = $this->getInstalledVersion($slug);
         $latestVersion = $this->getRemoteVersion($slug);
 
-        if ($remoteData && $currentVersion && $latestVersion) {
-            if (version_compare($currentVersion, $latestVersion, '<')) {
+        //Debugger::log(sprintf('UnrePress: Checking for updates for %s. Installed version: %s. Latest version: %s', $slug, $installedVersion, $latestVersion));
+
+        if ($remoteData && $installedVersion && $latestVersion) {
+            if (version_compare($installedVersion, $latestVersion, '<')) {
+                //Debugger::log('UnrePress: setting update info for ' . $slug);
+
                 $updateInfo = new \stdClass();
 
                 $updateInfo->requires = $remoteData->requires;
@@ -80,7 +90,7 @@ class UpdatePlugins
                 $updateInfo->changelog = $remoteData->sections->changelog;
 
                 $updateInfo->version = $latestVersion;
-                $updateInfo->download_url = $remoteData->download_url;
+                $updateInfo->download_link = get_transient($this->cache_key . 'download-url-' . $slug);
 
                 // Store this information for later use
                 $this->updateInfo[$slug] = $updateInfo;
@@ -88,9 +98,9 @@ class UpdatePlugins
         }
     }
 
-    private function getCurrentVersion($slug)
+    private function getInstalledVersion($slug)
     {
-        if (!function_exists('get_plugins')) {
+        if (! function_exists('get_plugins')) {
             require_once ABSPATH . 'wp-admin/includes/plugin.php';
         }
 
@@ -103,6 +113,7 @@ class UpdatePlugins
                 return $plugin_data['Version'];
             }
         }
+
         return false;
     }
 
@@ -124,8 +135,8 @@ class UpdatePlugins
                 [
                     'timeout' => 10,
                     'headers' => [
-                        'Accept' => 'application/json'
-                    ]
+                        'Accept' => 'application/json',
+                    ],
                 ]
             );
 
@@ -155,46 +166,69 @@ class UpdatePlugins
         // get updates
         $remote = $this->requestRemoteInfo($args->slug);
 
-        if (! $remote) {
+        if (!$remote) {
             return $response;
         }
 
         $response = new \stdClass();
 
-        $response->name           = $remote->name;
-        $response->slug           = $remote->slug;
-        $response->version        = $remote->version;
-        $response->tested         = $remote->tested;
-        $response->requires       = $remote->requires;
-        $response->author         = $remote->author;
+        // Last updated, now
+        $remote->last_updated = time();
+        // Changelog
+        $remote->sections->changelog = $remote->changelog;
+
+        $response->name = $remote->name;
+        $response->slug = $remote->slug;
+        $response->version = $remote->version;
+        $response->tested = $remote->tested;
+        $response->requires = $remote->requires;
+        $response->author = $remote->author;
         $response->author_profile = $remote->author_profile;
-        $response->donate_link    = $remote->donate_link;
-        $response->homepage       = $remote->homepage;
-        $response->download_link  = $remote->download_url;
-        $response->trunk          = $remote->download_url;
-        $response->requires_php   = $remote->requires_php;
-        $response->last_updated   = $remote->last_updated;
+        $response->donate_link = $remote->donate_link;
+        $response->homepage = $remote->homepage;
+        $response->download_link = $remote->download_url;
+        $response->trunk = $remote->download_url;
+        $response->requires_php = $remote->requires_php;
+        $response->last_updated = $remote->last_updated;
 
         $response->sections = [
-            'description'  => $remote->sections->description,
+            'description' => $remote->sections->description,
             'installation' => $remote->sections->installation,
-            'changelog'    => $remote->sections->changelog
+            'changelog' => $remote->sections->changelog,
         ];
 
         if (! empty($remote->banners)) {
             $response->banners = [
-                'low'  => $remote->banners->low,
-                'high' => $remote->banners->high
+                'low' => $remote->banners->low,
+                'high' => $remote->banners->high,
             ];
         }
+
+        //Debugger::log(sprintf('UnrePress: getInformation for %s', $args->slug));
+        //Debugger::log(print_r($response, true));
 
         return $response;
     }
 
     public function hasUpdate($transient)
     {
+        // If there's no checked plugins, initialize it
+        if (!is_object($transient)) {
+            $transient = new \stdClass();
+        }
+
         if (empty($transient->checked)) {
-            return $transient;
+            $transient->checked = [];
+            // Get all plugins
+            if (!function_exists('get_plugins')) {
+                require_once ABSPATH . 'wp-admin/includes/plugin.php';
+            }
+            $plugins = get_plugins();
+            foreach ($plugins as $plugin_file => $plugin_data) {
+                $transient->checked[$plugin_file] = $plugin_data['Version'];
+            }
+            // Now that we've populated checked, run our update check
+            $this->checkforUpdates();
         }
 
         foreach ($transient->checked as $plugin => $version) {
@@ -207,7 +241,10 @@ class UpdatePlugins
                     $response->plugin = $plugin;
                     $response->new_version = $updateInfo->version;
                     $response->tested = $updateInfo->tested;
-                    $response->package = $updateInfo->download_url;
+                    $response->package = $updateInfo->download_link;
+                    if (!isset($transient->response)) {
+                        $transient->response = [];
+                    }
                     $transient->response[$plugin] = $response;
                 }
             }
@@ -222,8 +259,12 @@ class UpdatePlugins
             // Get the updated plugin slug
             $slug = $options['plugins'][0];
 
+            Debugger::log(sprintf('UnrePress: cleanAfterUpdate for %s', $slug));
+
             // Clean the cache for this plugin
             delete_transient($this->cache_key . $slug);
+            delete_transient($this->cache_key . 'remote-version-' . $slug);
+            delete_transient($this->cache_key . 'download-url-' . $slug);
         }
     }
 
@@ -232,56 +273,100 @@ class UpdatePlugins
      *
      * @param string $slug Plugin slug
      *
-     * @return string
+     * @return string|false Version string or false on failure
      */
     private function getRemoteVersion($slug)
     {
         $remoteVersion = get_transient($this->cache_key . 'remote-version-' . $slug);
 
         if ($remoteVersion === false) {
-            $first_letter = substr($slug, 0, 1);
+            $first_letter = mb_strtolower(mb_substr($slug, 0, 1));
 
+            // Get plugin info from UnrePress index
             $remote = wp_remote_get(UNREPRESS_INDEX . 'plugins/' . $first_letter . '/' . $slug . '.json', [
                 'timeout' => 10,
                 'headers' => [
-                    'Accept' => 'application/json'
-                ]
+                    'Accept' => 'application/json',
+                ],
             ]);
 
-            if (is_wp_error($remote) || 200 !== wp_remote_retrieve_response_code($remote) || empty(wp_remote_retrieve_body($remote))) {
+            if (is_wp_error($remote)) {
+                //Debugger::log(sprintf('UnrePress: Error fetching plugin info for %s: %s', $slug, $remote->get_error_message()));
+                return false;
+            }
+
+            if (200 !== wp_remote_retrieve_response_code($remote)) {
+                //Debugger::log(sprintf('UnrePress: Invalid response code %d when fetching plugin info for %s', wp_remote_retrieve_response_code($remote), $slug));
+                return false;
+            }
+
+            if (empty(wp_remote_retrieve_body($remote))) {
+                //Debugger::log(sprintf('UnrePress: Empty response body when fetching plugin info for %s', $slug));
                 return false;
             }
 
             $body = json_decode(wp_remote_retrieve_body($remote));
 
             if (is_wp_error($body)) {
+                //Debugger::log(sprintf('UnrePress: Error decoding plugin info JSON for %s: %s', $slug, $body->get_error_message()));
                 return false;
             }
 
-            $tagUrl = $body->tags;
+            $tagUrl = $body->tags ?? '';
 
             if (empty($tagUrl)) {
+                //Debugger::log(sprintf('UnrePress: No tags URL found for plugin %s', $slug));
                 return false;
             }
 
+            // Get tag information
             $remote = wp_remote_get($tagUrl, [
                 'timeout' => 10,
                 'headers' => [
-                    'Accept' => 'application/json'
-                ]
+                    'Accept' => 'application/json',
+                ],
             ]);
 
-            if(is_wp_error($remote) || 200 !== wp_remote_retrieve_response_code($remote) || empty(wp_remote_retrieve_body($remote))) {
+            if (is_wp_error($remote)) {
+                //Debugger::log(sprintf('UnrePress: Error fetching tag info for %s: %s', $slug, $remote->get_error_message()));
                 return false;
             }
 
-            $body = json_decode(wp_remote_retrieve_body($remote));
+            if (200 !== wp_remote_retrieve_response_code($remote)) {
+                //Debugger::log(sprintf('UnrePress: Invalid response code %d when fetching tag info for %s', wp_remote_retrieve_response_code($remote), $slug));
+                return false;
+            }
 
-            // Get the newest version
-            $remoteVersion = $body[0]->name;
+            if (empty(wp_remote_retrieve_body($remote))) {
+                //Debugger::log(sprintf('UnrePress: Empty response body when fetching tag info for %s', $slug));
+                return false;
+            }
 
+            $tagBody = json_decode(wp_remote_retrieve_body($remote));
+
+            if (! is_array($tagBody) || empty($tagBody)) {
+                //Debugger::log(sprintf('UnrePress: Invalid or empty tags array for plugin %s', $slug));
+                return false;
+            }
+
+            // Get the newest version from tags
+            $latestTag = $tagBody[0];
+            $remoteVersion = $latestTag->name;
+            $remoteZip = $latestTag->zipball_url;
+
+            // Store version and download information
             if ($remoteVersion) {
+                // Clean version number (remove 'v' prefix if present)
+                $remoteVersion = ltrim($remoteVersion, 'v');
+
+                set_transient( $this->cache_key . 'download-url-' . $slug, $remoteZip, DAY_IN_SECONDS );
                 set_transient($this->cache_key . 'remote-version-' . $slug, $remoteVersion, DAY_IN_SECONDS);
+
+                // Log
+                Debugger::log(sprintf('UnrePress: Found version %s for plugin %s', $remoteVersion, $slug));
+            } else {
+                //Debugger::log(sprintf('UnrePress: No version found in latest tag for plugin %s', $slug));
+                return false;
             }
         }
 
@@ -301,6 +386,8 @@ class UpdatePlugins
     {
         // Delete all transients that begins with UNREPRESS_PREFIX . 'updates_plugin'
         global $wpdb;
+
+        Debugger::log('UnrePress: deleting all update transients');
 
         $wpdb->query("DELETE FROM {$wpdb->options} WHERE option_name LIKE '" . $this->cache_key . "%'");
     }
