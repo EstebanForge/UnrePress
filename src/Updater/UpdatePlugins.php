@@ -37,7 +37,7 @@ class UpdatePlugins
         add_filter('site_transient_update_plugins', [$this, 'hasUpdate']);
         add_action('upgrader_process_complete', [$this, 'cleanAfterUpdate'], 10, 2);
         // Add filter to handle GitHub folder renaming
-        add_filter('upgrader_source_selection', [$this, 'fixSourceDir'], 10, 4);
+        add_filter('upgrader_source_selection', [$this, 'maybeFixSourceDir'], 10, 4);
     }
 
     /**
@@ -410,11 +410,17 @@ class UpdatePlugins
      * @param string       $remote_source Remote file source location
      * @param WP_Upgrader $upgrader      WordPress Upgrader instance
      * @param array       $args          Extra arguments passed to hooked filters
-     * @return string
+     * @return string|WP_Error
      */
-    public function fixSourceDir($source, $remote_source, $upgrader, $args)
+    public function maybeFixSourceDir($source, $remote_source, $upgrader, $args)
     {
-        Debugger::log('UnrePress: fixSourceDir called');
+        global $wp_filesystem;
+
+        if (! is_object($wp_filesystem)) {
+            return $source;
+        }
+
+        Debugger::log('UnrePress: maybeFixSourceDir called');
         Debugger::log('Source: ' . $source);
         Debugger::log('Remote Source: ' . $remote_source);
         Debugger::log('Args: ' . print_r($args, true));
@@ -424,102 +430,50 @@ class UpdatePlugins
             return $source;
         }
 
-        // Get the plugin file path from args (e.g., 'unrepress/unrepress.php')
+        // Get the desired slug based on the plugin file path
         $plugin_file = $args['plugin'];
-        $plugin_slug = dirname($plugin_file); // e.g., 'unrepress'
-        $main_file = basename($plugin_file); // e.g., 'unrepress.php'
-        $destinationPath = $args['temp_backup']['src'];
+        $desired_slug = dirname($plugin_file); // e.g., 'unrepress'
 
         Debugger::log('Plugin File: ' . $plugin_file);
-        Debugger::log('Plugin Slug: ' . $plugin_slug);
-        Debugger::log('Main File: ' . $main_file);
-        Debugger::log('Destination Path: ' . $destinationPath);
+        Debugger::log('Desired slug: ' . $desired_slug);
 
-        // First, check if the plugin file exists in the root of the extracted directory
-        $root_plugin_path = rtrim($source, '/') . '/' . $main_file;
-        Debugger::log('Checking root for plugin file: ' . $root_plugin_path);
+        // Get the current directory name without trailing slash
+        $subdir_name = untrailingslashit(str_replace(trailingslashit($remote_source), '', $source));
 
-        // Get the upgrade directory (parent of version-specific directory)
-        $upgrade_dir = dirname($remote_source);
-        $final_source = $upgrade_dir . '/' . $plugin_slug;
-
-        Debugger::log('Upgrade Directory: ' . $upgrade_dir);
-        Debugger::log('Final Source: ' . $final_source);
-
-        if (file_exists($root_plugin_path)) {
-            Debugger::log('Found plugin file in root directory');
-
-            // Remove target if it exists
-            if (is_dir($final_source)) {
-                Debugger::log('Removing existing target directory: ' . $final_source);
-                $this->helpers->removeDirectoryWPFS($final_source);
-            }
-
-            // Rename directory directly to final location
-            if ($this->helpers->renameDirectoryWPFS($source, $final_source)) {
-                // Clean up version-specific directory
-                if (is_dir($remote_source)) {
-                    Debugger::log('Cleaning up version directory: ' . $remote_source);
-                    $this->helpers->removeDirectoryWPFS($remote_source);
-                }
-                Debugger::log('Successfully moved plugin to: ' . $final_source);
-                return $final_source;
-            }
+        if (empty($subdir_name)) {
+            Debugger::log('Subdirectory name is empty');
+            return $source;
         }
 
-        // If not in root, check immediate subdirectories
-        $subdirs = glob(rtrim($source, '/') . '/*', GLOB_ONLYDIR);
-        Debugger::log('Checking subdirectories: ' . print_r($subdirs, true));
+        Debugger::log('Current subdirectory name: ' . $subdir_name);
 
-        foreach ($subdirs as $dir) {
-            $dir = rtrim($dir, '/');
-            $test_plugin_path = $dir . '/' . $main_file;
-            Debugger::log('Checking subdirectory for plugin file: ' . $test_plugin_path);
+        // Only rename if the directory name is different from what we want
+        if ($subdir_name !== $desired_slug) {
+            $from_path = untrailingslashit($source);
+            $to_path = trailingslashit($remote_source) . $desired_slug;
 
-            if (file_exists($test_plugin_path)) {
-                Debugger::log('Found plugin file in subdirectory: ' . $dir);
+            Debugger::log('Attempting to rename from: ' . $from_path . ' to: ' . $to_path);
 
-                // Remove target if it exists
-                if (is_dir($final_source)) {
-                    Debugger::log('Removing existing target directory: ' . $final_source);
-                    $this->helpers->removeDirectoryWPFS($final_source);
-                }
-
-                // Create temp directory for the move
-                $temp_dir = $upgrade_dir . '/' . $plugin_slug . '_temp';
-                if (is_dir($temp_dir)) {
-                    Debugger::log('Removing existing temp directory: ' . $temp_dir);
-                    $this->helpers->removeDirectoryWPFS($temp_dir);
-                }
-
-                // Move the correct directory to temp location
-                if ($this->helpers->renameDirectoryWPFS($dir, $temp_dir)) {
-                    // Remove the original source and version-specific directories
-                    $this->helpers->removeDirectoryWPFS($source);
-                    if (is_dir($remote_source)) {
-                        $this->helpers->removeDirectoryWPFS($remote_source);
-                    }
-
-                    // Move from temp to final location
-                    if ($this->helpers->renameDirectoryWPFS($temp_dir, $final_source)) {
-                        Debugger::log('Successfully moved plugin to: ' . $final_source);
-                        return $final_source;
-                    }
-
-                    // If final move failed, clean up temp directory
-                    if (is_dir($temp_dir)) {
-                        $this->helpers->removeDirectoryWPFS($temp_dir);
-                    }
-                }
-
-                // If we get here, something went wrong with the moves
-                Debugger::log('Failed to move plugin directory to correct location');
-                return $source;
+            if (true === $wp_filesystem->move($from_path, $to_path)) {
+                Debugger::log('Successfully renamed directory');
+                return trailingslashit($to_path);
             }
+
+            Debugger::log('Failed to rename directory');
+            return new \WP_Error(
+                'rename_failed',
+                sprintf(
+                    'The plugin package directory "%s" could not be renamed to match the slug "%s"',
+                    $subdir_name,
+                    $desired_slug
+                ),
+                array(
+                    'found'    => $subdir_name,
+                    'expected' => $desired_slug
+                )
+            );
         }
 
-        // If we get here, we couldn't find the plugin file anywhere
-        Debugger::log('Could not find plugin file in root or subdirectories');
         return $source;
     }
 }

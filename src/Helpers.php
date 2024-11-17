@@ -217,14 +217,14 @@ class Helpers
     }
 
     /**
-     * Rename a directory, using WP_Filesystem.
+     * Move/rename a directory, using WP_Filesystem.
      *
      * @param string $source The source directory to rename.
      * @param string $destination The new directory name.
      *
      * @return bool True on success, false on failure.
      */
-    public function renameDirectoryWPFS($source, $destination): bool
+    public function moveDirectoryWPFS($source, $destination): bool
     {
         if (! class_exists('WP_Filesystem')) {
             require_once(ABSPATH . '/wp-admin/includes/file.php');
