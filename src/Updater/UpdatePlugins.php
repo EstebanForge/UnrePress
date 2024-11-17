@@ -2,8 +2,8 @@
 
 namespace UnrePress\Updater;
 
-use UnrePress\Helpers;
 use UnrePress\Debugger;
+use UnrePress\Helpers;
 
 class UpdatePlugins
 {
@@ -163,7 +163,7 @@ class UpdatePlugins
         // get updates
         $remote = $this->requestRemoteInfo($args->slug);
 
-        if (!$remote) {
+        if (! $remote) {
             return $response;
         }
 
@@ -207,14 +207,14 @@ class UpdatePlugins
     public function hasUpdate($transient)
     {
         // If there's no checked plugins, initialize it
-        if (!is_object($transient)) {
+        if (! is_object($transient)) {
             $transient = new \stdClass();
         }
 
         if (empty($transient->checked)) {
             $transient->checked = [];
             // Get all plugins
-            if (!function_exists('get_plugins')) {
+            if (! function_exists('get_plugins')) {
                 require_once ABSPATH . 'wp-admin/includes/plugin.php';
             }
             $plugins = get_plugins();
@@ -236,7 +236,7 @@ class UpdatePlugins
                     $response->new_version = $updateInfo->version;
                     $response->tested = $updateInfo->tested;
                     $response->package = $updateInfo->download_link;
-                    if (!isset($transient->response)) {
+                    if (! isset($transient->response)) {
                         $transient->response = [];
                     }
                     $transient->response[$plugin] = $response;
@@ -305,6 +305,9 @@ class UpdatePlugins
             if (empty($tagUrl)) {
                 return false;
             }
+
+            // Normalize tag URL
+            $tagUrl = $this->helpers->normalizeTagUrl($tagUrl);
 
             // Get tag information
             $remote = wp_remote_get($tagUrl, [
@@ -398,7 +401,7 @@ class UpdatePlugins
         }
 
         // Check if we're dealing with a plugin update
-        if (!isset($args['plugin'])) {
+        if (! isset($args['plugin'])) {
             return $source;
         }
 
@@ -429,10 +432,10 @@ class UpdatePlugins
                     $subdir_name,
                     $desired_slug
                 ),
-                array(
-                    'found'    => $subdir_name,
-                    'expected' => $desired_slug
-                )
+                [
+                    'found' => $subdir_name,
+                    'expected' => $desired_slug,
+                ]
             );
         }
 

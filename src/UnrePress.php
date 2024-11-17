@@ -4,9 +4,7 @@ namespace UnrePress;
 
 class UnrePress
 {
-    public function __construct()
-    {
-    }
+    public function __construct() {}
 
     public function run(): void
     {
@@ -24,6 +22,7 @@ class UnrePress
         $indexPlugins = new Index\PluginsIndex();
         $indexThemes = new Index\ThemesIndex();
 
-        $updatePlugins = new Updater\UpdatePlugins();
+        $updaterPlugins = new Updater\UpdatePlugins();
+        $updaterThemes = new Updater\UpdateThemes();
     }
 }

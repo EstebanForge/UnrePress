@@ -237,4 +237,26 @@ class Helpers
         // Use move() to rename the directory
         return $wp_filesystem->move($source, $destination);
     }
+
+    /**
+     * Normalize a Github Tags URL, to be used with the Github API.
+     *
+     * @param string $url The URL to normalize.
+     *
+     * @return string The normalized URL.
+     */
+    public function normalizeTagUrl($url)
+    {
+        // Is github.com url?
+        if (!str_contains($url, 'github.com')) {
+            return $url;
+        }
+
+        // Does it has "api." on it?
+        if (str_contains($url, 'api.')) {
+            return $url;
+        }
+
+        return str_replace('github.com', 'api.github.com/repos', $url);
+    }
 }

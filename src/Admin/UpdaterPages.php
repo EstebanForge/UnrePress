@@ -152,6 +152,10 @@ class UpdaterPages
         $wpLatestVersion = new UpdateCore();
         $wpLatestVersion = $wpLatestVersion->getLatestCoreVersion();
 
+        if (empty($wpLatestVersion)) {
+            $wpLatestVersion = 'Unknown';
+        }
+
         $wpLastChecked = get_option('unrepress_last_checked', time());
         // Format it to human readable time: YYYY-MM-DD HH:MM AM/PM
         $wpLastChecked = date('Y-m-d - H:i A', $wpLastChecked);
