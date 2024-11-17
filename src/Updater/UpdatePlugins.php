@@ -36,7 +36,6 @@ class UpdatePlugins
         add_filter('plugins_api', [$this, 'getInformation'], 20, 3);
         add_filter('site_transient_update_plugins', [$this, 'hasUpdate']);
         add_action('upgrader_process_complete', [$this, 'cleanAfterUpdate'], 10, 2);
-        // Add filter to handle GitHub folder renaming
         add_filter('upgrader_source_selection', [$this, 'maybeFixSourceDir'], 10, 4);
     }
 
@@ -70,12 +69,8 @@ class UpdatePlugins
         $installedVersion = $this->getInstalledVersion($slug);
         $latestVersion = $this->getRemoteVersion($slug);
 
-        //Debugger::log(sprintf('UnrePress: Checking for updates for %s. Installed version: %s. Latest version: %s', $slug, $installedVersion, $latestVersion));
-
         if ($remoteData && $installedVersion && $latestVersion) {
             if (version_compare($installedVersion, $latestVersion, '<')) {
-                //Debugger::log('UnrePress: setting update info for ' . $slug);
-
                 $updateInfo = new \stdClass();
 
                 $updateInfo->requires = $remoteData->requires;
@@ -206,9 +201,6 @@ class UpdatePlugins
             ];
         }
 
-        //Debugger::log(sprintf('UnrePress: getInformation for %s', $args->slug));
-        //Debugger::log(print_r($response, true));
-
         return $response;
     }
 
@@ -261,8 +253,6 @@ class UpdatePlugins
             // Get the updated plugin slug
             $slug = $options['plugins'][0];
 
-            Debugger::log(sprintf('UnrePress: cleanAfterUpdate for %s', $slug));
-
             // Clean the cache for this plugin
             delete_transient($this->cache_key . $slug);
             delete_transient($this->cache_key . 'remote-version-' . $slug);
@@ -293,31 +283,26 @@ class UpdatePlugins
             ]);
 
             if (is_wp_error($remote)) {
-                //Debugger::log(sprintf('UnrePress: Error fetching plugin info for %s: %s', $slug, $remote->get_error_message()));
                 return false;
             }
 
             if (200 !== wp_remote_retrieve_response_code($remote)) {
-                //Debugger::log(sprintf('UnrePress: Invalid response code %d when fetching plugin info for %s', wp_remote_retrieve_response_code($remote), $slug));
                 return false;
             }
 
             if (empty(wp_remote_retrieve_body($remote))) {
-                //Debugger::log(sprintf('UnrePress: Empty response body when fetching plugin info for %s', $slug));
                 return false;
             }
 
             $body = json_decode(wp_remote_retrieve_body($remote));
 
             if (is_wp_error($body)) {
-                //Debugger::log(sprintf('UnrePress: Error decoding plugin info JSON for %s: %s', $slug, $body->get_error_message()));
                 return false;
             }
 
             $tagUrl = $body->tags ?? '';
 
             if (empty($tagUrl)) {
-                //Debugger::log(sprintf('UnrePress: No tags URL found for plugin %s', $slug));
                 return false;
             }
 
@@ -330,24 +315,20 @@ class UpdatePlugins
             ]);
 
             if (is_wp_error($remote)) {
-                //Debugger::log(sprintf('UnrePress: Error fetching tag info for %s: %s', $slug, $remote->get_error_message()));
                 return false;
             }
 
             if (200 !== wp_remote_retrieve_response_code($remote)) {
-                //Debugger::log(sprintf('UnrePress: Invalid response code %d when fetching tag info for %s', wp_remote_retrieve_response_code($remote), $slug));
                 return false;
             }
 
             if (empty(wp_remote_retrieve_body($remote))) {
-                //Debugger::log(sprintf('UnrePress: Empty response body when fetching tag info for %s', $slug));
                 return false;
             }
 
             $tagBody = json_decode(wp_remote_retrieve_body($remote));
 
             if (! is_array($tagBody) || empty($tagBody)) {
-                //Debugger::log(sprintf('UnrePress: Invalid or empty tags array for plugin %s', $slug));
                 return false;
             }
 
@@ -363,11 +344,7 @@ class UpdatePlugins
 
                 set_transient($this->cache_key . 'download-url-' . $slug, $remoteZip, DAY_IN_SECONDS);
                 set_transient($this->cache_key . 'remote-version-' . $slug, $remoteVersion, DAY_IN_SECONDS);
-
-                // Log
-                Debugger::log(sprintf('UnrePress: Found version %s for plugin %s', $remoteVersion, $slug));
             } else {
-                //Debugger::log(sprintf('UnrePress: No version found in latest tag for plugin %s', $slug));
                 return false;
             }
         }
@@ -420,11 +397,6 @@ class UpdatePlugins
             return $source;
         }
 
-        Debugger::log('UnrePress: maybeFixSourceDir called');
-        Debugger::log('Source: ' . $source);
-        Debugger::log('Remote Source: ' . $remote_source);
-        Debugger::log('Args: ' . print_r($args, true));
-
         // Check if we're dealing with a plugin update
         if (!isset($args['plugin'])) {
             return $source;
@@ -434,32 +406,22 @@ class UpdatePlugins
         $plugin_file = $args['plugin'];
         $desired_slug = dirname($plugin_file); // e.g., 'unrepress'
 
-        Debugger::log('Plugin File: ' . $plugin_file);
-        Debugger::log('Desired slug: ' . $desired_slug);
-
         // Get the current directory name without trailing slash
         $subdir_name = untrailingslashit(str_replace(trailingslashit($remote_source), '', $source));
 
         if (empty($subdir_name)) {
-            Debugger::log('Subdirectory name is empty');
             return $source;
         }
-
-        Debugger::log('Current subdirectory name: ' . $subdir_name);
 
         // Only rename if the directory name is different from what we want
         if ($subdir_name !== $desired_slug) {
             $from_path = untrailingslashit($source);
             $to_path = trailingslashit($remote_source) . $desired_slug;
 
-            Debugger::log('Attempting to rename from: ' . $from_path . ' to: ' . $to_path);
-
             if (true === $wp_filesystem->move($from_path, $to_path)) {
-                Debugger::log('Successfully renamed directory');
                 return trailingslashit($to_path);
             }
 
-            Debugger::log('Failed to rename directory');
             return new \WP_Error(
                 'rename_failed',
                 sprintf(
