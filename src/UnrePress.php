@@ -4,7 +4,9 @@ namespace UnrePress;
 
 class UnrePress
 {
-    public function __construct() {}
+    public function __construct()
+    {
+    }
 
     public function run(): void
     {

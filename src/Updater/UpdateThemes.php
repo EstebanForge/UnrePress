@@ -103,7 +103,8 @@ class UpdateThemes
     {
         $theme = wp_get_theme($slug);
         $version = $theme->get('Version');
-        return !empty($version) ? $version : false;
+
+        return ! empty($version) ? $version : false;
     }
 
     public function requestRemoteInfo($slug = null)
@@ -213,8 +214,10 @@ class UpdateThemes
             if (isset($transient->checked[$slug])) {
                 $currentVersion = $transient->checked[$slug];
 
-                if (!empty($currentVersion) && !empty($updateInfo->version) &&
-                    version_compare($currentVersion, $updateInfo->version, '<')) {
+                if (
+                    ! empty($currentVersion) && ! empty($updateInfo->version) &&
+                    version_compare($currentVersion, $updateInfo->version, '<')
+                ) {
                     if (! isset($transient->response)) {
                         $transient->response = [];
                     }
@@ -231,14 +234,15 @@ class UpdateThemes
 
                     Debugger::log('UnrePress: Adding theme update response for ' . $slug);
                     Debugger::log($transient->response[$slug]);
-if (empty($transient->checked)) {
-    $transient->checked = [];
-    // Get all themes and their versions
-    $themes = wp_get_themes();
-    foreach ($themes as $slug => $theme) {
-        $transient->checked[$slug] = $theme->get('Version');
-    }
-}                }
+                    if (empty($transient->checked)) {
+                        $transient->checked = [];
+                        // Get all themes and their versions
+                        $themes = wp_get_themes();
+                        foreach ($themes as $slug => $theme) {
+                            $transient->checked[$slug] = $theme->get('Version');
+                        }
+                    }
+                }
             }
         }
 
@@ -334,7 +338,7 @@ if (empty($transient->checked)) {
             }
 
             // Get the newest version from tags
-            $latestTag = $tagBody[0];
+            $latestTag = $this->helpers->getNewestVersionFromTags($tagBody);
             $remoteVersion = $latestTag->name;
             $remoteZip = $latestTag->zipball_url;
 
