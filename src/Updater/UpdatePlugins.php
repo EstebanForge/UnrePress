@@ -336,7 +336,12 @@ class UpdatePlugins
             }
 
             // Get the newest version from tags
-            $latestTag = $tagBody[0];
+            $latestTag = $this->helpers->getNewestVersionFromTags($tagBody);
+
+            if (! $latestTag) {
+                return false;
+            }
+
             $remoteVersion = $latestTag->name;
             $remoteZip = $latestTag->zipball_url;
 
