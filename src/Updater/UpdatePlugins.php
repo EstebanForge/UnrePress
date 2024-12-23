@@ -424,51 +424,10 @@ class UpdatePlugins
      */
     public function maybeFixSourceDir($source, $remote_source, $upgrader, $args)
     {
-        global $wp_filesystem;
-
-        if (! is_object($wp_filesystem)) {
+        if (!isset($args['plugin'])) {
             return $source;
         }
 
-        // Check if we're dealing with a plugin update
-        if (! isset($args['plugin'])) {
-            return $source;
-        }
-
-        // Get the desired slug based on the plugin file path
-        $plugin_file = $args['plugin'];
-        $desired_slug = dirname($plugin_file); // e.g., 'unrepress'
-
-        // Get the current directory name without trailing slash
-        $subdir_name = untrailingslashit(str_replace(trailingslashit($remote_source), '', $source));
-
-        if (empty($subdir_name)) {
-            return $source;
-        }
-
-        // Only rename if the directory name is different from what we want
-        if ($subdir_name !== $desired_slug) {
-            $from_path = untrailingslashit($source);
-            $to_path = trailingslashit($remote_source) . $desired_slug;
-
-            if (true === $wp_filesystem->move($from_path, $to_path)) {
-                return trailingslashit($to_path);
-            }
-
-            return new \WP_Error(
-                'rename_failed',
-                sprintf(
-                    'The plugin package directory "%s" could not be renamed to match the slug "%s"',
-                    $subdir_name,
-                    $desired_slug
-                ),
-                [
-                    'found' => $subdir_name,
-                    'expected' => $desired_slug,
-                ]
-            );
-        }
-
-        return $source;
+        return $this->helpers->fixSourceDir($source, $remote_source, $args['plugin'], 'plugin');
     }
 }

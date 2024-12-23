@@ -405,47 +405,14 @@ class UpdateThemes
     }
 
     /**
-     * Fix the source directory name during theme updates
-     * This prevents GitHub's repository naming format from being used
-     *
-     * @param string       $source        File source location
-     * @param string       $remote_source Remote file source location
-     * @param WP_Upgrader $upgrader      WordPress Upgrader instance
-     * @param array       $args          Extra arguments passed to hooked filters
-     * @return string|WP_Error
+     * Fix source directory for GitHub theme updates
      */
     public function maybeFixSourceDir($source, $remote_source, $upgrader, $args)
     {
-        global $wp_filesystem;
-
-        if (! is_object($wp_filesystem)) {
-            return $source;
-        }
-
-        // Check if we're dealing with a theme update
         if (! isset($args['theme'])) {
             return $source;
         }
 
-        // Get the expected theme slug
-        $slug = $args['theme'];
-        $correct_source = trailingslashit($remote_source) . $slug;
-
-        // If we don't need to fix the source, return original
-        if ($source === $correct_source) {
-            return $source;
-        }
-
-        // Otherwise, rename the source to match the expected theme slug
-        $upgraded = move_dir($source, $correct_source);
-
-        if ($upgraded) {
-            return $correct_source;
-        }
-
-        return new \WP_Error(
-            'rename_failed',
-            sprintf('Unable to rename the update to match the expected theme directory: %s', $slug)
-        );
+        return Helpers::fixSourceDir($source, $remote_source, $args['theme'], 'theme');
     }
 }
