@@ -31,11 +31,11 @@ defined('ABSPATH') or die();
                 echo wp_kses(
                     sprintf(
                         __('If you are not redirected automatically, please <a href="%s">click here</a>.', 'unrepress'),
-                        esc_url(admin_url('index.php?page=unrepress-updater'))
+                        esc_url(admin_url('about.php?updated'))
                     ),
                     ['a' => ['href' => []]]
                 );
-                ?>
+?>
             </p>
         </div>
     </section>

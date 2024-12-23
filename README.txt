@@ -1,5 +1,5 @@
 === API for HTMX ===
-Contributors: tcattd
+Contributors: tcattd, estebanforge
 Tags: updates, wordpress
 Stable tag: 1.0.0
 Requires at least: 6.5
@@ -20,13 +20,13 @@ Check README.md
 
 == Frequently Asked Questions ==
 = Where is the FAQ? =
-You can [read the full FAQ at GitHub](https://github.com/TCattd/UnrePress/blob/main/FAQ.md).
+You can [read the full FAQ at GitHub](https://github.com/EstebanForge/UnrePress/blob/main/FAQ.md).
 
 = Suggestions, Support? =
-Please, open [a discussion](https://github.com/TCattd/UnrePress/discussions).
+Please, open [a discussion](https://github.com/EstebanForge/UnrePress/discussions).
 
 = Found a Bug or Error? =
-Please, open [an issue](https://github.com/TCattd/UnrePress/issues).
+Please, open [an issue](https://github.com/EstebanForge/UnrePress/issues).
 
 == Screenshots ==
 1. Main Updates page, core update pending.
@@ -38,4 +38,4 @@ Please, open [an issue](https://github.com/TCattd/UnrePress/issues).
 Nothing to see here.
 
 == Changelog ==
-[Check the changelog at GitHub](https://github.com/TCattd/UnrePress/blob/master/CHANGELOG.md).
+[Check the changelog at GitHub](https://github.com/EstebanForge/UnrePress/blob/master/CHANGELOG.md).

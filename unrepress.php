@@ -2,9 +2,9 @@
 
 /**
  * Plugin Name: UnrePress for WordPress
- * Plugin URI: https://github.com/TCattd/unrepress
+ * Plugin URI: https://github.com/EstebanForge/unrepress
  * Description: Liberate WordPress ecosystem. Core, Plugins and Themes updates, directly from their developers. Using git providers like GitHub, BitBucket or GitLab.
- * Version: 0.1.4
+ * Version: 0.1.3
  * Author: Esteban Cuevas
  * Author URI: https://actitud.xyz
  * License: GPL-2.0+
@@ -23,7 +23,7 @@ define('UNREPRESS_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('UNREPRESS_BLOCKED_HOSTS', 'api.wordpress.org,*.wordpress.org,*.wordpress.com');
 define('UNREPRESS_PREFIX', 'unrepress_');
 define('UNREPRESS_TEMP_PATH', WP_CONTENT_DIR . '/upgrade/');
-define('UNREPRESS_INDEX', 'https://raw.githubusercontent.com/tcattd/unrepress-index/main/');
+define('UNREPRESS_INDEX', 'https://raw.githubusercontent.com/estebanforge/unrepress-index/main/');
 
 // Define transient expiration time (60 minutes by default)
 if (! defined('UNREPRESS_TRANSIENT_EXPIRATION')) {

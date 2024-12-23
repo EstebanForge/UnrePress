@@ -214,10 +214,8 @@ class UpdateThemes
             if (isset($transient->checked[$slug])) {
                 $currentVersion = $transient->checked[$slug];
 
-                if (
-                    ! empty($currentVersion) && ! empty($updateInfo->version) &&
-                    version_compare($currentVersion, $updateInfo->version, '<')
-                ) {
+                if (! empty($currentVersion) && ! empty($updateInfo->version) &&
+                    version_compare($currentVersion, $updateInfo->version, '<')) {
                     if (! isset($transient->response)) {
                         $transient->response = [];
                     }
