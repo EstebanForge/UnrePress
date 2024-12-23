@@ -31,6 +31,8 @@ class UpdatePlugins
             $this->deleteAllUpdateTransients();
         }
 
+        Debugger::log('UnrePress: checking for plugin updates');
+
         $this->checkforUpdates();
 
         add_filter('plugins_api', [$this, 'getInformation'], 20, 3);
@@ -66,8 +68,20 @@ class UpdatePlugins
     private function checkForPluginUpdate($slug)
     {
         $remoteData = $this->requestRemoteInfo($slug);
+        
+        // If we can't get plugin info, skip this plugin
+        if (!$remoteData) {
+            Debugger::log("UnrePress: Skipping plugin update check for {$slug} - no remote info available");
+            return;
+        }
+        
         $installedVersion = $this->getInstalledVersion($slug);
         $latestVersion = $this->getRemoteVersion($slug);
+
+        Debugger::log('UnrePress: checking for plugin updates for ' . $slug);
+        Debugger::log($remoteData);
+        Debugger::log($installedVersion);
+        Debugger::log($latestVersion);
 
         if ($remoteData && $installedVersion && $latestVersion) {
             if (version_compare($installedVersion, $latestVersion, '<')) {
@@ -114,39 +128,38 @@ class UpdatePlugins
         return false;
     }
 
-    public function requestRemoteInfo($slug = null)
+    public function requestRemoteInfo($slug)
     {
-        if (! $slug) {
+        // Convert slug to lowercase for URL construction
+        $slug = strtolower($slug);
+        $url = "https://raw.githubusercontent.com/estebanforge/unrepress-index/main/plugins/" . substr($slug, 0, 1) . "/{$slug}.json";
+        Debugger::log("UnrePress: requesting remote info for {$slug} from URL: {$url}");
+
+        $response = wp_remote_get($url);
+
+        if (is_wp_error($response)) {
+            Debugger::log("UnrePress: Error getting plugin info: " . $response->get_error_message());
             return false;
         }
 
-        $remote = get_transient($this->cache_key . $slug);
-
-        // Get the first letter of the slug
-        $first_letter = mb_strtolower(mb_substr($slug, 0, 1));
-
-        if ($remote === false || ! $this->cache_results) {
-
-            $remote = wp_remote_get(
-                UNREPRESS_INDEX . 'plugins/' . $first_letter . '/' . $slug . '.json',
-                [
-                    'timeout' => 10,
-                    'headers' => [
-                        'Accept' => 'application/json',
-                    ],
-                ]
-            );
-
-            if (is_wp_error($remote) || 200 !== wp_remote_retrieve_response_code($remote) || empty(wp_remote_retrieve_body($remote))) {
-                return false;
-            }
-
-            set_transient($this->cache_key . $slug, $remote, DAY_IN_SECONDS);
+        $responseCode = wp_remote_retrieve_response_code($response);
+        if ($responseCode !== 200) {
+            Debugger::log("UnrePress: Non-200 response getting plugin info: {$responseCode} for URL: {$url}");
+            return false;
         }
 
-        $remote = json_decode(wp_remote_retrieve_body($remote));
+        $body = wp_remote_retrieve_body($response);
+        // Remove any trailing commas before the closing brace or bracket
+        $body = preg_replace('/,(\s*[\]}])/m', '$1', $body);
+        
+        $data = json_decode($body);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            Debugger::log("UnrePress: JSON decode error: " . json_last_error_msg());
+            Debugger::log("UnrePress: Response body: " . $body);
+            return false;
+        }
 
-        return $remote;
+        return $data;
     }
 
     public function getInformation($response, $action, $args)
@@ -271,7 +284,7 @@ class UpdatePlugins
     {
         $remoteVersion = get_transient($this->cache_key . 'remote-version-' . $slug);
 
-        if ($remoteVersion === false) {
+        if ($remoteVersion === false || !$this->cache_results) {
             $first_letter = mb_strtolower(mb_substr($slug, 0, 1));
 
             // Get plugin info from UnrePress index
@@ -283,33 +296,37 @@ class UpdatePlugins
             ]);
 
             if (is_wp_error($remote)) {
+                Debugger::log('UnrePress: Error getting plugin info: ' . $remote->get_error_message());
                 return false;
             }
 
             if (200 !== wp_remote_retrieve_response_code($remote)) {
+                Debugger::log('UnrePress: Non-200 response getting plugin info: ' . wp_remote_retrieve_response_code($remote));
                 return false;
             }
 
-            if (empty(wp_remote_retrieve_body($remote))) {
+            $body = wp_remote_retrieve_body($remote);
+            if (empty($body)) {
+                Debugger::log('UnrePress: Empty response body getting plugin info');
                 return false;
             }
 
-            $body = json_decode(wp_remote_retrieve_body($remote));
-
-            if (is_wp_error($body)) {
+            $pluginInfo = json_decode($body);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                Debugger::log('UnrePress: JSON decode error for plugin info: ' . json_last_error_msg());
+                Debugger::log('UnrePress: Response body: ' . $body);
                 return false;
             }
 
-            $tagUrl = $body->tags ?? '';
-
+            // Get tag information from GitHub
+            $tagUrl = $pluginInfo->tags ?? '';
             if (empty($tagUrl)) {
+                Debugger::log('UnrePress: No tags URL found in plugin info');
                 return false;
             }
 
-            // Normalize tag URL
-            $tagUrl = $this->helpers->normalizeTagUrl($tagUrl);
-
-            // Get tag information
+            Debugger::log('UnrePress: Getting tags from: ' . $tagUrl);
+            
             $remote = wp_remote_get($tagUrl, [
                 'timeout' => 10,
                 'headers' => [
@@ -318,43 +335,53 @@ class UpdatePlugins
             ]);
 
             if (is_wp_error($remote)) {
+                Debugger::log('UnrePress: Error getting tags: ' . $remote->get_error_message());
                 return false;
             }
 
             if (200 !== wp_remote_retrieve_response_code($remote)) {
+                Debugger::log('UnrePress: Non-200 response getting tags: ' . wp_remote_retrieve_response_code($remote));
                 return false;
             }
 
-            if (empty(wp_remote_retrieve_body($remote))) {
+            $tagBody = wp_remote_retrieve_body($remote);
+            if (empty($tagBody)) {
+                Debugger::log('UnrePress: Empty response body getting tags');
                 return false;
             }
 
-            $tagBody = json_decode(wp_remote_retrieve_body($remote));
+            $tags = json_decode($tagBody);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                Debugger::log('UnrePress: JSON decode error for tags: ' . json_last_error_msg());
+                Debugger::log('UnrePress: Tags response body: ' . $tagBody);
+                return false;
+            }
 
-            if (! is_array($tagBody) || empty($tagBody)) {
+            if (!is_array($tags) || empty($tags)) {
+                Debugger::log('UnrePress: No tags found');
                 return false;
             }
 
             // Get the newest version from tags
-            $latestTag = $this->helpers->getNewestVersionFromTags($tagBody);
-
-            if (! $latestTag) {
+            $latestTag = $this->helpers->getNewestVersionFromTags($tags);
+            if (!$latestTag) {
+                Debugger::log('UnrePress: No latest tag found');
                 return false;
             }
 
             $remoteVersion = $latestTag->name;
-            $remoteZip = $latestTag->zipball_url;
-
-            // Store version and download information
-            if ($remoteVersion) {
-                // Clean version number (remove 'v' prefix if present)
-                $remoteVersion = ltrim($remoteVersion, 'v');
-
-                set_transient($this->cache_key . 'download-url-' . $slug, $remoteZip, DAY_IN_SECONDS);
-                set_transient($this->cache_key . 'remote-version-' . $slug, $remoteVersion, DAY_IN_SECONDS);
-            } else {
-                return false;
+            if (strpos($remoteVersion, 'v') === 0) {
+                $remoteVersion = substr($remoteVersion, 1);
             }
+
+            // Store the download URL
+            $downloadUrl = $latestTag->zipball_url;
+            set_transient($this->cache_key . 'download-url-' . $slug, $downloadUrl, DAY_IN_SECONDS);
+
+            // Store the version
+            set_transient($this->cache_key . 'remote-version-' . $slug, $remoteVersion, DAY_IN_SECONDS);
+
+            Debugger::log('UnrePress: Found version ' . $remoteVersion . ' for ' . $slug);
         }
 
         return $remoteVersion;
