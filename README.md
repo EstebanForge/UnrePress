@@ -22,13 +22,13 @@ Without fear of retaliation or repression.
 
 ## Screenshots
 
-[![UnrePress updates, pending core update](.wp-meta/screenshot-01.png)](https://github.com/TCattd/UnrePress/blob/main/.wp-meta/screenshot-01.png)
+[![UnrePress updates, pending core update](.wp-meta/screenshot-01.png)](https://github.com/EstebanForge/UnrePress/blob/main/.wp-meta/screenshot-01.png)
 
-[![UnrePress, updating core](.wp-meta/screenshot-02.png)](https://github.com/TCattd/UnrePress/blob/main/.wp-meta/screenshot-02.png)
+[![UnrePress, updating core](.wp-meta/screenshot-02.png)](https://github.com/EstebanForge/UnrePress/blob/main/.wp-meta/screenshot-02.png)
 
-[![UnrePress, updating core](.wp-meta/screenshot-03.png)](https://github.com/TCattd/UnrePress/blob/main/.wp-meta/screenshot-03.png)
+[![UnrePress, updating core](.wp-meta/screenshot-03.png)](https://github.com/EstebanForge/UnrePress/blob/main/.wp-meta/screenshot-03.png)
 
-[![UnrePress, core updated](.wp-meta/screenshot-04.png)](https://github.com/TCattd/UnrePress/blob/main/.wp-meta/screenshot-04.png)
+[![UnrePress, core updated](.wp-meta/screenshot-04.png)](https://github.com/EstebanForge/UnrePress/blob/main/.wp-meta/screenshot-04.png)
 
 ## Features
 
@@ -47,7 +47,7 @@ Without fear of retaliation or repression.
 - Configuration interface.
 - Expose the index vía web, for easy plugin/theme discoverability.
 
-See more in [Planned Features Discussions](https://github.com/TCattd/UnrePress/discussions/categories/planned-features).
+See more in [Planned Features Discussions](https://github.com/EstebanForge/UnrePress/discussions/categories/planned-features).
 
 ## Requirements
 
@@ -56,7 +56,7 @@ See more in [Planned Features Discussions](https://github.com/TCattd/UnrePress/d
 
 ## Installation
 
-For now, go to [tags](https://github.com/TCattd/UnrePress/tags) and download the zip of the most recent one.
+For now, go to [tags](https://github.com/EstebanForge/UnrePress/tags) and download the zip of the most recent one.
 
 Consider that this proyect is still in active development and not stable. Don't use this on production, until 1.0 is released.
 
@@ -81,7 +81,7 @@ To set up the development environment:
 
 Contributions are welcome! Please feel free to submit a Pull Request. Please: follow the PHP-CS-Fixer rules. Easier to read pull requests, and peace and some order in this chaotic drama.
 
-Jump in into [an existing discussion](https://github.com/TCattd/UnrePress/discussions) if you want to help on any of the planned features.
+Jump in into [an existing discussion](https://github.com/EstebanForge/UnrePress/discussions) if you want to help on any of the planned features.
 
 Some of them will get priority over others. For example, having a functional website is really the last thing we should care about for now.
 

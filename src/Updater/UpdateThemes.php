@@ -2,8 +2,8 @@
 
 namespace UnrePress\Updater;
 
-use UnrePress\Debugger;
 use UnrePress\Helpers;
+use UnrePress\Debugger;
 
 class UpdateThemes
 {
@@ -57,6 +57,12 @@ class UpdateThemes
     private function checkForThemeUpdate($slug)
     {
         $remoteData = $this->requestRemoteInfo($slug);
+
+        // If we can't get theme info, skip this theme
+        if (!$remoteData) {
+            return;
+        }
+
         $installedVersion = $this->getInstalledVersion($slug);
         $latestVersion = $this->getRemoteVersion($slug);
 
@@ -91,10 +97,6 @@ class UpdateThemes
 
                 // Store this information for later use
                 $this->updateInfo[$slug] = $updateInfo;
-
-                Debugger::log('UnrePress: Theme update available for ' . $slug);
-                Debugger::log('Current version: ' . $installedVersion);
-                Debugger::log('Latest version: ' . $latestVersion);
             }
         }
     }
@@ -143,11 +145,6 @@ class UpdateThemes
 
     public function getInformation($response, $action, $args)
     {
-        Debugger::log('UnrePress: getting theme information');
-        Debugger::log($response);
-        Debugger::log($action);
-        Debugger::log($args);
-
         // do nothing if you're not getting theme information right now
         if ($action !== 'theme_information') {
             return $response;
@@ -226,22 +223,11 @@ class UpdateThemes
                     $transient->response[$slug] = [
                         'theme' => $slug,
                         'new_version' => $updateInfo->version,
-                        'url' => $updateInfo->theme_uri,
+                        'url' => $updateInfo->theme_uri ?? '',
                         'package' => $updateInfo->download_link,
-                        'requires' => $updateInfo->requires,
-                        'requires_php' => $updateInfo->requires_php,
+                        'requires' => $updateInfo->requires ?? '',
+                        'requires_php' => $updateInfo->requires_php ?? '',
                     ];
-
-                    Debugger::log('UnrePress: Adding theme update response for ' . $slug);
-                    Debugger::log($transient->response[$slug]);
-                    if (empty($transient->checked)) {
-                        $transient->checked = [];
-                        // Get all themes and their versions
-                        $themes = wp_get_themes();
-                        foreach ($themes as $slug => $theme) {
-                            $transient->checked[$slug] = $theme->get('Version');
-                        }
-                    }
                 }
             }
         }
@@ -253,12 +239,25 @@ class UpdateThemes
     {
         if ($this->cache_results && $options['action'] === 'update' && $options['type'] === 'theme') {
             // Get the updated theme slug
-            $slug = $options['themes'][0];
+            $slug = $options['themes'][0] ?? '';
+
+            if (empty($slug)) {
+                Debugger::log("No theme slug found in update options");
+                return;
+            }
+
+            Debugger::log("Cleaning up after theme update for {$slug}");
 
             // Clean the cache for this theme
             delete_transient($this->cache_key . $slug);
             delete_transient($this->cache_key . 'remote-version-' . $slug);
             delete_transient($this->cache_key . 'download-url-' . $slug);
+
+            // Clean up the upgrade and backup directories
+            //$this->helpers->cleanDirectory(WP_CONTENT_DIR . '/upgrade');
+            //$this->helpers->cleanDirectory(WP_CONTENT_DIR . '/upgrade-temp-backup');
+
+            Debugger::log("Cleanup complete for theme {$slug}");
         }
     }
 
@@ -273,7 +272,7 @@ class UpdateThemes
     {
         $remoteVersion = get_transient($this->cache_key . 'remote-version-' . $slug);
 
-        if ($remoteVersion === false) {
+        if ($remoteVersion === false || !$this->cache_results) {
             $first_letter = mb_strtolower(mb_substr($slug, 0, 1));
 
             // Get theme info from UnrePress index
@@ -339,6 +338,11 @@ class UpdateThemes
 
             // Get the newest version from tags
             $latestTag = $this->helpers->getNewestVersionFromTags($tagBody);
+
+            if (! $latestTag) {
+                return false;
+            }
+
             $remoteVersion = $latestTag->name;
             $remoteZip = $latestTag->zipball_url;
 
@@ -370,8 +374,6 @@ class UpdateThemes
     {
         global $wpdb;
 
-        Debugger::log('UnrePress: deleting all theme update transients');
-
         // Delete both transients and their timeout entries
         $wpdb->query(
             $wpdb->prepare(
@@ -385,47 +387,23 @@ class UpdateThemes
     }
 
     /**
-     * Fix the source directory name during theme updates
-     * This prevents GitHub's repository naming format from being used
-     *
-     * @param string       $source        File source location
-     * @param string       $remote_source Remote file source location
-     * @param WP_Upgrader $upgrader      WordPress Upgrader instance
-     * @param array       $args          Extra arguments passed to hooked filters
-     * @return string|WP_Error
+     * Fix source directory for GitHub theme updates
      */
     public function maybeFixSourceDir($source, $remote_source, $upgrader, $args)
     {
-        global $wp_filesystem;
-
-        if (! is_object($wp_filesystem)) {
-            return $source;
-        }
-
-        // Check if we're dealing with a theme update
         if (! isset($args['theme'])) {
+            Debugger::log("Theme not found in args");
             return $source;
         }
 
-        // Get the expected theme slug
-        $slug = $args['theme'];
-        $correct_source = trailingslashit($remote_source) . $slug;
+        Debugger::log("Fixing theme source directory");
+        Debugger::log("Source: {$source}");
+        Debugger::log("Remote source: {$remote_source}");
+        Debugger::log("Theme: {$args['theme']}");
 
-        // If we don't need to fix the source, return original
-        if ($source === $correct_source) {
-            return $source;
-        }
+        $result = Helpers::fixSourceDir($source, $remote_source, $args['theme'], 'theme');
 
-        // Otherwise, rename the source to match the expected theme slug
-        $upgraded = move_dir($source, $correct_source);
-
-        if ($upgraded) {
-            return $correct_source;
-        }
-
-        return new \WP_Error(
-            'rename_failed',
-            sprintf('Unable to rename the update to match the expected theme directory: %s', $slug)
-        );
+        Debugger::log("New source directory: {$result}");
+        return $result;
     }
 }

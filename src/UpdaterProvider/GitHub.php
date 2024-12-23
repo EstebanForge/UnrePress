@@ -18,7 +18,11 @@ class GitHub implements ProviderInterface
      */
     public function getDownloadUrl(string $repo, string $version): string
     {
-        return "https://github.com/{$repo}/archive/refs/tags/{$version}.zip";
+        $url = "https://github.com/{$repo}/archive/refs/tags/{$version}.zip";
+        Debugger::log("Generated GitHub download URL: " . $url);
+        Debugger::log("Repository: " . $repo);
+        Debugger::log("Version: " . $version);
+        return $url;
     }
 
     /**
@@ -29,32 +33,72 @@ class GitHub implements ProviderInterface
      */
     public function getLatestVersion(string $repo): ?string
     {
-        $apiUrl = self::GITHUB_API_URL . $repo . self::GITHUB_TAGS;
+        $url = "https://github.com/{$repo}/tags";
+        Debugger::log("Getting tags from: " . $url);
 
-        $response = wp_remote_get($apiUrl);
+        // Convert to API URL
+        $url = (new \UnrePress\Helpers())->normalizeTagUrl($url);
+        Debugger::log("Normalized tags URL: " . $url);
 
-        if (is_wp_error($response)) {
-            Debugger::log('Error fetching latest version: ' . $response->get_error_message());
-
+        $response = $this->makeGitHubRequest($url);
+        if (!$response) {
+            Debugger::log("No response from GitHub");
             return null;
         }
 
-        $body = wp_remote_retrieve_body($response);
-        $data = json_decode($body, true);
+        $tags = json_decode($response);
+        if (!is_array($tags) || empty($tags)) {
+            Debugger::log("No tags found in response");
+            return null;
+        }
 
-        if (! is_array($data) || empty($data)) {
-            Debugger::log('Invalid or empty response from GitHub API');
+        // Get first tag (GitHub returns them in descending order)
+        $latest = $tags[0]->name;
+        Debugger::log("Latest version found: " . $latest);
+        return ltrim($latest, 'v'); // Remove 'v' prefix if present
+    }
 
+    private function makeGitHubRequest(string $url)
+    {
+        Debugger::log("Making GitHub request to: " . $url);
+
+        $args = [
+            'timeout' => 5,
+            'redirection' => 5,
+            'httpversion' => '1.0',
+            'user-agent' => 'WordPress/' . get_bloginfo('version') . '; ' . get_bloginfo('url'),
+            'blocking' => true,
+            'headers' => [],
+            'cookies' => [],
+            'body' => null,
+            'compress' => false,
+            'decompress' => true,
+            'sslverify' => true,
+            'stream' => false,
+            'filename' => null
+        ];
+
+        $response = wp_remote_get($url, $args);
+
+        if (is_wp_error($response)) {
+            Debugger::log("GitHub request error: " . $response->get_error_message());
             return false;
         }
 
-        // Grab the latest release
-        $data = $data[0];
+        $response_code = wp_remote_retrieve_response_code($response);
+        Debugger::log("GitHub response code: " . $response_code);
 
-        Debugger::log("Latest version data fetched: " . print_r($data, true));
+        if ($response_code !== 200) {
+            Debugger::log("GitHub request failed with response code: " . $response_code);
+            return false;
+        }
 
-        $latestVersion = $data['name'] ?? null;
+        $body = wp_remote_retrieve_body($response);
+        if (empty($body)) {
+            Debugger::log("GitHub response body is empty");
+            return false;
+        }
 
-        return $latestVersion;
+        return $body;
     }
 }

@@ -1,5 +1,5 @@
 {
-    "name": "tcattd/unrepress",
+    "name": "estebanforge/unrepress",
     "description": "WordPress plugin to obtain updates directly from git providers (like GitHub, BitBucket or GitLab)",
     "version": "1.0.0",
     "type": "wordpress-plugin",

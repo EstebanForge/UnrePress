@@ -2,8 +2,8 @@
 
 namespace UnrePress\Updater;
 
-use UnrePress\Debugger;
 use UnrePress\Helpers;
+use UnrePress\Debugger;
 
 class UpdatePlugins
 {
@@ -66,6 +66,12 @@ class UpdatePlugins
     private function checkForPluginUpdate($slug)
     {
         $remoteData = $this->requestRemoteInfo($slug);
+
+        // If we can't get plugin info, skip this plugin
+        if (!$remoteData) {
+            return;
+        }
+
         $installedVersion = $this->getInstalledVersion($slug);
         $latestVersion = $this->getRemoteVersion($slug);
 
@@ -114,39 +120,33 @@ class UpdatePlugins
         return false;
     }
 
-    public function requestRemoteInfo($slug = null)
+    public function requestRemoteInfo($slug)
     {
-        if (! $slug) {
+        // Convert slug to lowercase for URL construction
+        $slug = strtolower($slug);
+        $url = "https://raw.githubusercontent.com/estebanforge/unrepress-index/main/plugins/" . substr($slug, 0, 1) . "/{$slug}.json";
+
+        $response = wp_remote_get($url);
+
+        if (is_wp_error($response)) {
             return false;
         }
 
-        $remote = get_transient($this->cache_key . $slug);
-
-        // Get the first letter of the slug
-        $first_letter = mb_strtolower(mb_substr($slug, 0, 1));
-
-        if ($remote === false || ! $this->cache_results) {
-
-            $remote = wp_remote_get(
-                UNREPRESS_INDEX . 'plugins/' . $first_letter . '/' . $slug . '.json',
-                [
-                    'timeout' => 10,
-                    'headers' => [
-                        'Accept' => 'application/json',
-                    ],
-                ]
-            );
-
-            if (is_wp_error($remote) || 200 !== wp_remote_retrieve_response_code($remote) || empty(wp_remote_retrieve_body($remote))) {
-                return false;
-            }
-
-            set_transient($this->cache_key . $slug, $remote, DAY_IN_SECONDS);
+        $responseCode = wp_remote_retrieve_response_code($response);
+        if ($responseCode !== 200) {
+            return false;
         }
 
-        $remote = json_decode(wp_remote_retrieve_body($remote));
+        $body = wp_remote_retrieve_body($response);
+        // Remove any trailing commas before the closing brace or bracket
+        $body = preg_replace('/,(\s*[\]}])/m', '$1', $body);
 
-        return $remote;
+        $data = json_decode($body);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            return false;
+        }
+
+        return $data;
     }
 
     public function getInformation($response, $action, $args)
@@ -253,6 +253,10 @@ class UpdatePlugins
             // Get the updated plugin slug
             $slug = $options['plugins'][0];
 
+            // We also need to delete every file and subdirectory on upgrade and upgrade-temp-backup folders
+            //$this->helpers->cleanDirectory('upgrade');
+            //$this->helpers->cleanDirectory('upgrade-temp-backup');
+
             // Clean the cache for this plugin
             delete_transient($this->cache_key . $slug);
             delete_transient($this->cache_key . 'remote-version-' . $slug);
@@ -271,7 +275,7 @@ class UpdatePlugins
     {
         $remoteVersion = get_transient($this->cache_key . 'remote-version-' . $slug);
 
-        if ($remoteVersion === false) {
+        if ($remoteVersion === false || !$this->cache_results) {
             $first_letter = mb_strtolower(mb_substr($slug, 0, 1));
 
             // Get plugin info from UnrePress index
@@ -290,26 +294,22 @@ class UpdatePlugins
                 return false;
             }
 
-            if (empty(wp_remote_retrieve_body($remote))) {
+            $body = wp_remote_retrieve_body($remote);
+            if (empty($body)) {
                 return false;
             }
 
-            $body = json_decode(wp_remote_retrieve_body($remote));
-
-            if (is_wp_error($body)) {
+            $pluginInfo = json_decode($body);
+            if (json_last_error() !== JSON_ERROR_NONE) {
                 return false;
             }
 
-            $tagUrl = $body->tags ?? '';
-
+            // Get tag information from GitHub
+            $tagUrl = $pluginInfo->tags ?? '';
             if (empty($tagUrl)) {
                 return false;
             }
 
-            // Normalize tag URL
-            $tagUrl = $this->helpers->normalizeTagUrl($tagUrl);
-
-            // Get tag information
             $remote = wp_remote_get($tagUrl, [
                 'timeout' => 10,
                 'headers' => [
@@ -325,31 +325,37 @@ class UpdatePlugins
                 return false;
             }
 
-            if (empty(wp_remote_retrieve_body($remote))) {
+            $tagBody = wp_remote_retrieve_body($remote);
+            if (empty($tagBody)) {
                 return false;
             }
 
-            $tagBody = json_decode(wp_remote_retrieve_body($remote));
+            $tags = json_decode($tagBody);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                return false;
+            }
 
-            if (! is_array($tagBody) || empty($tagBody)) {
+            if (!is_array($tags) || empty($tags)) {
                 return false;
             }
 
             // Get the newest version from tags
-            $latestTag = $tagBody[0];
-            $remoteVersion = $latestTag->name;
-            $remoteZip = $latestTag->zipball_url;
-
-            // Store version and download information
-            if ($remoteVersion) {
-                // Clean version number (remove 'v' prefix if present)
-                $remoteVersion = ltrim($remoteVersion, 'v');
-
-                set_transient($this->cache_key . 'download-url-' . $slug, $remoteZip, DAY_IN_SECONDS);
-                set_transient($this->cache_key . 'remote-version-' . $slug, $remoteVersion, DAY_IN_SECONDS);
-            } else {
+            $latestTag = $this->helpers->getNewestVersionFromTags($tags);
+            if (!$latestTag) {
                 return false;
             }
+
+            $remoteVersion = $latestTag->name;
+            if (strpos($remoteVersion, 'v') === 0) {
+                $remoteVersion = substr($remoteVersion, 1);
+            }
+
+            // Store the download URL
+            $downloadUrl = $latestTag->zipball_url;
+            set_transient($this->cache_key . 'download-url-' . $slug, $downloadUrl, DAY_IN_SECONDS);
+
+            // Store the version
+            set_transient($this->cache_key . 'remote-version-' . $slug, $remoteVersion, DAY_IN_SECONDS);
         }
 
         return $remoteVersion;
@@ -367,8 +373,6 @@ class UpdatePlugins
     private function deleteAllUpdateTransients()
     {
         global $wpdb;
-
-        Debugger::log('UnrePress: deleting all update transients');
 
         // Delete both transients and their timeout entries
         $wpdb->query(
@@ -394,51 +398,10 @@ class UpdatePlugins
      */
     public function maybeFixSourceDir($source, $remote_source, $upgrader, $args)
     {
-        global $wp_filesystem;
-
-        if (! is_object($wp_filesystem)) {
+        if (!isset($args['plugin'])) {
             return $source;
         }
 
-        // Check if we're dealing with a plugin update
-        if (! isset($args['plugin'])) {
-            return $source;
-        }
-
-        // Get the desired slug based on the plugin file path
-        $plugin_file = $args['plugin'];
-        $desired_slug = dirname($plugin_file); // e.g., 'unrepress'
-
-        // Get the current directory name without trailing slash
-        $subdir_name = untrailingslashit(str_replace(trailingslashit($remote_source), '', $source));
-
-        if (empty($subdir_name)) {
-            return $source;
-        }
-
-        // Only rename if the directory name is different from what we want
-        if ($subdir_name !== $desired_slug) {
-            $from_path = untrailingslashit($source);
-            $to_path = trailingslashit($remote_source) . $desired_slug;
-
-            if (true === $wp_filesystem->move($from_path, $to_path)) {
-                return trailingslashit($to_path);
-            }
-
-            return new \WP_Error(
-                'rename_failed',
-                sprintf(
-                    'The plugin package directory "%s" could not be renamed to match the slug "%s"',
-                    $subdir_name,
-                    $desired_slug
-                ),
-                [
-                    'found' => $subdir_name,
-                    'expected' => $desired_slug,
-                ]
-            );
-        }
-
-        return $source;
+        return $this->helpers->fixSourceDir($source, $remote_source, $args['plugin'], 'plugin');
     }
 }

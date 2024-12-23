@@ -1,11 +1,11 @@
 {
-    "package": "tcattd/unrepress",
+    "package": "estebanforge/unrepress",
     "type": "plugin",
     "update_from": "tags",
     "license": "GPL-2.0-or-later",
     "name": "UnrePress",
     "description": "WordPress plugin to obtain updates directly from git providers (like GitHub, BitBucket or GitLab)",
-    "homepage": "https://github.com/TCattd/UnrePress",
+    "homepage": "https://github.com/EstebanForge/UnrePress",
     "authors": [
         {
             "name": "Esteban Cuevas",
@@ -22,7 +22,7 @@
         "screenshot-04.png"
     ],
     "support": {
-        "issues": "https://github.com/TCattd/UnrePress/issues",
-        "discussions": "https://github.com/TCattd/UnrePress/discussions"
+        "issues": "https://github.com/EstebanForge/UnrePress/issues",
+        "discussions": "https://github.com/EstebanForge/UnrePress/discussions"
     }
 }
