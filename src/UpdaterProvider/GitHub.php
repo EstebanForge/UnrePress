@@ -48,6 +48,13 @@ class GitHub implements ProviderInterface
             return false;
         }
 
+        // Check if there are any releases
+        if (!isset($data[0])) {
+            Debugger::log('No releases found in GitHub API response');
+
+            return false;
+        }
+
         // Grab the latest release
         $data = $data[0];
 
