@@ -31,8 +31,6 @@ class UpdateThemes
             $this->deleteAllUpdateTransients();
         }
 
-        Debugger::log('UnrePress: checking for theme updates');
-
         $this->checkforUpdates();
 
         add_filter('themes_api', [$this, 'getInformation'], 20, 3);
@@ -59,13 +57,13 @@ class UpdateThemes
     private function checkForThemeUpdate($slug)
     {
         $remoteData = $this->requestRemoteInfo($slug);
-        
+
         // If we can't get theme info, skip this theme
         if (!$remoteData) {
             Debugger::log("UnrePress: Skipping theme update check for {$slug} - no remote info available");
             return;
         }
-        
+
         $installedVersion = $this->getInstalledVersion($slug);
         $latestVersion = $this->getRemoteVersion($slug);
 
@@ -233,6 +231,11 @@ class UpdateThemes
                     if (! isset($transient->response)) {
                         $transient->response = [];
                     }
+
+                    Debugger::log('UnrePress: Theme update available for ' . $slug);
+                    Debugger::log('Current version: ' . $currentVersion);
+                    Debugger::log('Latest version: ' . $updateInfo->version);
+                    Debugger::log('Download link: ' . $updateInfo->download_link);
 
                     // Format response according to WordPress theme update structure
                     $transient->response[$slug] = [

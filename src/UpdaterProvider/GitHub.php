@@ -18,7 +18,11 @@ class GitHub implements ProviderInterface
      */
     public function getDownloadUrl(string $repo, string $version): string
     {
-        return "https://github.com/{$repo}/archive/refs/tags/{$version}.zip";
+        $url = "https://github.com/{$repo}/archive/refs/tags/{$version}.zip";
+        Debugger::log("Generated GitHub download URL: " . $url);
+        Debugger::log("Repository: " . $repo);
+        Debugger::log("Version: " . $version);
+        return $url;
     }
 
     /**
@@ -32,79 +36,67 @@ class GitHub implements ProviderInterface
         $url = "https://github.com/{$repo}/tags";
         Debugger::log("Getting tags from: " . $url);
 
+        // Convert to API URL
+        $url = (new \UnrePress\Helpers())->normalizeTagUrl($url);
+        Debugger::log("Normalized tags URL: " . $url);
+
         $response = $this->makeGitHubRequest($url);
         if (!$response) {
             Debugger::log("No response from GitHub");
             return null;
         }
 
-        // Extract version from HTML response using regex
-        if (preg_match('/<h4[^>]*>.*?([0-9]+\.[0-9]+(?:\.[0-9]+)?(?:-[a-zA-Z0-9.]+)?)[^<]*<\/h4>/i', $response, $matches)) {
-            $latest = $matches[1];
-            Debugger::log("Latest version found: " . $latest);
-            return $latest;
+        $tags = json_decode($response);
+        if (!is_array($tags) || empty($tags)) {
+            Debugger::log("No tags found in response");
+            return null;
         }
 
-        Debugger::log("No version found in response");
-        return null;
+        // Get first tag (GitHub returns them in descending order)
+        $latest = $tags[0]->name;
+        Debugger::log("Latest version found: " . $latest);
+        return ltrim($latest, 'v'); // Remove 'v' prefix if present
     }
 
-    private function getGitHubHeaders(): array
+    private function makeGitHubRequest(string $url)
     {
-        $token = defined('UNREPRESS_GITHUB_TOKEN') ? UNREPRESS_GITHUB_TOKEN : '';
-        return [
-            'Accept' => 'application/vnd.github.v3+json',
-            'User-Agent' => 'UnrePress/1.0',
-            'Authorization' => 'Bearer ' . $token,
-            'X-GitHub-Api-Version' => '2022-11-28'
-        ];
-    }
-
-    private function getTagsUrl(string $repository): string
-    {
-        // Convert repository URL to tags URL
-        $tagsUrl = str_replace('github.com', 'github.com', $repository);
-        return rtrim($tagsUrl, '/') . '/tags';
-    }
-
-    private function makeGitHubRequest(string $url): ?string
-    {
-        Debugger::log("=== Starting GitHub API Request ===");
-        $headers = $this->getGitHubHeaders();
-        
-        Debugger::log("Making GitHub API request to: " . $url);
-        Debugger::log("Request headers: " . print_r($headers, true));
+        Debugger::log("Making GitHub request to: " . $url);
 
         $args = [
-            'headers' => $headers,
-            'timeout' => 15,
+            'timeout' => 5,
+            'redirection' => 5,
+            'httpversion' => '1.0',
+            'user-agent' => 'WordPress/' . get_bloginfo('version') . '; ' . get_bloginfo('url'),
+            'blocking' => true,
+            'headers' => [],
+            'cookies' => [],
+            'body' => null,
+            'compress' => false,
+            'decompress' => true,
+            'sslverify' => true,
+            'stream' => false,
+            'filename' => null
         ];
-        
-        Debugger::log("WP Remote request args: " . print_r($args, true));
-        
+
         $response = wp_remote_get($url, $args);
 
         if (is_wp_error($response)) {
-            Debugger::log("GitHub API request failed with error: " . $response->get_error_message());
-            return null;
+            Debugger::log("GitHub request error: " . $response->get_error_message());
+            return false;
         }
 
-        $code = wp_remote_retrieve_response_code($response);
+        $response_code = wp_remote_retrieve_response_code($response);
+        Debugger::log("GitHub response code: " . $response_code);
+
+        if ($response_code !== 200) {
+            Debugger::log("GitHub request failed with response code: " . $response_code);
+            return false;
+        }
+
         $body = wp_remote_retrieve_body($response);
-        $response_headers = wp_remote_retrieve_headers($response);
-        $request_headers = wp_remote_retrieve_response_headers($response);
-        
-        Debugger::log("GitHub API Response Code: " . $code);
-        Debugger::log("GitHub API Request Headers Actually Sent: " . print_r($request_headers, true));
-        Debugger::log("GitHub API Response Headers: " . print_r($response_headers, true));
-        if ($code !== 200) {
-            Debugger::log("GitHub API Error Response:");
-            Debugger::log("Status Code: " . $code);
-            Debugger::log("Response Body: " . $body);
-            Debugger::log("X-RateLimit-Limit: " . wp_remote_retrieve_header($response, 'x-ratelimit-limit'));
-            Debugger::log("X-RateLimit-Remaining: " . wp_remote_retrieve_header($response, 'x-ratelimit-remaining'));
-            Debugger::log("X-RateLimit-Reset: " . wp_remote_retrieve_header($response, 'x-ratelimit-reset'));
-            return null;
+        if (empty($body)) {
+            Debugger::log("GitHub response body is empty");
+            return false;
         }
 
         return $body;

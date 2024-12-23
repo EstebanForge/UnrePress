@@ -31,8 +31,6 @@ class UpdatePlugins
             $this->deleteAllUpdateTransients();
         }
 
-        Debugger::log('UnrePress: checking for plugin updates');
-
         $this->checkforUpdates();
 
         add_filter('plugins_api', [$this, 'getInformation'], 20, 3);
@@ -68,13 +66,13 @@ class UpdatePlugins
     private function checkForPluginUpdate($slug)
     {
         $remoteData = $this->requestRemoteInfo($slug);
-        
+
         // If we can't get plugin info, skip this plugin
         if (!$remoteData) {
             Debugger::log("UnrePress: Skipping plugin update check for {$slug} - no remote info available");
             return;
         }
-        
+
         $installedVersion = $this->getInstalledVersion($slug);
         $latestVersion = $this->getRemoteVersion($slug);
 
@@ -151,7 +149,7 @@ class UpdatePlugins
         $body = wp_remote_retrieve_body($response);
         // Remove any trailing commas before the closing brace or bracket
         $body = preg_replace('/,(\s*[\]}])/m', '$1', $body);
-        
+
         $data = json_decode($body);
         if (json_last_error() !== JSON_ERROR_NONE) {
             Debugger::log("UnrePress: JSON decode error: " . json_last_error_msg());
@@ -326,7 +324,7 @@ class UpdatePlugins
             }
 
             Debugger::log('UnrePress: Getting tags from: ' . $tagUrl);
-            
+
             $remote = wp_remote_get($tagUrl, [
                 'timeout' => 10,
                 'headers' => [
