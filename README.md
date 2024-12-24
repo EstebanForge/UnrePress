@@ -35,12 +35,12 @@ Without fear of retaliation or repression.
 - Fetches WordPress core updates from the official WordPress GitHub repository.
 - Updates WordPress core seamlessly from git providers, using WordPress Filesystem API.
 - Blocks all requests to the "official" .org, .net and .com WordPress domains.
-
-### Planned Features
-
 - Auto-update UnrePress itself from GitHub.
 - Plugin updates from git providers.
 - Theme updates from git providers.
+
+### Planned Features
+
 - Create a community maintained index of plugins and themes, so UnrePress can update them. Somewhat like package managers do (dnf, brew, npm, etc.).
 - Integrate the index into WordPress itself, so users can search and install plugins/themes from within the admin panel.
 - Add more git providers: BitBucket, GitLab, etc.
