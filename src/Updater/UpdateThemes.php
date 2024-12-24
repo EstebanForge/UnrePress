@@ -237,28 +237,7 @@ class UpdateThemes
 
     public function cleanAfterUpdate($upgrader, $options)
     {
-        if ($this->cache_results && $options['action'] === 'update' && $options['type'] === 'theme') {
-            // Get the updated theme slug
-            $slug = $options['themes'][0] ?? '';
-
-            if (empty($slug)) {
-                Debugger::log("No theme slug found in update options");
-                return;
-            }
-
-            Debugger::log("Cleaning up after theme update for {$slug}");
-
-            // Clean the cache for this theme
-            delete_transient($this->cache_key . $slug);
-            delete_transient($this->cache_key . 'remote-version-' . $slug);
-            delete_transient($this->cache_key . 'download-url-' . $slug);
-
-            // Clean up the upgrade and backup directories
-            //$this->helpers->cleanDirectory(WP_CONTENT_DIR . '/upgrade');
-            //$this->helpers->cleanDirectory(WP_CONTENT_DIR . '/upgrade-temp-backup');
-
-            Debugger::log("Cleanup complete for theme {$slug}");
-        }
+        $this->helpers->cleanAfterUpdate($upgrader, $options, $this->cache_key);
     }
 
     /**
