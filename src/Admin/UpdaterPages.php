@@ -5,6 +5,9 @@ namespace UnrePress\Admin;
 use UnrePress\Helpers;
 use UnrePress\Updater\UpdateCore;
 
+// No direct access
+defined('ABSPATH') or die();
+
 class UpdaterPages
 {
     private $helpers;
@@ -12,7 +15,6 @@ class UpdaterPages
     public function __construct()
     {
         add_action('admin_menu', [$this, 'addCoreUpdateMenu']);
-        add_action('wp_ajax_unrepress_update_core', [$this, 'initCoreAjaxUpdate']);
         add_action('wp_ajax_unrepress_get_update_log', [$this, 'getUpdateLog']);
         $this->helpers = new Helpers();
     }
@@ -121,27 +123,22 @@ class UpdaterPages
 
         // Check core updates
         $wpLocalVersion = get_bloginfo('version');
-        $wpLatestVersion = new UpdateCore();
-        $wpLatestVersion = $wpLatestVersion->getLatestCoreVersion();
-
-        if (!empty($wpLatestVersion) && version_compare($wpLocalVersion, $wpLatestVersion, '<')) {
+        $wpLatestVersion = get_bloginfo('version');
+        $coreUpdates = get_core_updates();
+        if (!empty($coreUpdates) && version_compare($wpLocalVersion, $wpLatestVersion, '<')) {
             $count++;
         }
 
         // Check plugin updates
-        $pluginUpdater = new \UnrePress\Updater\UpdatePlugins();
-        $pluginTransient = get_site_transient('update_plugins');
-        $pluginTransient = $pluginUpdater->hasUpdate($pluginTransient);
-        if (!empty($pluginTransient->response)) {
-            $count += count($pluginTransient->response);
+        $pluginUpdates = get_plugin_updates();
+        if (!empty($pluginUpdates)) {
+            $count += count($pluginUpdates);
         }
 
         // Check theme updates
-        $themeUpdater = new \UnrePress\Updater\UpdateThemes();
-        $themeTransient = get_site_transient('update_themes');
-        $themeTransient = $themeUpdater->hasUpdate($themeTransient);
-        if (!empty($themeTransient->response)) {
-            $count += count($themeTransient->response);
+        $themeUpdates = get_theme_updates();
+        if (!empty($themeUpdates)) {
+            $count += count($themeUpdates);
         }
 
         // Cache the count for 3 hours
@@ -177,7 +174,8 @@ class UpdaterPages
             }
 
             // Force an update check when requested.
-            (new UpdateCore())->forceCoreUpdateCheck();
+            wp_update_plugins();
+            wp_update_themes();
         }
 
         $this->updaterIndex();
@@ -200,57 +198,21 @@ class UpdaterPages
 
         $wpLocalVersion = get_bloginfo('version');
         $updateNeeded = false;
+        $coreLatestVersion = '';
 
-        $wpLatestVersion = new UpdateCore();
-        $wpLatestVersion = $wpLatestVersion->getLatestCoreVersion();
-
-        if (empty($wpLatestVersion)) {
-            $wpLatestVersion = 'Unknown';
+        $coreUpdates = get_core_updates();
+        if (!empty($coreUpdates) && !empty($coreUpdates[0])) {
+            $coreLatestVersion = $coreUpdates[0]->current;
+            if (version_compare($wpLocalVersion, $coreLatestVersion, '<')) {
+                $updateNeeded = true;
+            }
         }
 
         $wpLastChecked = get_option('unrepress_last_checked', time());
         // Format it to human readable time: YYYY-MM-DD HH:MM AM/PM
         $wpLastChecked = date('Y-m-d - H:i A', $wpLastChecked);
 
-        // Compare versions, check if remote version is newer
-        if (version_compare($wpLocalVersion, $wpLatestVersion, '<')) {
-            //add_action('admin_notices', [$this, 'showCoreUpdateNotice']);
-            $updateNeeded = true;
-        }
-
-        // Get plugin updates
-        $pluginUpdates = [];
-        if (function_exists('get_plugin_updates')) {
-            $plugin_updates = get_plugin_updates();
-            foreach ($plugin_updates as $plugin_file => $plugin_data) {
-                $pluginUpdates[] = [
-                    'file' => $plugin_file,
-                    'name' => $plugin_data->Name,
-                    'version' => $plugin_data->Version,
-                    'new_version' => $plugin_data->update->new_version,
-                    'icon' => $plugin_data->update->icons['2x'] ?? $plugin_data->update->icons['1x'] ?? '',
-                    'update_message' => $plugin_data->update->upgrade_notice ?? ''
-                ];
-            }
-        }
-
-        // Get theme updates
-        $themeUpdates = [];
-        if (function_exists('get_theme_updates')) {
-            $theme_updates = get_theme_updates();
-            foreach ($theme_updates as $theme_file => $theme_data) {
-                $themeUpdates[] = [
-                    'theme' => $theme_file,
-                    'name' => $theme_data->Name,
-                    'version' => $theme_data->Version,
-                    'new_version' => $theme_data->update['new_version'],
-                    'screenshot' => get_theme_root_uri() . '/' . $theme_file . '/screenshot.png',
-                    'update_message' => $theme_data->update['upgrade_notice'] ?? ''
-                ];
-            }
-        }
-
-        include_once UNREPRESS_PLUGIN_PATH . 'views/updater/unrepress-updater.php';
+        require_once UNREPRESS_PLUGIN_PATH . 'views/updater/unrepress-updater.php';
     }
 
     /**
