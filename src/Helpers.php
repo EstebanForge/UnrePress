@@ -417,8 +417,9 @@ class Helpers
 
         // For plugins and other types
         if ($type === 'plugin') {
-            if (empty($slug)) {
-                $clean_slug = $slug;
+            $clean_slug = $slug;
+            if (empty($clean_slug)) {
+                return $source;
             }
 
             Debugger::log("Clean slug: {$clean_slug}");
@@ -481,6 +482,11 @@ class Helpers
 
         // Scan everything in the directory and delete it. Files and directories.
         $files = $wp_filesystem->dirlist($dir);
+        if (!$files) {
+            Debugger::log("Error: Could not read directory {$dir}");
+            return;
+        }
+        
         foreach ($files as $filename => $file_info) {
             if ($filename === '.' || $filename === '..') {
                 continue;
