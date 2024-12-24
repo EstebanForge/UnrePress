@@ -12,6 +12,10 @@ require_once ABSPATH . 'wp-admin/includes/misc.php';
 
 // Verify nonce if force-check is requested
 if (isset($_GET['force-check']) && $_GET['force-check'] == 1) {
+    // Force an update check when requested.
+    $force_check = ! empty($_GET['force-check']);
+    wp_version_check(array(), $force_check);
+
     // Force refresh of plugin and theme updates
     wp_update_plugins();
     wp_update_themes();
