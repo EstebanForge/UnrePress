@@ -417,7 +417,8 @@ class Helpers
 
         // For plugins and other types
         if ($type === 'plugin') {
-            $clean_slug = $slug;
+            // Extract just the plugin directory name from the full slug path
+            $clean_slug = explode('/', $slug)[0];
             if (empty($clean_slug)) {
                 return $source;
             }
