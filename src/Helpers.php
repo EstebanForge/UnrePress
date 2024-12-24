@@ -487,12 +487,23 @@ class Helpers
             }
 
             // Clean up the upgrade and backup directories
-            $this->cleanDirectory(WP_CONTENT_DIR . '/upgrade');
-            $this->cleanDirectory(WP_CONTENT_DIR . '/upgrade-temp-backup');
+            $this->clearTempDirectories();
 
             // Clean transients
             $this->clearUpdateTransients();
         }
+    }
+
+
+    /**
+     * Clear the temp directories
+     *
+     * @return void
+     */
+    public function clearTempDirectories() {
+        // Clean up the upgrade and backup directories
+        $this->cleanDirectory(WP_CONTENT_DIR . '/upgrade');
+        $this->cleanDirectory(WP_CONTENT_DIR . '/upgrade-temp-backup');
     }
 
     /**
