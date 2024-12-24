@@ -2,7 +2,6 @@
 
 namespace UnrePress\Admin;
 
-use UnrePress\Debugger;
 use UnrePress\Helpers;
 use UnrePress\Updater\UpdateCore;
 
@@ -23,7 +22,7 @@ class UpdaterPages
     }
 
     /**
-     * Handle AJAX update request
+     * Handle AJAX update request.
      *
      * @return void
      */
@@ -33,7 +32,7 @@ class UpdaterPages
         check_ajax_referer('unrepress_update_core');
 
         // Check user capabilities
-        if (! current_user_can('manage_options')) {
+        if (!current_user_can('manage_options')) {
             wp_send_json_error(['message' => __('Insufficient permissions', 'unrepress')]);
 
             return;
@@ -58,7 +57,7 @@ class UpdaterPages
     }
 
     /**
-     * Handle getting update log contents
+     * Handle getting update log contents.
      *
      * @return void
      */
@@ -68,7 +67,7 @@ class UpdaterPages
         check_ajax_referer('unrepress_get_update_log');
 
         // Check user capabilities
-        if (! current_user_can('manage_options')) {
+        if (!current_user_can('manage_options')) {
             wp_send_json_error(['message' => __('Insufficient permissions', 'unrepress')]);
 
             return;
@@ -76,7 +75,7 @@ class UpdaterPages
 
         $logFile = UNREPRESS_TEMP_PATH . 'unrepress_update_log.txt';
 
-        if (! file_exists($logFile)) {
+        if (!file_exists($logFile)) {
             wp_send_json_error(['message' => __('No update log found', 'unrepress')]);
 
             return;
@@ -88,7 +87,7 @@ class UpdaterPages
     }
 
     /**
-     * Create our new "Updates" page, children (sub menu) of Dashboard menu
+     * Create our new "Updates" page, children (sub menu) of Dashboard menu.
      *
      * @return void
      */
@@ -126,10 +125,10 @@ class UpdaterPages
 
         // Check core updates
         $wpLocalVersion = get_bloginfo('version');
-        $updateCore     = new \UnrePress\Updater\UpdateCore();
-        $latestVersion  = $updateCore->getLatestCoreVersion();
+        $updateCore = new UpdateCore();
+        $latestVersion = $updateCore->getLatestCoreVersion();
 
-        if (version_compare($wpLocalVersion, $latestVersion, '<')) {
+        if ($latestVersion && version_compare($wpLocalVersion, $latestVersion, '<')) {
             $count++;
         }
 
@@ -152,7 +151,7 @@ class UpdaterPages
     }
 
     /**
-     * Render our new "Updates" page
+     * Render our new "Updates" page.
      *
      * @return void
      */
@@ -161,7 +160,7 @@ class UpdaterPages
         // Updating
         if (isset($_GET['do_update']) && $_GET['do_update'] == 'core') {
             // Validate nonce
-            if (! check_admin_referer('update-core')) {
+            if (!check_admin_referer('update-core')) {
                 wp_die(__('You are not allowed to perform this action.', 'unrepress'));
             }
 
@@ -173,8 +172,8 @@ class UpdaterPages
         // Force-check
         if (isset($_GET['force-check']) && $_GET['force-check'] == 1) {
             // Force an update check when requested.
-            $force_check = ! empty($_GET['force-check']);
-            wp_version_check(array(), $force_check);
+            $force_check = !empty($_GET['force-check']);
+            wp_version_check([], $force_check);
 
             wp_update_plugins();
             wp_update_themes();
@@ -208,11 +207,11 @@ class UpdaterPages
         $updateNeeded = false;
         $coreLatestVersion = '';
 
-        $updateCore = new \UnrePress\Updater\UpdateCore();
+        $updateCore = new UpdateCore();
         $latestVersion = $updateCore->getLatestCoreVersion();
 
         $coreLatestVersion = $latestVersion;
-        if (version_compare($wpLocalVersion, $coreLatestVersion, '<')) {
+        if ($coreLatestVersion && version_compare($wpLocalVersion, $coreLatestVersion, '<')) {
             $updateNeeded = true;
         }
 
@@ -225,7 +224,7 @@ class UpdaterPages
 
     /**
      * Render our Updating page
-     * Trigger WP Core update
+     * Trigger WP Core update.
      *
      * @return void
      */
@@ -235,7 +234,7 @@ class UpdaterPages
     }
 
     /**
-     * Do updateThis
+     * Do updateThis.
      *
      * @param string $type core, plugins, themes
      *
@@ -254,9 +253,10 @@ class UpdaterPages
     }
 
     /**
-     * Add our update count to the admin bar updates counter
+     * Add our update count to the admin bar updates counter.
      */
-    public function add_updates_count($update_data) {
+    public function add_updates_count($update_data)
+    {
         // Get our custom updates count from transient
         $update_count = $this->getUpdateCount();
 

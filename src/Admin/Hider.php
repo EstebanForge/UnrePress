@@ -17,7 +17,7 @@ class Hider
     }
 
     /**
-     * Hide "Updates" update-core.php menu
+     * Hide "Updates" update-core.php menu.
      *
      * @return void
      */
@@ -27,13 +27,19 @@ class Hider
     }
 
     /**
-     * Redirects update-core.php to our new "Updates" page
+     * Redirects update-core.php to our new "Updates" page.
      *
      * @return void
      */
     public function redirectWPCoreUpdate($screen): void
     {
         if ($screen->base == 'update-core') {
+            // Let requests with action=do-plugin-upgrade and action=do-theme-upgrade go through
+            if (isset($_GET['action']) && in_array($_GET['action'], ['do-plugin-upgrade', 'do-theme-upgrade'])) {
+                return;
+            }
+
+            // Otherwise, redirect to our new "Updates" page
             $query_params = [];
 
             $query_params['page'] = 'unrepress-updater';

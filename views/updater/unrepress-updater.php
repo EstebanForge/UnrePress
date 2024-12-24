@@ -18,8 +18,8 @@ require_once ABSPATH . 'wp-admin/includes/misc.php';
 // Verify nonce if force-check is requested
 if (isset($_GET['force-check']) && $_GET['force-check'] == 1) {
     // Force an update check when requested.
-    $force_check = ! empty($_GET['force-check']);
-    wp_version_check(array(), $force_check);
+    $force_check = !empty($_GET['force-check']);
+    wp_version_check([], $force_check);
 
     // Force refresh of plugin and theme updates
     wp_update_plugins();
@@ -30,13 +30,12 @@ if (isset($_GET['force-check']) && $_GET['force-check'] == 1) {
 }
 ?>
 <div class="wrap">
-    <h1><?php esc_html_e('UnrePress Updates', 'unrepress'); ?>
-    </h1>
-    <p><?php printf(esc_html__('Last checked on %s.', 'unrepress'), $wpLastChecked); ?>
-    </p>
+    <h1><?php esc_html_e('UnrePress Updater', 'unrepress'); ?></h1>
+    <p><?php printf(esc_html__('Last checked on %s.', 'unrepress'), $wpLastChecked); ?></p>
 
     <section class="updates-core">
-        <h2><?php esc_html_e('Core', 'unrepress'); ?> <?php if ($updateNeeded && !empty($coreLatestVersion)): ?>
+        <h2><?php esc_html_e('Core', 'unrepress'); ?>
+            <?php if ($updateNeeded && !empty($coreLatestVersion)): ?>
                 <span class="count">(1)</span>
             <?php endif; ?>
         </h2>
