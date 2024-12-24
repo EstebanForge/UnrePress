@@ -253,8 +253,8 @@ class UpdatePlugins
             $slug = $options['plugins'][0];
 
             // We also need to delete every file and subdirectory on upgrade and upgrade-temp-backup folders
-            $this->helpers->cleanDirectory('upgrade');
-            $this->helpers->cleanDirectory('upgrade-temp-backup');
+            //$this->helpers->cleanDirectory('upgrade');
+            //$this->helpers->cleanDirectory('upgrade-temp-backup');
 
             // Clean the cache for this plugin
             delete_transient($this->cache_key . $slug);

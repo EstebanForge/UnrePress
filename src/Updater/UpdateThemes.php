@@ -250,8 +250,8 @@ class UpdateThemes
             $slug = $options['themes'][0];
 
             // We also need to delete every file and subdirectory on upgrade and upgrade-temp-backup folders
-            $this->helpers->cleanDirectory('upgrade');
-            $this->helpers->cleanDirectory('upgrade-temp-backup');
+            //$this->helpers->cleanDirectory('upgrade');
+            //$this->helpers->cleanDirectory('upgrade-temp-backup');
 
             // Clean the cache for this theme
             delete_transient($this->cache_key . $slug);
@@ -271,7 +271,7 @@ class UpdateThemes
     {
         $remoteVersion = get_transient($this->cache_key . 'remote-version-' . $slug);
 
-        if ($remoteVersion === false) {
+        if ($remoteVersion === false || !$this->cache_results) {
             $first_letter = mb_strtolower(mb_substr($slug, 0, 1));
 
             // Get theme info from UnrePress index

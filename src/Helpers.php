@@ -392,29 +392,25 @@ class Helpers
         }
 
         if ($type === 'theme') {
-            // Get the list of directories in the source directory
-            $directories = $wp_filesystem->dirlist($source);
-            
-            // Look for any subdirectory that contains a style.css file
-            foreach ($directories as $dirname => $info) {
-                if ($info['type'] === 'd') {
-                    $potential_theme_dir = trailingslashit($source . $dirname);
-                    if ($wp_filesystem->exists($potential_theme_dir . 'style.css')) {
-                        // Found a directory with style.css, rename it to our slug
-                        $new_theme_dir = trailingslashit($remote_source . '/' . $slug);
-                        
-                        // If the target directory already exists, remove it
-                        if ($wp_filesystem->exists($new_theme_dir)) {
-                            $wp_filesystem->delete($new_theme_dir, true);
-                        }
-                        
-                        // Move the theme directory to its new location with the correct slug name
-                        $wp_filesystem->move($potential_theme_dir, $new_theme_dir);
-                        
-                        return $new_theme_dir;
-                    }
-                }
+            // For themes, we need to rename the extracted directory to match the theme slug
+            $source_dir = rtrim($source, '/');
+            $new_source = trailingslashit(dirname($source_dir)) . $slug;
+
+            Debugger::log("UnrePress: Theme source directory: {$source_dir}");
+            Debugger::log("UnrePress: New theme directory: {$new_source}");
+
+            // If the target directory already exists, remove it
+            if ($wp_filesystem->exists($new_source)) {
+                Debugger::log("UnrePress: Removing existing theme directory: {$new_source}");
+                $wp_filesystem->delete($new_source, true);
             }
+
+            // Move the theme directory to its new location with the correct slug name
+            Debugger::log("UnrePress: Moving theme from {$source_dir} to {$new_source}");
+            $wp_filesystem->move($source_dir, $new_source);
+
+            Debugger::log("UnrePress: Theme directory renamed successfully. New source: " . trailingslashit($new_source));
+            return trailingslashit($new_source);
         }
 
         if ($type === 'plugin') {
