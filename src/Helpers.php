@@ -359,100 +359,101 @@ class Helpers
      *
      * @return string|WP_Error
      */
-    public static function fixSourceDir(string $source, string $remote_source, string $slug, string $type = 'plugin'): string
+    public static function fixSourceDir($source, $remote_source, $slug, $type = 'theme')
     {
-        if (! function_exists('WP_Filesystem')) {
-            Debugger::log('UnrePress: WP_Filesystem not available');
+        // Initialize WP_Filesystem
+        global $wp_filesystem;
+        if (! WP_Filesystem()) {
+            Debugger::log('Failed to initialize WP_Filesystem');
             return $source;
         }
 
-        Debugger::log('UnrePress: Starting source directory fix');
+        Debugger::log('Starting source directory fix');
         Debugger::log("Source: {$source}");
         Debugger::log("Remote source: {$remote_source}");
         Debugger::log("Slug: {$slug}");
         Debugger::log("Type: {$type}");
 
-        global $wp_filesystem;
-
-        // Ensure source path is properly formatted
-        $source = trailingslashit($source);
-        $remote_source = untrailingslashit($remote_source);
-
-        // Remove .github and .git directories if they exist
-        $directories_to_remove = ['.github', '.git'];
+        // Remove unwanted directories like .git, .github, etc.
+        $directories_to_remove = ['.git', '.github', '.wordpress-org'];
         foreach ($directories_to_remove as $dir) {
             $dir_path = $source . $dir;
             if ($wp_filesystem->exists($dir_path)) {
-                Debugger::log("UnrePress: Removing {$dir} directory from {$dir_path}");
+                Debugger::log("Removing {$dir} directory from {$dir_path}");
                 $result = $wp_filesystem->delete($dir_path, true);
                 if (!$result) {
-                    Debugger::log("UnrePress: Failed to remove {$dir} directory");
+                    Debugger::log("Failed to remove {$dir} directory");
                 }
             }
         }
 
+        // For themes, we want to move it directly to wp-content/upgrade/slug
         if ($type === 'theme') {
-            // For themes, we need to rename the extracted directory to match the theme slug
-            $source_dir = rtrim($source, '/');
-            $new_source = trailingslashit(dirname($source_dir)) . $slug;
+            $source_dir = untrailingslashit($source);
+            $new_source = WP_CONTENT_DIR . '/upgrade/' . $slug;
 
-            Debugger::log("UnrePress: Theme source directory: {$source_dir}");
-            Debugger::log("UnrePress: New theme directory: {$new_source}");
+            Debugger::log("Theme source directory: {$source_dir}");
+            Debugger::log("New theme directory: {$new_source}");
 
             // If the target directory already exists, remove it
             if ($wp_filesystem->exists($new_source)) {
-                Debugger::log("UnrePress: Removing existing theme directory: {$new_source}");
+                Debugger::log("Removing existing theme directory: {$new_source}");
                 $wp_filesystem->delete($new_source, true);
             }
 
-            // Move the theme directory to its new location with the correct slug name
-            Debugger::log("UnrePress: Moving theme from {$source_dir} to {$new_source}");
-            $wp_filesystem->move($source_dir, $new_source);
+            // Create the target directory if it doesn't exist
+            wp_mkdir_p(dirname($new_source));
 
-            Debugger::log("UnrePress: Theme directory renamed successfully. New source: " . trailingslashit($new_source));
+            // Move the theme to the new location
+            Debugger::log("Moving theme from {$source_dir} to {$new_source}");
+            if (!$wp_filesystem->move($source_dir, $new_source)) {
+                Debugger::log("Failed to move theme directory");
+                return $source;
+            }
+
+            Debugger::log("Theme directory renamed successfully. New source: " . trailingslashit($new_source));
             return trailingslashit($new_source);
         }
 
+        // For plugins and other types
         if ($type === 'plugin') {
-            // Clean up the slug - remove any file path components
-            $clean_slug = basename(dirname($slug));
-            if (empty($clean_slug)) {
+            if (empty($slug)) {
                 $clean_slug = $slug;
             }
 
-            Debugger::log("UnrePress: Clean slug: {$clean_slug}");
+            Debugger::log("Clean slug: {$clean_slug}");
 
             // Get the parent directory of source
             $parent_dir = dirname($source);
-            $current_dir = basename(untrailingslashit($source));
+            $current_dir = basename($source);
 
-            Debugger::log("UnrePress: Parent directory: {$parent_dir}");
-            Debugger::log("UnrePress: Current directory: {$current_dir}");
+            Debugger::log("Parent directory: {$parent_dir}");
+            Debugger::log("Current directory: {$current_dir}");
 
             // If the current directory doesn't match the slug
             if ($current_dir !== $clean_slug) {
                 $new_source = trailingslashit($parent_dir) . $clean_slug;
 
-                Debugger::log("UnrePress: Attempting to rename from {$source} to {$new_source}");
+                Debugger::log("Attempting to rename from {$source} to {$new_source}");
 
                 // First remove target directory if it exists
                 if ($wp_filesystem->exists($new_source)) {
-                    Debugger::log("UnrePress: Removing existing directory at {$new_source}");
+                    Debugger::log("Removing existing directory at {$new_source}");
                     $wp_filesystem->delete($new_source, true);
                 }
 
-                // Move the directory to the correct name
+                // Move to the correct directory
                 $result = $wp_filesystem->move($source, $new_source);
                 if ($result) {
-                    Debugger::log("UnrePress: Successfully renamed directory to {$clean_slug}");
+                    Debugger::log("Successfully renamed directory to {$clean_slug}");
                     return trailingslashit($new_source);
                 } else {
-                    Debugger::log("UnrePress: Failed to rename directory to {$clean_slug}");
+                    Debugger::log("Failed to rename directory to {$clean_slug}");
                 }
             }
         }
 
-        return trailingslashit($source);
+        return $source;
     }
 
 
@@ -466,11 +467,11 @@ class Helpers
     public function cleanDirectory($dir)
     {
         if (! function_exists('WP_Filesystem')) {
-            Debugger::log('UnrePress: WP_Filesystem not available');
+            Debugger::log('WP_Filesystem not available');
             return;
         }
 
-        Debugger::log('UnrePress: Starting directory cleanup');
+        Debugger::log('Starting directory cleanup');
         Debugger::log("Directory: {$dir}");
 
         global $wp_filesystem;
@@ -486,14 +487,14 @@ class Helpers
             }
             $path = $dir . '/' . $filename;
             if ($wp_filesystem->is_dir($path)) {
-                Debugger::log("UnrePress: Removing directory {$path}");
+                Debugger::log("Removing directory {$path}");
                 $wp_filesystem->delete($path, true);
             } else {
-                Debugger::log("UnrePress: Removing file {$path}");
+                Debugger::log("Removing file {$path}");
                 $wp_filesystem->delete($path);
             }
         }
 
-        Debugger::log('UnrePress: Directory cleanup complete');
+        Debugger::log('Directory cleanup complete');
     }
 }

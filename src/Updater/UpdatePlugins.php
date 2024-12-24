@@ -3,6 +3,7 @@
 namespace UnrePress\Updater;
 
 use UnrePress\Helpers;
+use UnrePress\Debugger;
 
 class UpdatePlugins
 {

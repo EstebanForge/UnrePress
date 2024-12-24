@@ -3,6 +3,7 @@
 namespace UnrePress\Updater;
 
 use UnrePress\Helpers;
+use UnrePress\Debugger;
 
 class UpdateThemes
 {
@@ -222,20 +223,11 @@ class UpdateThemes
                     $transient->response[$slug] = [
                         'theme' => $slug,
                         'new_version' => $updateInfo->version,
-                        'url' => $updateInfo->theme_uri,
+                        'url' => $updateInfo->theme_uri ?? '',
                         'package' => $updateInfo->download_link,
-                        'requires' => $updateInfo->requires,
-                        'requires_php' => $updateInfo->requires_php,
+                        'requires' => $updateInfo->requires ?? '',
+                        'requires_php' => $updateInfo->requires_php ?? '',
                     ];
-
-                    if (empty($transient->checked)) {
-                        $transient->checked = [];
-                        // Get all themes and their versions
-                        $themes = wp_get_themes();
-                        foreach ($themes as $slug => $theme) {
-                            $transient->checked[$slug] = $theme->get('Version');
-                        }
-                    }
                 }
             }
         }
@@ -247,16 +239,25 @@ class UpdateThemes
     {
         if ($this->cache_results && $options['action'] === 'update' && $options['type'] === 'theme') {
             // Get the updated theme slug
-            $slug = $options['themes'][0];
+            $slug = $options['themes'][0] ?? '';
 
-            // We also need to delete every file and subdirectory on upgrade and upgrade-temp-backup folders
-            //$this->helpers->cleanDirectory('upgrade');
-            //$this->helpers->cleanDirectory('upgrade-temp-backup');
+            if (empty($slug)) {
+                Debugger::log("No theme slug found in update options");
+                return;
+            }
+
+            Debugger::log("Cleaning up after theme update for {$slug}");
 
             // Clean the cache for this theme
             delete_transient($this->cache_key . $slug);
             delete_transient($this->cache_key . 'remote-version-' . $slug);
             delete_transient($this->cache_key . 'download-url-' . $slug);
+
+            // Clean up the upgrade and backup directories
+            //$this->helpers->cleanDirectory(WP_CONTENT_DIR . '/upgrade');
+            //$this->helpers->cleanDirectory(WP_CONTENT_DIR . '/upgrade-temp-backup');
+
+            Debugger::log("Cleanup complete for theme {$slug}");
         }
     }
 
@@ -391,9 +392,18 @@ class UpdateThemes
     public function maybeFixSourceDir($source, $remote_source, $upgrader, $args)
     {
         if (! isset($args['theme'])) {
+            Debugger::log("Theme not found in args");
             return $source;
         }
 
-        return Helpers::fixSourceDir($source, $remote_source, $args['theme'], 'theme');
+        Debugger::log("Fixing theme source directory");
+        Debugger::log("Source: {$source}");
+        Debugger::log("Remote source: {$remote_source}");
+        Debugger::log("Theme: {$args['theme']}");
+
+        $result = Helpers::fixSourceDir($source, $remote_source, $args['theme'], 'theme');
+
+        Debugger::log("New source directory: {$result}");
+        return $result;
     }
 }
