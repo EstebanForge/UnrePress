@@ -56,7 +56,7 @@ See more in [Planned Features Discussions](https://github.com/EstebanForge/UnreP
 
 ## Installation
 
-For now, go to [tags](https://github.com/EstebanForge/UnrePress/tags) and download the zip of the most recent one.
+Go to the Releases page, and download the most recent one. Install it as any other WordPress plugin.
 
 Consider that this proyect is still in active development and not stable. Don't use this on production, until 1.0 is released.
 
