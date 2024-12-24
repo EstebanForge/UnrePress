@@ -410,28 +410,28 @@ class Helpers
             if (empty($clean_slug)) {
                 $clean_slug = $slug;
             }
-            
+
             Debugger::log("UnrePress: Clean slug: {$clean_slug}");
-            
+
             // Get the parent directory of source
             $parent_dir = dirname($source);
             $current_dir = basename(untrailingslashit($source));
-            
+
             Debugger::log("UnrePress: Parent directory: {$parent_dir}");
             Debugger::log("UnrePress: Current directory: {$current_dir}");
-            
+
             // If the current directory doesn't match the slug
             if ($current_dir !== $clean_slug) {
                 $new_source = trailingslashit($parent_dir) . $clean_slug;
-                
+
                 Debugger::log("UnrePress: Attempting to rename from {$source} to {$new_source}");
-                
+
                 // First remove target directory if it exists
                 if ($wp_filesystem->exists($new_source)) {
                     Debugger::log("UnrePress: Removing existing directory at {$new_source}");
                     $wp_filesystem->delete($new_source, true);
                 }
-                
+
                 // Move the directory to the correct name
                 $result = $wp_filesystem->move($source, $new_source);
                 if ($result) {
@@ -444,5 +444,47 @@ class Helpers
         }
 
         return trailingslashit($source);
+    }
+
+
+    /**
+     * Clean up a directory by deleting all files and subdirectories.
+     *
+     * @param string $dir Directory to clean up
+     *
+     * @return void
+     */
+    public function cleanDirectory($dir)
+    {
+        if (! function_exists('WP_Filesystem')) {
+            Debugger::log('UnrePress: WP_Filesystem not available');
+            return;
+        }
+
+        Debugger::log('UnrePress: Starting directory cleanup');
+        Debugger::log("Directory: {$dir}");
+
+        global $wp_filesystem;
+
+        // Our $dir is inside wp-content
+        $dir = WP_CONTENT_DIR . '/' . $dir;
+
+        // Scan everything in the directory and delete it. Files and directories.
+        $files = $wp_filesystem->dirlist($dir);
+        foreach ($files as $file) {
+            if ($file === '.' || $file === '..') {
+                continue;
+            }
+            $path = $dir . '/' . $file;
+            if ($wp_filesystem->is_dir($path)) {
+                Debugger::log("UnrePress: Removing directory {$path}");
+                $wp_filesystem->delete($path, true);
+            } else {
+                Debugger::log("UnrePress: Removing file {$path}");
+                $wp_filesystem->delete($path);
+            }
+        }
+
+        Debugger::log('UnrePress: Directory cleanup complete');
     }
 }

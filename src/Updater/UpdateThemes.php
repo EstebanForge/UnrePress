@@ -210,8 +210,10 @@ class UpdateThemes
             if (isset($transient->checked[$slug])) {
                 $currentVersion = $transient->checked[$slug];
 
-                if (! empty($currentVersion) && ! empty($updateInfo->version) &&
-                    version_compare($currentVersion, $updateInfo->version, '<')) {
+                if (
+                    ! empty($currentVersion) && ! empty($updateInfo->version) &&
+                    version_compare($currentVersion, $updateInfo->version, '<')
+                ) {
                     if (! isset($transient->response)) {
                         $transient->response = [];
                     }
@@ -246,6 +248,10 @@ class UpdateThemes
         if ($this->cache_results && $options['action'] === 'update' && $options['type'] === 'theme') {
             // Get the updated theme slug
             $slug = $options['themes'][0];
+
+            // We also need to delete every file and subdirectory on upgrade and upgrade-temp-backup folders
+            $this->helpers->cleanDirectory('upgrade');
+            $this->helpers->cleanDirectory('upgrade-temp-backup');
 
             // Clean the cache for this theme
             delete_transient($this->cache_key . $slug);
