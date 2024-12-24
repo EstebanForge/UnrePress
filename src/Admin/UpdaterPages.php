@@ -5,6 +5,9 @@ namespace UnrePress\Admin;
 use UnrePress\Helpers;
 use UnrePress\Updater\UpdateCore;
 
+// No direct access
+defined('ABSPATH') or die();
+
 class UpdaterPages
 {
     private $helpers;
@@ -12,13 +15,14 @@ class UpdaterPages
     public function __construct()
     {
         add_action('admin_menu', [$this, 'addCoreUpdateMenu']);
-        add_action('wp_ajax_unrepress_update_core', [$this, 'initCoreAjaxUpdate']);
         add_action('wp_ajax_unrepress_get_update_log', [$this, 'getUpdateLog']);
+        add_action('wp_ajax_unrepress_update_core', [$this, 'initCoreAjaxUpdate']);
+        add_filter('wp_get_update_data', [$this, 'add_updates_count']);
         $this->helpers = new Helpers();
     }
 
     /**
-     * Handle AJAX update request
+     * Handle AJAX update request.
      *
      * @return void
      */
@@ -28,7 +32,7 @@ class UpdaterPages
         check_ajax_referer('unrepress_update_core');
 
         // Check user capabilities
-        if (! current_user_can('manage_options')) {
+        if (!current_user_can('manage_options')) {
             wp_send_json_error(['message' => __('Insufficient permissions', 'unrepress')]);
 
             return;
@@ -53,7 +57,7 @@ class UpdaterPages
     }
 
     /**
-     * Handle getting update log contents
+     * Handle getting update log contents.
      *
      * @return void
      */
@@ -63,7 +67,7 @@ class UpdaterPages
         check_ajax_referer('unrepress_get_update_log');
 
         // Check user capabilities
-        if (! current_user_can('manage_options')) {
+        if (!current_user_can('manage_options')) {
             wp_send_json_error(['message' => __('Insufficient permissions', 'unrepress')]);
 
             return;
@@ -71,7 +75,7 @@ class UpdaterPages
 
         $logFile = UNREPRESS_TEMP_PATH . 'unrepress_update_log.txt';
 
-        if (! file_exists($logFile)) {
+        if (!file_exists($logFile)) {
             wp_send_json_error(['message' => __('No update log found', 'unrepress')]);
 
             return;
@@ -83,23 +87,71 @@ class UpdaterPages
     }
 
     /**
-     * Create our new "Updates" page, children (sub menu) of Dashboard menu
+     * Create our new "Updates" page, children (sub menu) of Dashboard menu.
      *
      * @return void
      */
     public function addCoreUpdateMenu(): void
     {
+        $update_count = $this->getUpdateCount();
+        $menu_title = __('Updates', 'unrepress');
+
+        if ($update_count > 0) {
+            $menu_title .= sprintf(
+                ' <span class="update-plugins count-%d"><span class="update-count">%d</span></span>',
+                $update_count,
+                $update_count
+            );
+        }
+
         add_dashboard_page(
             __('Updates', 'unrepress'),
-            __('Updates', 'unrepress'),
+            $menu_title,
             'manage_options',
             'unrepress-updater',
             [$this, 'renderUpdaterPage']
         );
     }
 
+    private function getUpdateCount(): int
+    {
+        // Check if we have a cached count
+        $cached_count = get_transient('unrepress_updates_count');
+        if ($cached_count !== false) {
+            return (int) $cached_count;
+        }
+
+        $count = 0;
+
+        // Check core updates
+        $wpLocalVersion = get_bloginfo('version');
+        $updateCore = new UpdateCore();
+        $latestVersion = $updateCore->getLatestCoreVersion();
+
+        if ($latestVersion && version_compare($wpLocalVersion, $latestVersion, '<')) {
+            $count++;
+        }
+
+        // Check plugin updates
+        $pluginUpdates = get_plugin_updates();
+        if (!empty($pluginUpdates)) {
+            $count += count($pluginUpdates);
+        }
+
+        // Check theme updates
+        $themeUpdates = get_theme_updates();
+        if (!empty($themeUpdates)) {
+            $count += count($themeUpdates);
+        }
+
+        // Cache the count for 3 hours
+        set_transient('unrepress_updates_count', $count, 3 * HOUR_IN_SECONDS);
+
+        return $count;
+    }
+
     /**
-     * Render our new "Updates" page
+     * Render our new "Updates" page.
      *
      * @return void
      */
@@ -108,7 +160,7 @@ class UpdaterPages
         // Updating
         if (isset($_GET['do_update']) && $_GET['do_update'] == 'core') {
             // Validate nonce
-            if (! check_admin_referer('update-core')) {
+            if (!check_admin_referer('update-core')) {
                 wp_die(__('You are not allowed to perform this action.', 'unrepress'));
             }
 
@@ -118,14 +170,16 @@ class UpdaterPages
         }
 
         // Force-check
-        if (isset($_GET['force-check'])) {
-            // Validate nonce
-            if (! check_admin_referer('update-core')) {
-                wp_die(__('You are not allowed to perform this action.', 'unrepress'));
-            }
-
+        if (isset($_GET['force-check']) && $_GET['force-check'] == 1) {
             // Force an update check when requested.
-            (new UpdateCore())->forceCoreUpdateCheck();
+            $force_check = !empty($_GET['force-check']);
+            wp_version_check([], $force_check);
+
+            wp_update_plugins();
+            wp_update_themes();
+
+            // Clear transients
+            $this->helpers->clearUpdateTransients();
         }
 
         $this->updaterIndex();
@@ -146,32 +200,31 @@ class UpdaterPages
         // Clear updater log
         $this->helpers->clearUpdateLog();
 
+        $updateCoreUrl = admin_url('index.php?page=unrepress-updater&do_update=core');
+        $updateCoreUrl = add_query_arg('_wpnonce', wp_create_nonce('update-core'), $updateCoreUrl);
+
         $wpLocalVersion = get_bloginfo('version');
         $updateNeeded = false;
+        $coreLatestVersion = '';
 
-        $wpLatestVersion = new UpdateCore();
-        $wpLatestVersion = $wpLatestVersion->getLatestCoreVersion();
+        $updateCore = new UpdateCore();
+        $latestVersion = $updateCore->getLatestCoreVersion();
 
-        if (empty($wpLatestVersion)) {
-            $wpLatestVersion = 'Unknown';
+        $coreLatestVersion = $latestVersion;
+        if ($coreLatestVersion && version_compare($wpLocalVersion, $coreLatestVersion, '<')) {
+            $updateNeeded = true;
         }
 
         $wpLastChecked = get_option('unrepress_last_checked', time());
         // Format it to human readable time: YYYY-MM-DD HH:MM AM/PM
         $wpLastChecked = date('Y-m-d - H:i A', $wpLastChecked);
 
-        // Compare versions, check if remote version is newer
-        if (version_compare($wpLocalVersion, $wpLatestVersion, '<')) {
-            //add_action('admin_notices', [$this, 'showCoreUpdateNotice']);
-            $updateNeeded = true;
-        }
-
-        include_once UNREPRESS_PLUGIN_PATH . 'views/updater/unrepress-updater.php';
+        require_once UNREPRESS_PLUGIN_PATH . 'views/updater/unrepress-updater.php';
     }
 
     /**
      * Render our Updating page
-     * Trigger WP Core update
+     * Trigger WP Core update.
      *
      * @return void
      */
@@ -181,7 +234,7 @@ class UpdaterPages
     }
 
     /**
-     * Do updateThis
+     * Do updateThis.
      *
      * @param string $type core, plugins, themes
      *
@@ -197,5 +250,20 @@ class UpdaterPages
         }
 
         return $result;
+    }
+
+    /**
+     * Add our update count to the admin bar updates counter.
+     */
+    public function add_updates_count($update_data)
+    {
+        // Get our custom updates count from transient
+        $update_count = $this->getUpdateCount();
+
+        if ($update_count > 0) {
+            $update_data['counts']['total'] = $update_count;
+        }
+
+        return $update_data;
     }
 }

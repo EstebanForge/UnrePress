@@ -5,6 +5,7 @@ namespace UnrePress;
 class Helpers
 {
     private $updateLogFile = 'unrepress_update_log.txt';
+    private const TRANSIENT_NAME = UNREPRESS_PREFIX . 'updates_core_latest_version';
 
     // Helper function to get directory structure as an array
     public function dirToArray($dir)
@@ -68,12 +69,8 @@ class Helpers
         global $wp_filesystem;
         WP_Filesystem();
 
-        Debugger::log('Removing directory: ' . $dir);
-
         // Use rmdir() to remove the directory and all its contents recursively
         $result = $wp_filesystem->rmdir($dir, true); // `true` for recursive deletion
-
-        Debugger::log('Result: ' . $result);
 
         if (! $result) {
             if (is_wp_error($wp_filesystem->errors) && $wp_filesystem->errors->has_errors()) {
@@ -82,8 +79,6 @@ class Helpers
 
             return false;
         }
-
-        Debugger::log('Removed directory: ' . $dir);
 
         return true;
     }
@@ -165,19 +160,13 @@ class Helpers
         // Initialize the WP_Filesystem
         WP_Filesystem();
 
-        Debugger::log('Copying directory: ' . $source . ' to ' . $destination);
-
         // Use copy_dir to copy source to destination
         $result = copy_dir($source, $destination);
-
-        Debugger::log('Result: ' . $result);
 
         if (is_wp_error($result)) {
             // Handle the error if copying fails
             return $result->get_error_message();
         }
-
-        Debugger::log('Copied directory: ' . $source . ' to ' . $destination);
 
         return true;
     }
@@ -364,26 +353,15 @@ class Helpers
         // Initialize WP_Filesystem
         global $wp_filesystem;
         if (! WP_Filesystem()) {
-            Debugger::log('Failed to initialize WP_Filesystem');
             return $source;
         }
-
-        Debugger::log('Starting source directory fix');
-        Debugger::log("Source: {$source}");
-        Debugger::log("Remote source: {$remote_source}");
-        Debugger::log("Slug: {$slug}");
-        Debugger::log("Type: {$type}");
 
         // Remove unwanted directories like .git, .github, etc.
         $directories_to_remove = ['.git', '.github', '.wordpress-org', '.ci'];
         foreach ($directories_to_remove as $dir) {
             $dir_path = $source . $dir;
             if ($wp_filesystem->exists($dir_path)) {
-                Debugger::log("Removing {$dir} directory from {$dir_path}");
                 $result = $wp_filesystem->delete($dir_path, true);
-                if (!$result) {
-                    Debugger::log("Failed to remove {$dir} directory");
-                }
             }
         }
 
@@ -392,12 +370,8 @@ class Helpers
             $source_dir = untrailingslashit($source);
             $new_source = WP_CONTENT_DIR . '/upgrade/' . $slug;
 
-            Debugger::log("Theme source directory: {$source_dir}");
-            Debugger::log("New theme directory: {$new_source}");
-
             // If the target directory already exists, remove it
             if ($wp_filesystem->exists($new_source)) {
-                Debugger::log("Removing existing theme directory: {$new_source}");
                 $wp_filesystem->delete($new_source, true);
             }
 
@@ -405,57 +379,44 @@ class Helpers
             wp_mkdir_p(dirname($new_source));
 
             // Move the theme to the new location
-            Debugger::log("Moving theme from {$source_dir} to {$new_source}");
             if (!$wp_filesystem->move($source_dir, $new_source)) {
-                Debugger::log("Failed to move theme directory");
                 return $source;
             }
 
-            Debugger::log("Theme directory renamed successfully. New source: " . trailingslashit($new_source));
             return trailingslashit($new_source);
         }
 
         // For plugins and other types
         if ($type === 'plugin') {
-            if (empty($slug)) {
-                $clean_slug = $slug;
+            // Extract just the plugin directory name from the full slug path
+            $clean_slug = explode('/', $slug)[0];
+            if (empty($clean_slug)) {
+                return $source;
             }
-
-            Debugger::log("Clean slug: {$clean_slug}");
 
             // Get the parent directory of source
             $parent_dir = dirname($source);
             $current_dir = basename($source);
 
-            Debugger::log("Parent directory: {$parent_dir}");
-            Debugger::log("Current directory: {$current_dir}");
-
             // If the current directory doesn't match the slug
             if ($current_dir !== $clean_slug) {
                 $new_source = trailingslashit($parent_dir) . $clean_slug;
 
-                Debugger::log("Attempting to rename from {$source} to {$new_source}");
-
                 // First remove target directory if it exists
                 if ($wp_filesystem->exists($new_source)) {
-                    Debugger::log("Removing existing directory at {$new_source}");
                     $wp_filesystem->delete($new_source, true);
                 }
 
                 // Move to the correct directory
                 $result = $wp_filesystem->move($source, $new_source);
                 if ($result) {
-                    Debugger::log("Successfully renamed directory to {$clean_slug}");
                     return trailingslashit($new_source);
-                } else {
-                    Debugger::log("Failed to rename directory to {$clean_slug}");
                 }
             }
         }
 
         return $source;
     }
-
 
     /**
      * Clean up a directory by deleting all files and subdirectories.
@@ -467,12 +428,8 @@ class Helpers
     public function cleanDirectory($dir)
     {
         if (! function_exists('WP_Filesystem')) {
-            Debugger::log('WP_Filesystem not available');
             return;
         }
-
-        Debugger::log('Starting directory cleanup');
-        Debugger::log("Directory: {$dir}");
 
         global $wp_filesystem;
 
@@ -481,21 +438,21 @@ class Helpers
 
         // Scan everything in the directory and delete it. Files and directories.
         $files = $wp_filesystem->dirlist($dir);
+        if (!$files) {
+            return;
+        }
+
         foreach ($files as $filename => $file_info) {
             if ($filename === '.' || $filename === '..') {
                 continue;
             }
             $path = $dir . '/' . $filename;
             if ($wp_filesystem->is_dir($path)) {
-                Debugger::log("Removing directory {$path}");
                 $wp_filesystem->delete($path, true);
             } else {
-                Debugger::log("Removing file {$path}");
                 $wp_filesystem->delete($path);
             }
         }
-
-        Debugger::log('Directory cleanup complete');
     }
 
     /**
@@ -522,9 +479,6 @@ class Helpers
         }
 
         if (!empty($slug)) {
-            // Log the cleanup action
-            Debugger::log("Cleaning up after {$type} update for {$slug}");
-
             // Clean the cache for the updated item
             delete_transient($cache_key . $slug);
             if ($type === 'theme') {
@@ -533,11 +487,37 @@ class Helpers
             }
 
             // Clean up the upgrade and backup directories
-            $this->cleanDirectory(WP_CONTENT_DIR . '/upgrade');
-            $this->cleanDirectory(WP_CONTENT_DIR . '/upgrade-temp-backup');
+            $this->clearTempDirectories();
 
-            // Log completion
-            Debugger::log("Cleanup complete for {$type} {$slug}");
+            // Clean transients
+            $this->clearUpdateTransients();
         }
+    }
+
+
+    /**
+     * Clear the temp directories
+     *
+     * @return void
+     */
+    public function clearTempDirectories() {
+        // Clean up the upgrade and backup directories
+        $this->cleanDirectory(WP_CONTENT_DIR . '/upgrade');
+        $this->cleanDirectory(WP_CONTENT_DIR . '/upgrade-temp-backup');
+    }
+
+    /**
+     * Clear all WordPress update related transients
+     * This forces WordPress to check for updates on the next request
+     *
+     * @return void
+     */
+    public static function clearUpdateTransients(): void
+    {
+        delete_transient(self::TRANSIENT_NAME);
+        delete_transient('unrepress_updates_count');
+        delete_transient('update_plugins');
+        delete_transient('update_themes');
+        delete_transient('update_core');
     }
 }

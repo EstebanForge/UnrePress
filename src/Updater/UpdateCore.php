@@ -2,7 +2,6 @@
 
 namespace UnrePress\Updater;
 
-use UnrePress\Debugger;
 use UnrePress\Helpers;
 use UnrePress\UpdaterProvider\GitHub;
 
@@ -15,7 +14,7 @@ class UpdateCore
     protected $updateType = 'core';
 
     protected $provider = 'github';
-    private const TRANSIENT_NAME = UNREPRESS_PREFIX . 'core_latest_version';
+    private const TRANSIENT_NAME = UNREPRESS_PREFIX . 'updates_core_latest_version';
 
     /**
      * Class constructor. If an update is already in progress, this prevents any other
@@ -42,7 +41,6 @@ class UpdateCore
 
         // Check if update lock is set. Don't continue if it is set.
         if ($this->updateLock->isLocked()) {
-            Debugger::log('An update is already in progress. Please try again later.');
             $this->helpers->writeUpdateLog(__('An update is already in progress. Please try again later.', 'unrepress'));
             $this->helpers->writeUpdateLog(':(');
 
@@ -67,7 +65,6 @@ class UpdateCore
 
         // Get the download URL
         $downloadUrl = $this->getDownloadUrl('WordPress/WordPress', $latestVersion);
-        Debugger::log('Download URL: ' . $downloadUrl);
 
         $this->helpers->writeUpdateLog(
             wp_sprintf('Downloading Core version %s from %s', $latestVersion, $downloadUrl)
@@ -150,6 +147,9 @@ class UpdateCore
         // Remove $downloadPath
         wp_delete_file($downloadPath);
 
+        // Clean up WordPress temp directories
+        $this->helpers->clearTempDirectories();
+
         // Delete the update lock
         $this->updateLock->unlock();
 
@@ -186,8 +186,6 @@ class UpdateCore
 
             // Save unrepress_last_checked
             update_option(UNREPRESS_PREFIX . 'last_checked', time());
-        } else {
-            Debugger::log("Latest version fetch failed");
         }
 
         return $latestVersion;
@@ -220,8 +218,6 @@ class UpdateCore
         $downloadResult = wp_remote_get($downloadUrl, ['filename' => $downloadPath, 'stream' => true, 'timeout' => 300]);
 
         if (is_wp_error($downloadResult)) {
-            Debugger::log('Error downloading update: ' . $downloadResult->get_error_message());
-
             return false;
         }
 
@@ -241,7 +237,7 @@ class UpdateCore
         // Remove lock
         $this->updateLock->unlock();
 
-        // Force an update check
-        delete_transient(self::TRANSIENT_NAME);
+        // Clear all update transients
+        Helpers::clearUpdateTransients();
     }
 }

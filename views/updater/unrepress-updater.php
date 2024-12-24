@@ -1,98 +1,93 @@
 <?php
 
-namespace UnrePress\Views;
+use UnrePress\Helpers;
 
 // No direct access
 defined('ABSPATH') or die();
 
+// Ensure we're in admin context
+if (!is_admin()) {
+    wp_die(__('Access Denied', 'unrepress'));
+}
+
+require_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
+require_once ABSPATH . 'wp-admin/includes/update.php';
+require_once ABSPATH . 'wp-admin/includes/plugin.php';
+require_once ABSPATH . 'wp-admin/includes/misc.php';
+
+// Verify nonce if force-check is requested
+if (isset($_GET['force-check']) && $_GET['force-check'] == 1) {
+    // Force an update check when requested.
+    $force_check = !empty($_GET['force-check']);
+    wp_version_check([], $force_check);
+
+    // Force refresh of plugin and theme updates
+    wp_update_plugins();
+    wp_update_themes();
+
+    // Clear transients
+    Helpers::clearUpdateTransients();
+}
 ?>
-<div class="wrap unrepress">
-	<h1><?php esc_html_e('Updates', 'unrepress'); ?>
-	</h1>
+<div class="wrap">
+    <h1><?php esc_html_e('UnrePress Updater', 'unrepress'); ?></h1>
+    <p><?php printf(esc_html__('Last checked on %s.', 'unrepress'), $wpLastChecked); ?></p>
 
-	<hr class="wp-header-end">
+    <section class="updates-core">
+        <h2><?php esc_html_e('Core', 'unrepress'); ?>
+            <?php if ($updateNeeded && !empty($coreLatestVersion)): ?>
+                <span class="count">(1)</span>
+            <?php endif; ?>
+        </h2>
+        <?php if ($updateNeeded && !empty($coreLatestVersion)): ?>
+            <ul>
+                <li>
+                    <h3>
+                        <?php esc_html_e('WordPress update available', 'unrepress'); ?>
+                    </h3>
+                    <p>
+                        <?php
+                        printf(
+                            /* translators: 1: WordPress version, 2: WordPress version. */
+                            __('You are currently running WordPress version %1$s. The latest version is %2$s', 'unrepress'),
+                            $wpLocalVersion,
+                            $coreLatestVersion
+                        );
+                        ?>
+                    </p>
+                    <p>
+                        <?php
+                        printf(
+                            '<a href="%s" class="button button-primary">%s</a>',
+                            $updateCoreUrl,
+                            __('Update now', 'unrepress')
+                        );
+                        ?>
+                    </p>
+                </li>
+            </ul>
+        <?php else: ?>
+            <p><?php esc_html_e('Your WordPress installation is up to date.', 'unrepress'); ?>
+            </p>
+        <?php endif; ?>
+    </section>
 
-	<section class="updates-core">
-		<h2 class="wp-current-version">
-			<?php esc_html_e('Current version', 'unrepress'); ?>:
-			<?php echo $wpLocalVersion; ?>
-		</h2>
-
-		<p>
-			<?php
-            printf(
-                /* translators: %s: WordPress version. */
-                __('You are currently using WordPress version %s'),
-                $wpLocalVersion
-            );
-?>
-		</p>
-
-		<p class="response">
-			<?php esc_html_e('Latest WordPress version', 'unrepress'); ?>:
-			<?php echo $wpLatestVersion; ?>
-		</p>
-
-		<p class="update-last-checked">
-			<?php
-$forceCheckUrl = admin_url('index.php?page=unrepress-updater&force-check=1');
-$forceCheckUrl = add_query_arg('_wpnonce', wp_create_nonce('update-core'), $forceCheckUrl);
-?>
-			<?php esc_html_e('Last checked', 'unrepress'); ?>:
-			<?php echo $wpLastChecked; ?>. <a
-				href="<?php echo $forceCheckUrl; ?>"><?php esc_html_e('Check again', 'unrepress'); ?>.</a>
-		</p>
-
-		<?php
-        if ($updateNeeded):
-            ?>
-		<ul class="core-updates">
-			<li>
-				<h3>
-					<?php esc_html_e('WordPress update available', 'unrepress'); ?>
-				</h3>
-				<p>
-					<?php
-                            $updateCoreUrl = admin_url('index.php?page=unrepress-updater&do_update=core');
-            $updateCoreUrl = add_query_arg('_wpnonce', wp_create_nonce('update-core'), $updateCoreUrl);
-
-            printf(
-                /* translators: 1: WordPress version, 2: WordPress version. */
-                __('You are currently running WordPress version %1$s. The latest version is %2$s', 'unrepress'),
-                $wpLocalVersion,
-                $wpLatestVersion
-            );
-
-            echo '<br/>';
-
-            printf(
-                '<a href="%s" class="button button-primary regular">%s</a>',
-                $updateCoreUrl,
-                __('Update now', 'unrepress')
-            );
-            ?>
-				</p>
-			</li>
-		</ul>
-		<?php
-        endif;
-?>
-	</section>
-
-	<section class="updates-plugins">
-		<h2><?php esc_html_e('Plugins', 'unrepress'); ?>
-		</h2>
-		<p>
-			<?php esc_html_e('Your plugins are all up to date.', 'unrepress'); ?>
-		</p>
-	</section>
-
-	<section class="updates-themes">
-		<h2><?php esc_html_e('Themes', 'unrepress'); ?>
-		</h2>
-		<p>
-			<?php esc_html_e('Your themes are all up to date.', 'unrepress'); ?>
-		</p>
-	</section>
+    <section class="updates-plugins-themes">
+        <?php require_once ABSPATH . 'wp-admin/update-core.php'; ?>
+    </section>
 </div>
-<div class="clear"></div>
+<style>
+    .updates-plugins-themes {
+        h1 {
+            display: none;
+        }
+
+        h2.response {
+            display: none;
+        }
+
+        .core-updates {
+            display: none;
+        }
+    }
+</style>

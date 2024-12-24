@@ -26,11 +26,6 @@ class UpdatePlugins
         $this->cache_key = UNREPRESS_PREFIX . 'updates_plugin_';
         $this->cache_results = true;
 
-        // If force-check=1 and page=unrepress-updates, then empty all update transients
-        if (isset($_GET['force-check']) && $_GET['force-check'] === '1' && isset($_GET['page']) && $_GET['page'] === 'unrepress-updater') {
-            $this->deleteAllUpdateTransients();
-        }
-
         $this->checkforUpdates();
 
         add_filter('plugins_api', [$this, 'getInformation'], 20, 3);
@@ -79,9 +74,9 @@ class UpdatePlugins
             if (version_compare($installedVersion, $latestVersion, '<')) {
                 $updateInfo = new \stdClass();
 
-                $updateInfo->requires = $remoteData->requires;
-                $updateInfo->tested = $remoteData->tested;
-                $updateInfo->requires_php = $remoteData->requires_php;
+                $updateInfo->requires = $remoteData->requires ?? '6.5';
+                $updateInfo->tested = $remoteData->tested ?? '6.7';
+                $updateInfo->requires_php = $remoteData->requires_php ?? '8.1';
                 $updateInfo->name = $remoteData->name;
                 $updateInfo->plugin_uri = $remoteData->homepage;
                 $updateInfo->description = $remoteData->sections->description;
@@ -89,7 +84,7 @@ class UpdatePlugins
                 $updateInfo->author_uri = $remoteData->author_profile;
                 $updateInfo->banner = $remoteData->banners;
 
-                $updateInfo->last_updated = $remoteData->last_updated;
+                $updateInfo->last_updated = $remoteData->last_updated ?? time();
                 $updateInfo->changelog = $remoteData->sections->changelog;
 
                 $updateInfo->version = $latestVersion;
@@ -347,31 +342,6 @@ class UpdatePlugins
         }
 
         return $remoteVersion;
-    }
-
-    /**
-     * Deletes all transients used by the updates API.
-     *
-     * All transients used by the updates API have a name that begins with
-     * UNREPRESS_PREFIX . 'updates_plugin'. This method will delete all
-     * transients with names that match this pattern.
-     *
-     * @since 1.0.0
-     */
-    private function deleteAllUpdateTransients()
-    {
-        global $wpdb;
-
-        // Delete both transients and their timeout entries
-        $wpdb->query(
-            $wpdb->prepare(
-                "DELETE FROM {$wpdb->options}
-                WHERE option_name LIKE %s
-                OR option_name LIKE %s",
-                '_transient_' . $this->cache_key . '%',
-                '_transient_timeout_' . $this->cache_key . '%'
-            )
-        );
     }
 
     /**

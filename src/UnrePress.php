@@ -17,14 +17,13 @@ class UnrePress
             return;
         }
 
-        $adminHider = new Admin\Hider();
+        $adminHider        = new Admin\Hider();
         $adminUpdaterPages = new Admin\UpdaterPages();
-        $updateLock = new Updater\UpdateLock();
-        $index = new Index\Index();
-        $indexPlugins = new Index\PluginsIndex();
-        $indexThemes = new Index\ThemesIndex();
-
-        $updaterPlugins = new Updater\UpdatePlugins();
-        $updaterThemes = new Updater\UpdateThemes();
+        $updateLock        = new Updater\UpdateLock();
+        $index             = new Index\Index();
+        $indexPlugins      = new Index\PluginsIndex();
+        $indexThemes       = new Index\ThemesIndex();
+        $updaterPlugins    = new Updater\UpdatePlugins();
+        $updaterThemes     = new Updater\UpdateThemes();
     }
 }

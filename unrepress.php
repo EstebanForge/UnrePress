@@ -45,9 +45,6 @@ if (file_exists(UNREPRESS_PLUGIN_PATH . 'vendor/autoload.php')) {
 // Initialize the plugin
 function unrepress_init(): void
 {
-    // Include Ray stub
-    require_once UNREPRESS_PLUGIN_PATH . 'inc/ray-stub.php';
-
     try {
         $plugin = new UnrePress\UnrePress();
         $plugin->run();
