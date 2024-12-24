@@ -89,13 +89,65 @@ class UpdaterPages
      */
     public function addCoreUpdateMenu(): void
     {
+        $update_count = $this->getUpdateCount();
+        $menu_title = __('Updates', 'unrepress');
+
+        if ($update_count > 0) {
+            $menu_title .= sprintf(
+                ' <span class="update-plugins count-%d"><span class="update-count">%d</span></span>',
+                $update_count,
+                $update_count
+            );
+        }
+
         add_dashboard_page(
             __('Updates', 'unrepress'),
-            __('Updates', 'unrepress'),
+            $menu_title,
             'manage_options',
             'unrepress-updater',
             [$this, 'renderUpdaterPage']
         );
+    }
+
+    private function getUpdateCount(): int
+    {
+        // Check if we have a cached count
+        $cached_count = get_transient('unrepress_updates_count');
+        if ($cached_count !== false) {
+            return (int) $cached_count;
+        }
+
+        $count = 0;
+
+        // Check core updates
+        $wpLocalVersion = get_bloginfo('version');
+        $wpLatestVersion = new UpdateCore();
+        $wpLatestVersion = $wpLatestVersion->getLatestCoreVersion();
+
+        if (!empty($wpLatestVersion) && version_compare($wpLocalVersion, $wpLatestVersion, '<')) {
+            $count++;
+        }
+
+        // Check plugin updates
+        $pluginUpdater = new \UnrePress\Updater\UpdatePlugins();
+        $pluginTransient = get_site_transient('update_plugins');
+        $pluginTransient = $pluginUpdater->hasUpdate($pluginTransient);
+        if (!empty($pluginTransient->response)) {
+            $count += count($pluginTransient->response);
+        }
+
+        // Check theme updates
+        $themeUpdater = new \UnrePress\Updater\UpdateThemes();
+        $themeTransient = get_site_transient('update_themes');
+        $themeTransient = $themeUpdater->hasUpdate($themeTransient);
+        if (!empty($themeTransient->response)) {
+            $count += count($themeTransient->response);
+        }
+
+        // Cache the count for 3 hours
+        set_transient('unrepress_updates_count', $count, 3 * HOUR_IN_SECONDS);
+
+        return $count;
     }
 
     /**
