@@ -218,6 +218,38 @@ class UpdaterPages
             $updateNeeded = true;
         }
 
+        // Get plugin updates
+        $pluginUpdates = [];
+        if (function_exists('get_plugin_updates')) {
+            $plugin_updates = get_plugin_updates();
+            foreach ($plugin_updates as $plugin_file => $plugin_data) {
+                $pluginUpdates[] = [
+                    'file' => $plugin_file,
+                    'name' => $plugin_data->Name,
+                    'version' => $plugin_data->Version,
+                    'new_version' => $plugin_data->update->new_version,
+                    'icon' => $plugin_data->update->icons['2x'] ?? $plugin_data->update->icons['1x'] ?? '',
+                    'update_message' => $plugin_data->update->upgrade_notice ?? ''
+                ];
+            }
+        }
+
+        // Get theme updates
+        $themeUpdates = [];
+        if (function_exists('get_theme_updates')) {
+            $theme_updates = get_theme_updates();
+            foreach ($theme_updates as $theme_file => $theme_data) {
+                $themeUpdates[] = [
+                    'theme' => $theme_file,
+                    'name' => $theme_data->Name,
+                    'version' => $theme_data->Version,
+                    'new_version' => $theme_data->update['new_version'],
+                    'screenshot' => get_theme_root_uri() . '/' . $theme_file . '/screenshot.png',
+                    'update_message' => $theme_data->update['upgrade_notice'] ?? ''
+                ];
+            }
+        }
+
         include_once UNREPRESS_PLUGIN_PATH . 'views/updater/unrepress-updater.php';
     }
 

@@ -8,7 +8,7 @@ class Hider
     {
         // If debug is on, don't hide WP updates menu
         if (defined('WP_DEBUG') && WP_DEBUG) {
-            //return;
+            return;
         }
 
         add_action('admin_menu', [$this, 'removeMenus']);
