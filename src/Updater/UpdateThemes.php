@@ -68,9 +68,9 @@ class UpdateThemes
                 $theme = wp_get_theme($slug);
 
                 // Get data from the remote source
-                $updateInfo->requires = $remoteData->requires ?? '';
-                $updateInfo->tested = $remoteData->tested ?? '';
-                $updateInfo->requires_php = $remoteData->requires_php ?? '';
+                $updateInfo->requires = $remoteData->requires ?? '6.5';
+                $updateInfo->tested = $remoteData->tested ?? '6.7';
+                $updateInfo->requires_php = $remoteData->requires_php ?? '8.1';
 
                 // Get data from the local theme object
                 $updateInfo->name = $theme->get('Name');

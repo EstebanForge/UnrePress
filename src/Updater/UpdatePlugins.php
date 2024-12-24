@@ -74,9 +74,9 @@ class UpdatePlugins
             if (version_compare($installedVersion, $latestVersion, '<')) {
                 $updateInfo = new \stdClass();
 
-                $updateInfo->requires = $remoteData->requires;
-                $updateInfo->tested = $remoteData->tested;
-                $updateInfo->requires_php = $remoteData->requires_php;
+                $updateInfo->requires = $remoteData->requires ?? '6.5';
+                $updateInfo->tested = $remoteData->tested ?? '6.7';
+                $updateInfo->requires_php = $remoteData->requires_php ?? '8.1';
                 $updateInfo->name = $remoteData->name;
                 $updateInfo->plugin_uri = $remoteData->homepage;
                 $updateInfo->description = $remoteData->sections->description;
@@ -84,7 +84,7 @@ class UpdatePlugins
                 $updateInfo->author_uri = $remoteData->author_profile;
                 $updateInfo->banner = $remoteData->banners;
 
-                $updateInfo->last_updated = $remoteData->last_updated;
+                $updateInfo->last_updated = $remoteData->last_updated ?? time();
                 $updateInfo->changelog = $remoteData->sections->changelog;
 
                 $updateInfo->version = $latestVersion;
