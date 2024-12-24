@@ -391,15 +391,28 @@ class Helpers
             }
         }
 
-        // Let's search for a directory name that matches the slug and have a style.css file inside it.
         if ($type === 'theme') {
             // Get the list of directories in the source directory
             $directories = $wp_filesystem->dirlist($source);
-            Debugger::log("Directories: " . print_r($directories, true));
-            foreach ($directories as $name => $info) {
-                if (strpos($name, $slug) !== false && $wp_filesystem->exists($source . $name . '/style.css')) {
-                    Debugger::log("UnrePress: Found directory {$source} . {$name} with style.css file");
-                    return trailingslashit($source . $name);
+            
+            // Look for any subdirectory that contains a style.css file
+            foreach ($directories as $dirname => $info) {
+                if ($info['type'] === 'd') {
+                    $potential_theme_dir = trailingslashit($source . $dirname);
+                    if ($wp_filesystem->exists($potential_theme_dir . 'style.css')) {
+                        // Found a directory with style.css, rename it to our slug
+                        $new_theme_dir = trailingslashit($remote_source . '/' . $slug);
+                        
+                        // If the target directory already exists, remove it
+                        if ($wp_filesystem->exists($new_theme_dir)) {
+                            $wp_filesystem->delete($new_theme_dir, true);
+                        }
+                        
+                        // Move the theme directory to its new location with the correct slug name
+                        $wp_filesystem->move($potential_theme_dir, $new_theme_dir);
+                        
+                        return $new_theme_dir;
+                    }
                 }
             }
         }
@@ -471,11 +484,11 @@ class Helpers
 
         // Scan everything in the directory and delete it. Files and directories.
         $files = $wp_filesystem->dirlist($dir);
-        foreach ($files as $file) {
-            if ($file === '.' || $file === '..') {
+        foreach ($files as $filename => $file_info) {
+            if ($filename === '.' || $filename === '..') {
                 continue;
             }
-            $path = $dir . '/' . $file;
+            $path = $dir . '/' . $filename;
             if ($wp_filesystem->is_dir($path)) {
                 Debugger::log("UnrePress: Removing directory {$path}");
                 $wp_filesystem->delete($path, true);
