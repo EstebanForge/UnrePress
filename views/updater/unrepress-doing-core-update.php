@@ -8,7 +8,7 @@ defined('ABSPATH') or die();
 ?>
 
 <div class="wrap unrepress">
-    <h1><?php esc_html_e('Updating Core', 'unrepress'); ?></h1>
+    <h1><?php esc_html_e('Updating WordPress Core', 'unrepress'); ?></h1>
 
     <hr class="wp-header-end">
 
