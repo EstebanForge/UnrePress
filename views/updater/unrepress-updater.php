@@ -5,6 +5,11 @@ use UnrePress\Helpers;
 // No direct access
 defined('ABSPATH') or die();
 
+// Ensure we're in admin context
+if (!is_admin()) {
+    wp_die(__('Access Denied', 'unrepress'));
+}
+
 require_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
 require_once ABSPATH . 'wp-admin/includes/update.php';
 require_once ABSPATH . 'wp-admin/includes/plugin.php';
@@ -23,11 +28,6 @@ if (isset($_GET['force-check']) && $_GET['force-check'] == 1) {
     // Clear transients
     Helpers::clearUpdateTransients();
 }
-
-// Ensure we're in admin context
-if (!is_admin()) {
-    wp_die(__('Access Denied', 'unrepress'));
-}
 ?>
 <div class="wrap">
     <h1><?php esc_html_e('UnrePress Updates', 'unrepress'); ?>
@@ -36,7 +36,9 @@ if (!is_admin()) {
     </p>
 
     <section class="updates-core">
-        <h2><?php esc_html_e('WordPress Core', 'unrepress'); ?>
+        <h2><?php esc_html_e('Core', 'unrepress'); ?> <?php if ($updateNeeded && !empty($coreLatestVersion)): ?>
+                <span class="count">(1)</span>
+            <?php endif; ?>
         </h2>
         <?php if ($updateNeeded && !empty($coreLatestVersion)): ?>
             <ul>
@@ -51,6 +53,15 @@ if (!is_admin()) {
                             __('You are currently running WordPress version %1$s. The latest version is %2$s', 'unrepress'),
                             $wpLocalVersion,
                             $coreLatestVersion
+                        );
+                        ?>
+                    </p>
+                    <p>
+                        <?php
+                        printf(
+                            '<a href="%s" class="button button-primary">%s</a>',
+                            $updateCoreUrl,
+                            __('Update now', 'unrepress')
                         );
                         ?>
                     </p>

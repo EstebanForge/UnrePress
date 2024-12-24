@@ -2,6 +2,7 @@
 
 namespace UnrePress\Admin;
 
+use UnrePress\Debugger;
 use UnrePress\Helpers;
 use UnrePress\Updater\UpdateCore;
 
@@ -123,9 +124,10 @@ class UpdaterPages
 
         // Check core updates
         $wpLocalVersion = get_bloginfo('version');
-        $wpLatestVersion = get_bloginfo('version');
-        $coreUpdates = get_core_updates();
-        if (!empty($coreUpdates) && version_compare($wpLocalVersion, $wpLatestVersion, '<')) {
+        $updateCore = new \UnrePress\Updater\UpdateCore();
+        $latestVersion = $updateCore->getLatestCoreVersion();
+        Debugger::log($latestVersion);
+        if (version_compare($wpLocalVersion, $latestVersion, '<')) {
             $count++;
         }
 
@@ -167,13 +169,16 @@ class UpdaterPages
         }
 
         // Force-check
-        if (isset($_GET['force-check'])) {
+        if (isset($_GET['force-check']) && $_GET['force-check'] == 1) {
             // Force an update check when requested.
             $force_check = ! empty($_GET['force-check']);
             wp_version_check(array(), $force_check);
 
             wp_update_plugins();
             wp_update_themes();
+
+            // Clear transients
+            $this->helpers->clearUpdateTransients();
         }
 
         $this->updaterIndex();
@@ -194,16 +199,19 @@ class UpdaterPages
         // Clear updater log
         $this->helpers->clearUpdateLog();
 
+        $updateCoreUrl = admin_url('index.php?page=unrepress-updater&do_update=core');
+        $updateCoreUrl = add_query_arg('_wpnonce', wp_create_nonce('update-core'), $updateCoreUrl);
+
         $wpLocalVersion = get_bloginfo('version');
         $updateNeeded = false;
         $coreLatestVersion = '';
 
-        $coreUpdates = get_core_updates();
-        if (!empty($coreUpdates) && !empty($coreUpdates[0])) {
-            $coreLatestVersion = $coreUpdates[0]->current;
-            if (version_compare($wpLocalVersion, $coreLatestVersion, '<')) {
-                $updateNeeded = true;
-            }
+        $updateCore = new \UnrePress\Updater\UpdateCore();
+        $latestVersion = $updateCore->getLatestCoreVersion();
+
+        $coreLatestVersion = $latestVersion;
+        if (version_compare($wpLocalVersion, $coreLatestVersion, '<')) {
+            $updateNeeded = true;
         }
 
         $wpLastChecked = get_option('unrepress_last_checked', time());
