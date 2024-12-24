@@ -169,6 +169,9 @@ class UpdaterPages
         // Force-check
         if (isset($_GET['force-check'])) {
             // Force an update check when requested.
+            $force_check = ! empty($_GET['force-check']);
+            wp_version_check(array(), $force_check);
+
             wp_update_plugins();
             wp_update_themes();
         }
