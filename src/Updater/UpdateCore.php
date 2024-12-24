@@ -147,6 +147,9 @@ class UpdateCore
         // Remove $downloadPath
         wp_delete_file($downloadPath);
 
+        // Clean up WordPress temp directories
+        $this->helpers->clearTempDirectories();
+
         // Delete the update lock
         $this->updateLock->unlock();
 
