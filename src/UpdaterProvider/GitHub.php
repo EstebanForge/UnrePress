@@ -6,9 +6,6 @@ use UnrePress\UpdaterProvider\ProviderInterface;
 
 class GitHub implements ProviderInterface
 {
-    private const GITHUB_API_URL = 'https://api.github.com/repos/';
-    private const GITHUB_TAGS = '/tags';
-
     /**
      * Return the download URL for a given GitHub repository and version.
      *

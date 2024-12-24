@@ -41,6 +41,11 @@ defined('ABSPATH') or die();
     </section>
 </div>
 <script>
+    // Ensure unrepress_ajaxurl is defined
+    /* <![CDATA[ */
+    var unrepress_ajaxurl = '<?php echo esc_url(admin_url('admin-ajax.php')); ?>';
+    /* ]]> */
+
     document.addEventListener('DOMContentLoaded', function() {
         const statusMessage = document.querySelector('.status-message');
         const spinner = document.querySelector('.spinner');
@@ -97,7 +102,7 @@ defined('ABSPATH') or die();
             formData.append('action', 'unrepress_get_update_log');
             formData.append('_ajax_nonce', '<?php echo wp_create_nonce('unrepress_get_update_log'); ?>');
 
-            fetch(ajaxurl, {
+            fetch(unrepress_ajaxurl, {
                     method: 'POST',
                     credentials: 'same-origin',
                     body: formData
@@ -138,9 +143,12 @@ defined('ABSPATH') or die();
         formDataInit.append('type', 'core');
 
         // Make the initial AJAX request to start the update
-        fetch(ajaxurl, {
+        fetch(unrepress_ajaxurl, {
                 method: 'POST',
                 credentials: 'same-origin',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
                 body: formDataInit
             })
             .then(response => {

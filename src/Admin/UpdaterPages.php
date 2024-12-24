@@ -17,6 +17,7 @@ class UpdaterPages
     {
         add_action('admin_menu', [$this, 'addCoreUpdateMenu']);
         add_action('wp_ajax_unrepress_get_update_log', [$this, 'getUpdateLog']);
+        add_action('wp_ajax_unrepress_update_core', [$this, 'initCoreAjaxUpdate']);
         $this->helpers = new Helpers();
     }
 
@@ -124,9 +125,9 @@ class UpdaterPages
 
         // Check core updates
         $wpLocalVersion = get_bloginfo('version');
-        $updateCore = new \UnrePress\Updater\UpdateCore();
-        $latestVersion = $updateCore->getLatestCoreVersion();
-        Debugger::log($latestVersion);
+        $updateCore     = new \UnrePress\Updater\UpdateCore();
+        $latestVersion  = $updateCore->getLatestCoreVersion();
+
         if (version_compare($wpLocalVersion, $latestVersion, '<')) {
             $count++;
         }
