@@ -5,6 +5,7 @@ namespace UnrePress;
 class Helpers
 {
     private $updateLogFile = 'unrepress_update_log.txt';
+    private const TRANSIENT_NAME = UNREPRESS_PREFIX . 'core_latest_version';
 
     // Helper function to get directory structure as an array
     public function dirToArray($dir)
@@ -487,7 +488,7 @@ class Helpers
             Debugger::log("Error: Could not read directory {$dir}");
             return;
         }
-        
+
         foreach ($files as $filename => $file_info) {
             if ($filename === '.' || $filename === '..') {
                 continue;
@@ -543,8 +544,33 @@ class Helpers
             $this->cleanDirectory(WP_CONTENT_DIR . '/upgrade');
             $this->cleanDirectory(WP_CONTENT_DIR . '/upgrade-temp-backup');
 
+            // Clean transients
+            $this->clearUpdateTransients();
+
             // Log completion
             Debugger::log("Cleanup complete for {$type} {$slug}");
         }
+    }
+
+    /**
+     * Clear all WordPress update related transients
+     * This forces WordPress to check for updates on the next request
+     *
+     * @return void
+     */
+    public static function clearUpdateTransients(): void
+    {
+        // Delete regular transients
+        delete_transient('update_plugins');
+        delete_transient('update_themes');
+        delete_transient('update_core');
+
+        // Delete site transients
+        delete_transient('_site_transient_update_plugins');
+        delete_transient('_site_transient_update_themes');
+        delete_transient('_site_transient_update_core');
+
+        // Force an update check
+        delete_transient(self::TRANSIENT_NAME);
     }
 }

@@ -241,16 +241,7 @@ class UpdateCore
         // Remove lock
         $this->updateLock->unlock();
 
-        // Delete transients: update_plugins, update_themes, update_core
-        delete_transient('update_plugins');
-        delete_transient('update_themes');
-        delete_transient('update_core');
-
-        delete_transient('_site_transient_update_plugins');
-        delete_transient('_site_transient_update_themes');
-        delete_transient('_site_transient_update_core');
-
-        // Force an update check
-        delete_transient(self::TRANSIENT_NAME);
+        // Clear all update transients
+        Helpers::clearUpdateTransients();
     }
 }
