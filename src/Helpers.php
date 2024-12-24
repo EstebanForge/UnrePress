@@ -375,7 +375,7 @@ class Helpers
         Debugger::log("Type: {$type}");
 
         // Remove unwanted directories like .git, .github, etc.
-        $directories_to_remove = ['.git', '.github', '.wordpress-org'];
+        $directories_to_remove = ['.git', '.github', '.wordpress-org', '.ci'];
         foreach ($directories_to_remove as $dir) {
             $dir_path = $source . $dir;
             if ($wp_filesystem->exists($dir_path)) {

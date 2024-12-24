@@ -1,5 +1,8 @@
 # UnrePress changelog
 
+## 0.2.0 - 2024-12-24
+* Working themes updater.
+
 ## 0.1.4 - 2024-12-23
 * Working plugins updater.
 
