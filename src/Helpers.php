@@ -497,4 +497,47 @@ class Helpers
 
         Debugger::log('Directory cleanup complete');
     }
+
+    /**
+     * Unified cleanAfterUpdate function
+     *
+     * @param object $upgrader
+     * @param array  $options
+     * @param string $cache_key
+     *
+     * @return void
+     */
+    public function cleanAfterUpdate($upgrader, $options, string $cache_key)
+    {
+        $slug = '';
+        $type = '';
+
+        // Determine if it's a plugin or theme update
+        if ($options['type'] === 'plugin' && $options['action'] === 'update') {
+            $slug = $options['plugins'][0];
+            $type = 'plugin';
+        } elseif ($options['type'] === 'theme' && $options['action'] === 'update') {
+            $slug = $options['themes'][0] ?? '';
+            $type = 'theme';
+        }
+
+        if (!empty($slug)) {
+            // Log the cleanup action
+            Debugger::log("Cleaning up after {$type} update for {$slug}");
+
+            // Clean the cache for the updated item
+            delete_transient($cache_key . $slug);
+            if ($type === 'theme') {
+                delete_transient($cache_key . 'remote-version-' . $slug);
+                delete_transient($cache_key . 'download-url-' . $slug);
+            }
+
+            // Clean up the upgrade and backup directories
+            $this->cleanDirectory(WP_CONTENT_DIR . '/upgrade');
+            $this->cleanDirectory(WP_CONTENT_DIR . '/upgrade-temp-backup');
+
+            // Log completion
+            Debugger::log("Cleanup complete for {$type} {$slug}");
+        }
+    }
 }
