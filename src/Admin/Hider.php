@@ -36,17 +36,13 @@ class Hider
         if ($screen->base == 'update-core') {
             $query_params = [];
 
+            $query_params['page'] = 'unrepress-updater';
+
             // Preserve force-check parameter if present
             if (isset($_GET['force-check'])) {
                 $query_params['force-check'] = $_GET['force-check'];
             }
 
-            // Preserve nonce if present
-            if (isset($_GET['_wpnonce'])) {
-                $query_params['_wpnonce'] = $_GET['_wpnonce'];
-            }
-
-            $query_params['page'] = 'unrepress-updater';
             wp_redirect(add_query_arg($query_params, admin_url('index.php')));
             exit;
         }

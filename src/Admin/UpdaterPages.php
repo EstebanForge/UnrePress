@@ -168,11 +168,6 @@ class UpdaterPages
 
         // Force-check
         if (isset($_GET['force-check'])) {
-            // Validate nonce
-            if (! check_admin_referer('update-core')) {
-                wp_die(__('You are not allowed to perform this action.', 'unrepress'));
-            }
-
             // Force an update check when requested.
             wp_update_plugins();
             wp_update_themes();
