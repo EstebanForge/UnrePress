@@ -369,8 +369,14 @@ class Helpers
         Debugger::log('UnrePress: Starting source directory fix');
         Debugger::log("Source: {$source}");
         Debugger::log("Remote source: {$remote_source}");
+        Debugger::log("Slug: {$slug}");
+        Debugger::log("Type: {$type}");
 
         global $wp_filesystem;
+
+        // Ensure source path is properly formatted
+        $source = trailingslashit($source);
+        $remote_source = untrailingslashit($remote_source);
 
         // Remove .github and .git directories if they exist
         $directories_to_remove = ['.github', '.git'];
@@ -378,83 +384,65 @@ class Helpers
             $dir_path = $source . $dir;
             if ($wp_filesystem->exists($dir_path)) {
                 Debugger::log("UnrePress: Removing {$dir} directory from {$dir_path}");
-                $wp_filesystem->delete($dir_path, true);
+                $result = $wp_filesystem->delete($dir_path, true);
+                if (!$result) {
+                    Debugger::log("UnrePress: Failed to remove {$dir} directory");
+                }
             }
         }
 
+        // Let's search for a directory name that matches the slug and have a style.css file inside it.
         if ($type === 'theme') {
-            Debugger::log('UnrePress: Processing theme update');
-            Debugger::log("Desired theme slug: {$slug}");
-
-            // Get current subdirectory name
-            $current_dir = basename(untrailingslashit($source));
-            Debugger::log("UnrePress: Current subdirectory name: {$current_dir}");
-
-            // Check for nested directory structure
-            Debugger::log('UnrePress: Checking for nested theme directory structure');
-            $contents = $wp_filesystem->dirlist($source);
-            Debugger::log('UnrePress: Found directories in source:');
-            Debugger::log(print_r($contents, true));
-
-            // If style.css exists in root, we can proceed with the move
-            if ($wp_filesystem->exists($source . 'style.css')) {
-                // Create simplified target path
-                $simplified_path = dirname($remote_source) . '/' . $slug;
-                Debugger::log("UnrePress: Moving to simplified path: {$simplified_path}");
-
-                // Remove target directory if it exists
-                if ($wp_filesystem->exists($simplified_path)) {
-                    Debugger::log("UnrePress: Removing existing directory at {$simplified_path}");
-                    $wp_filesystem->delete($simplified_path, true);
-                }
-
-                // Move directory to simplified path
-                $move_result = $wp_filesystem->move($source, $simplified_path);
-                if ($move_result) {
-                    Debugger::log('UnrePress: Successfully moved to simplified path');
-                    return $simplified_path . '/';
-                } else {
-                    Debugger::log('UnrePress: Failed to move to simplified path');
-                    return $source;
-                }
-            }
-
-            // Check subdirectories for style.css
-            foreach ($contents as $item => $item_data) {
-                if ($item_data['type'] === 'd') {
-                    Debugger::log("UnrePress: Checking potential theme directory: {$source}{$item}");
-
-                    if ($wp_filesystem->exists($source . $item . '/style.css')) {
-                        Debugger::log("UnrePress: Found style.css in: {$source}{$item}");
-
-                        // Create simplified target path
-                        $simplified_path = dirname($remote_source) . '/' . $slug;
-                        Debugger::log("UnrePress: Moving nested directory to simplified path: {$simplified_path}");
-
-                        // Remove target directory if it exists
-                        if ($wp_filesystem->exists($simplified_path)) {
-                            Debugger::log("UnrePress: Removing existing directory at {$simplified_path}");
-                            $wp_filesystem->delete($simplified_path, true);
-                        }
-
-                        // Move directory to simplified path
-                        $move_result = $wp_filesystem->move($source . $item, $simplified_path);
-                        if ($move_result) {
-                            Debugger::log('UnrePress: Successfully moved nested directory to simplified path');
-                            // Clean up the original directory
-                            $wp_filesystem->delete($remote_source, true);
-                            return $simplified_path . '/';
-                        } else {
-                            Debugger::log('UnrePress: Failed to move nested directory to simplified path');
-                            return $source;
-                        }
-                    } else {
-                        Debugger::log("UnrePress: No style.css found in: {$source}{$item}");
-                    }
+            // Get the list of directories in the source directory
+            $directories = $wp_filesystem->dirlist($source);
+            Debugger::log("Directories: " . print_r($directories, true));
+            foreach ($directories as $name => $info) {
+                if (strpos($name, $slug) !== false && $wp_filesystem->exists($source . $name . '/style.css')) {
+                    Debugger::log("UnrePress: Found directory {$source} . {$name} with style.css file");
+                    return trailingslashit($source . $name);
                 }
             }
         }
 
-        return $source;
+        if ($type === 'plugin') {
+            // Clean up the slug - remove any file path components
+            $clean_slug = basename(dirname($slug));
+            if (empty($clean_slug)) {
+                $clean_slug = $slug;
+            }
+            
+            Debugger::log("UnrePress: Clean slug: {$clean_slug}");
+            
+            // Get the parent directory of source
+            $parent_dir = dirname($source);
+            $current_dir = basename(untrailingslashit($source));
+            
+            Debugger::log("UnrePress: Parent directory: {$parent_dir}");
+            Debugger::log("UnrePress: Current directory: {$current_dir}");
+            
+            // If the current directory doesn't match the slug
+            if ($current_dir !== $clean_slug) {
+                $new_source = trailingslashit($parent_dir) . $clean_slug;
+                
+                Debugger::log("UnrePress: Attempting to rename from {$source} to {$new_source}");
+                
+                // First remove target directory if it exists
+                if ($wp_filesystem->exists($new_source)) {
+                    Debugger::log("UnrePress: Removing existing directory at {$new_source}");
+                    $wp_filesystem->delete($new_source, true);
+                }
+                
+                // Move the directory to the correct name
+                $result = $wp_filesystem->move($source, $new_source);
+                if ($result) {
+                    Debugger::log("UnrePress: Successfully renamed directory to {$clean_slug}");
+                    return trailingslashit($new_source);
+                } else {
+                    Debugger::log("UnrePress: Failed to rename directory to {$clean_slug}");
+                }
+            }
+        }
+
+        return trailingslashit($source);
     }
 }

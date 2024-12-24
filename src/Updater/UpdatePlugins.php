@@ -2,7 +2,6 @@
 
 namespace UnrePress\Updater;
 
-use UnrePress\Debugger;
 use UnrePress\Helpers;
 
 class UpdatePlugins
@@ -69,17 +68,11 @@ class UpdatePlugins
 
         // If we can't get plugin info, skip this plugin
         if (!$remoteData) {
-            Debugger::log("UnrePress: Skipping plugin update check for {$slug} - no remote info available");
             return;
         }
 
         $installedVersion = $this->getInstalledVersion($slug);
         $latestVersion = $this->getRemoteVersion($slug);
-
-        Debugger::log('UnrePress: checking for plugin updates for ' . $slug);
-        Debugger::log($remoteData);
-        Debugger::log($installedVersion);
-        Debugger::log($latestVersion);
 
         if ($remoteData && $installedVersion && $latestVersion) {
             if (version_compare($installedVersion, $latestVersion, '<')) {
@@ -131,18 +124,15 @@ class UpdatePlugins
         // Convert slug to lowercase for URL construction
         $slug = strtolower($slug);
         $url = "https://raw.githubusercontent.com/estebanforge/unrepress-index/main/plugins/" . substr($slug, 0, 1) . "/{$slug}.json";
-        Debugger::log("UnrePress: requesting remote info for {$slug} from URL: {$url}");
 
         $response = wp_remote_get($url);
 
         if (is_wp_error($response)) {
-            Debugger::log("UnrePress: Error getting plugin info: " . $response->get_error_message());
             return false;
         }
 
         $responseCode = wp_remote_retrieve_response_code($response);
         if ($responseCode !== 200) {
-            Debugger::log("UnrePress: Non-200 response getting plugin info: {$responseCode} for URL: {$url}");
             return false;
         }
 
@@ -152,8 +142,6 @@ class UpdatePlugins
 
         $data = json_decode($body);
         if (json_last_error() !== JSON_ERROR_NONE) {
-            Debugger::log("UnrePress: JSON decode error: " . json_last_error_msg());
-            Debugger::log("UnrePress: Response body: " . $body);
             return false;
         }
 
@@ -294,36 +282,28 @@ class UpdatePlugins
             ]);
 
             if (is_wp_error($remote)) {
-                Debugger::log('UnrePress: Error getting plugin info: ' . $remote->get_error_message());
                 return false;
             }
 
             if (200 !== wp_remote_retrieve_response_code($remote)) {
-                Debugger::log('UnrePress: Non-200 response getting plugin info: ' . wp_remote_retrieve_response_code($remote));
                 return false;
             }
 
             $body = wp_remote_retrieve_body($remote);
             if (empty($body)) {
-                Debugger::log('UnrePress: Empty response body getting plugin info');
                 return false;
             }
 
             $pluginInfo = json_decode($body);
             if (json_last_error() !== JSON_ERROR_NONE) {
-                Debugger::log('UnrePress: JSON decode error for plugin info: ' . json_last_error_msg());
-                Debugger::log('UnrePress: Response body: ' . $body);
                 return false;
             }
 
             // Get tag information from GitHub
             $tagUrl = $pluginInfo->tags ?? '';
             if (empty($tagUrl)) {
-                Debugger::log('UnrePress: No tags URL found in plugin info');
                 return false;
             }
-
-            Debugger::log('UnrePress: Getting tags from: ' . $tagUrl);
 
             $remote = wp_remote_get($tagUrl, [
                 'timeout' => 10,
@@ -333,37 +313,30 @@ class UpdatePlugins
             ]);
 
             if (is_wp_error($remote)) {
-                Debugger::log('UnrePress: Error getting tags: ' . $remote->get_error_message());
                 return false;
             }
 
             if (200 !== wp_remote_retrieve_response_code($remote)) {
-                Debugger::log('UnrePress: Non-200 response getting tags: ' . wp_remote_retrieve_response_code($remote));
                 return false;
             }
 
             $tagBody = wp_remote_retrieve_body($remote);
             if (empty($tagBody)) {
-                Debugger::log('UnrePress: Empty response body getting tags');
                 return false;
             }
 
             $tags = json_decode($tagBody);
             if (json_last_error() !== JSON_ERROR_NONE) {
-                Debugger::log('UnrePress: JSON decode error for tags: ' . json_last_error_msg());
-                Debugger::log('UnrePress: Tags response body: ' . $tagBody);
                 return false;
             }
 
             if (!is_array($tags) || empty($tags)) {
-                Debugger::log('UnrePress: No tags found');
                 return false;
             }
 
             // Get the newest version from tags
             $latestTag = $this->helpers->getNewestVersionFromTags($tags);
             if (!$latestTag) {
-                Debugger::log('UnrePress: No latest tag found');
                 return false;
             }
 
@@ -378,8 +351,6 @@ class UpdatePlugins
 
             // Store the version
             set_transient($this->cache_key . 'remote-version-' . $slug, $remoteVersion, DAY_IN_SECONDS);
-
-            Debugger::log('UnrePress: Found version ' . $remoteVersion . ' for ' . $slug);
         }
 
         return $remoteVersion;
@@ -397,8 +368,6 @@ class UpdatePlugins
     private function deleteAllUpdateTransients()
     {
         global $wpdb;
-
-        Debugger::log('UnrePress: deleting all update transients');
 
         // Delete both transients and their timeout entries
         $wpdb->query(

@@ -2,7 +2,6 @@
 
 namespace UnrePress\Updater;
 
-use UnrePress\Debugger;
 use UnrePress\Helpers;
 
 class UpdateThemes
@@ -60,17 +59,11 @@ class UpdateThemes
 
         // If we can't get theme info, skip this theme
         if (!$remoteData) {
-            Debugger::log("UnrePress: Skipping theme update check for {$slug} - no remote info available");
             return;
         }
 
         $installedVersion = $this->getInstalledVersion($slug);
         $latestVersion = $this->getRemoteVersion($slug);
-
-        Debugger::log('UnrePress: checking for theme updates for ' . $slug);
-        Debugger::log($remoteData);
-        Debugger::log($installedVersion);
-        Debugger::log($latestVersion);
 
         if ($remoteData && $installedVersion && $latestVersion) {
             if (version_compare($installedVersion, $latestVersion, '<')) {
@@ -103,10 +96,6 @@ class UpdateThemes
 
                 // Store this information for later use
                 $this->updateInfo[$slug] = $updateInfo;
-
-                Debugger::log('UnrePress: Theme update available for ' . $slug);
-                Debugger::log('Current version: ' . $installedVersion);
-                Debugger::log('Latest version: ' . $latestVersion);
             }
         }
     }
@@ -155,11 +144,6 @@ class UpdateThemes
 
     public function getInformation($response, $action, $args)
     {
-        Debugger::log('UnrePress: getting theme information');
-        Debugger::log($response);
-        Debugger::log($action);
-        Debugger::log($args);
-
         // do nothing if you're not getting theme information right now
         if ($action !== 'theme_information') {
             return $response;
@@ -232,11 +216,6 @@ class UpdateThemes
                         $transient->response = [];
                     }
 
-                    Debugger::log('UnrePress: Theme update available for ' . $slug);
-                    Debugger::log('Current version: ' . $currentVersion);
-                    Debugger::log('Latest version: ' . $updateInfo->version);
-                    Debugger::log('Download link: ' . $updateInfo->download_link);
-
                     // Format response according to WordPress theme update structure
                     $transient->response[$slug] = [
                         'theme' => $slug,
@@ -247,8 +226,6 @@ class UpdateThemes
                         'requires_php' => $updateInfo->requires_php,
                     ];
 
-                    Debugger::log('UnrePress: Adding theme update response for ' . $slug);
-                    Debugger::log($transient->response[$slug]);
                     if (empty($transient->checked)) {
                         $transient->checked = [];
                         // Get all themes and their versions
@@ -389,8 +366,6 @@ class UpdateThemes
     private function deleteAllUpdateTransients()
     {
         global $wpdb;
-
-        Debugger::log('UnrePress: deleting all theme update transients');
 
         // Delete both transients and their timeout entries
         $wpdb->query(
