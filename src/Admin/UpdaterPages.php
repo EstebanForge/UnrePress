@@ -18,6 +18,7 @@ class UpdaterPages
         add_action('admin_menu', [$this, 'addCoreUpdateMenu']);
         add_action('wp_ajax_unrepress_get_update_log', [$this, 'getUpdateLog']);
         add_action('wp_ajax_unrepress_update_core', [$this, 'initCoreAjaxUpdate']);
+        add_filter('wp_get_update_data', [$this, 'add_updates_count']);
         $this->helpers = new Helpers();
     }
 
@@ -250,5 +251,19 @@ class UpdaterPages
         }
 
         return $result;
+    }
+
+    /**
+     * Add our update count to the admin bar updates counter
+     */
+    public function add_updates_count($update_data) {
+        // Get our custom updates count from transient
+        $update_count = $this->getUpdateCount();
+
+        if ($update_count > 0) {
+            $update_data['counts']['total'] = $update_count;
+        }
+
+        return $update_data;
     }
 }
