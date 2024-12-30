@@ -1,26 +1,27 @@
 {
-  "name": "UnrePress",
-  "slug": "unrepress",
-  "author": "Esteban Cuevas",
-  "author_profile": "https://actitud.xyz",
-  "sections": {
-    "description": "UnrePress is a WordPress plugin that allows you to update WordPress core and plugins/themes directly from git providers (like GitHub, BitBucket or GitLab), instead of the 'official' WordPress dot org repository.",
-    "installation": "",
-    "changelog": "https://raw.githubusercontent.com/EstebanForge/UnrePress/master/CHANGELOG.md"
-  },
-  "banners": {
-    "low": "https://example.com/banner-772x250.jpg",
-    "high": "https://example.com/banner-1544x500.jpg"
-  },
-  "type": "plugin",
-  "wp-meta": false,
-  "free": true,
-  "paid_features": false,
-  "date_added": "2024-10-04",
-  "homepage": "https://unrepress.org",
-  "repository": "https://github.com/EstebanForge/UnrePress",
-  "tags": "https://github.com/EstebanForge/UnrePress/tags",
-  "update_from": "tags",
-  "readme_md": "https://raw.githubusercontent.com/EstebanForge/UnrePress/master/README.md",
-  "readme_txt": "https://raw.githubusercontent.com/EstebanForge/UnrePress/master/readme.txt"
+    "schema_version": 1,
+    "type": "plugin",
+    "name": "UnrePress",
+    "slug": "unrepress",
+    "author": "Esteban Cuevas",
+    "author_profile": "https://actitud.xyz",
+    "sections": {
+        "description": "UnrePress is a WordPress plugin that allows you to update WordPress core and plugins/themes directly from git providers (like GitHub, BitBucket or GitLab), instead of the 'official' WordPress dot org repository.",
+        "installation": "",
+        "changelog": "https://raw.githubusercontent.com/EstebanForge/UnrePress/master/CHANGELOG.md"
+    },
+    "banners": {
+        "low": "https://example.com/banner-772x250.jpg",
+        "high": "https://example.com/banner-1544x500.jpg"
+    },
+    "wp-meta": false,
+    "free": true,
+    "paid_features": false,
+    "date_added": "2024-10-04",
+    "homepage": "https://unrepress.org",
+    "repository": "https://github.com/EstebanForge/UnrePress",
+    "tags": "https://github.com/EstebanForge/UnrePress/tags",
+    "update_from": "tags",
+    "readme_md": "https://raw.githubusercontent.com/EstebanForge/UnrePress/master/README.md",
+    "readme_txt": "https://raw.githubusercontent.com/EstebanForge/UnrePress/master/readme.txt"
 }
