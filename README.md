@@ -1,3 +1,18 @@
+
+- [UnrePress](#unrepress)
+  - [Main goal](#main-goal)
+    - [Why?](#why)
+  - [Screenshots](#screenshots)
+- [Features](#features)
+  - [Planned Features](#planned-features)
+- [Installation](#installation)
+  - [Requirements](#requirements)
+  - [Usage](#usage)
+- [Developers](#developers)
+  - [How to add your plugin or theme to The Index](#how-to-add-your-plugin-or-theme-to-the-index)
+  - [Contributing to UnrePress](#contributing-to-unrepress)
+- [License](#license)
+
 # UnrePress
 
 UnrePress is a WordPress plugin that allows you to update WordPress core and plugins/themes directly from git providers (like GitHub, BitBucket or GitLab), instead of the "official" WordPress dot org repository.
@@ -10,7 +25,7 @@ UnrePress should eventually replace: WP core updates (done), plugins and themes 
 
 Hoping to serve all of this, for free. Gratis.
 
-## Why?
+### Why?
 
 Although I'm grateful to him for co-creating WordPress (along with Mike Little), I'm even more grateful to the WordPress community and their work throughout all these years.
 
@@ -30,7 +45,7 @@ Without fear of retaliation or repression.
 
 [![UnrePress, core updated](.wp-meta/screenshot-04.png)](https://github.com/EstebanForge/UnrePress/blob/main/.wp-meta/screenshot-04.png)
 
-## Features
+# Features
 
 - Fetches WordPress core updates from the official WordPress GitHub repository.
 - Updates WordPress core seamlessly from git providers, using WordPress Filesystem API.
@@ -40,59 +55,48 @@ Without fear of retaliation or repression.
 - Theme updates from git providers.
 - Community maintained index of plugins and themes, so UnrePress can update them. Somewhat like package managers do (dnf, brew, npm, etc.).
 
-### Planned Features
+## Planned Features
 
 - Integrate the index into WordPress itself, so users can search and install plugins/themes from within the admin panel.
 - Add more git providers: BitBucket, GitLab, etc.
+- Add the ability to point UnrePress to a different index.
 - Configuration interface.
 - Expose the index vía web, for easy plugin/theme discoverability.
 
 See more in [Planned Features Discussions](https://github.com/EstebanForge/UnrePress/discussions/categories/planned-features).
+
+
+# Installation
+
+For now, go to [tags](https://github.com/EstebanForge/UnrePress/tags) and download the zip of the most recent one.
+
+Consider that this proyect is still in active development and not stable. Don't use this on production, until 1.0 is released.
 
 ## Requirements
 
 - PHP 8.1 or higher
 - WordPress 6.5 or higher
 
-## Installation
-
-For now, go to [tags](https://github.com/EstebanForge/UnrePress/tags) and download the zip of the most recent one.
-
-Consider that this proyect is still in active development and not stable. Don't use this on production, until 1.0 is released.
-
 ## Usage
 
 1. Go to the WordPress admin panel.
 2. Navigate to Dashboard > Updates.
-3. Update your Core.
+3. Update your WordPress core, plugins and themes as always do.
 
 Now, when WordPress checks for updates, it will use the official GitHub repository for core updates and all other providers for plugin and theme updates.
 
-## Development
+# Developers
 
-To set up the development environment:
+## How to add your plugin or theme to The Index
 
-1. Install the development dependencies:
-   ```
-   composer install
-   ```
+Do you want to add your plugin or theme to the UnrePress Index?
 
-## Devs: How to add your plugin to the index
+Check our [Wiki for instructions](https://github.com/EstebanForge/UnrePress/wiki).
 
-Easy.
+## Contributing to UnrePress
 
-Go to [UnrePress-index](https://github.com/EstebanForge/UnrePress-index) and fork. On your fork, add your plugin or theme as the examples already provided there. Then, submit a Pull Request with your changes back to this repository.
+Want to contribute? Check our [Contributing Guidelines](https://github.com/EstebanForge/UnrePress/wiki) at our Wiki.
 
-One plugin/theme per PR, please.
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request. Please: follow the PHP-CS-Fixer rules. Easier to read pull requests, and peace and some order in this chaotic drama.
-
-Jump in into [an existing discussion](https://github.com/EstebanForge/UnrePress/discussions) if you want to help on any of the planned features.
-
-Some of them will get priority over others. For example, having a functional website is really the last thing we should care about for now.
-
-## License
+# License
 
 This project is licensed under the GPL-2.0+ License.
