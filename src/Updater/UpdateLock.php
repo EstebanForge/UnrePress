@@ -148,6 +148,7 @@ class UpdateLock
     {
         if ($this->hasLockTimeExpired()) {
             $this->unlock();
+            $this->resetLockTime();
         }
     }
 }

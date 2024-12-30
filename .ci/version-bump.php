@@ -1,7 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
+// Check if running through Composer
+if (!getenv('COMPOSER_BINARY')) {
+    die("This script can only be run through Composer. Use: composer run-script version-bump\n");
+}
+
 if (php_sapi_name() !== 'cli') {
-    die('This script can only be run from the command line.');
+    die('This script can only be run from the command line' . PHP_EOL);
 }
 
 $pluginFile = __DIR__ . '/../unrepress.php';
@@ -20,8 +27,14 @@ if ($composerJson === null) {
 
 $currentVersion = $composerJson['version'];
 echo "Current version: {$currentVersion}\n";
-echo "Enter new version: ";
-$newVersion = trim(fgets(STDIN));
+
+// Get new version from command line argument or prompt
+if (isset($argv[1])) {
+    $newVersion = $argv[1];
+} else {
+    echo "Enter new version: ";
+    $newVersion = trim(fgets(STDIN));
+}
 
 // Validate version format (semantic versioning)
 if (!preg_match('/^\d+\.\d+\.\d+(?:-[\da-z-]+(?:\.[\da-z-]+)*)?(?:\+[\da-z-]+(?:\.[\da-z-]+)*)?$/i', $newVersion)) {
@@ -35,10 +48,14 @@ if ($pluginContent === false) {
 }
 
 $pluginContent = preg_replace(
-    '/(\* Version:[ ]*)[\d\.]+/',
-    '$1' . $newVersion,
+    '/\* Version:.*\n/',
+    '* Version: ' . $newVersion . "\n",
     $pluginContent
 );
+
+if ($pluginContent === null) {
+    die("Error: Version replacement failed\n");
+}
 
 if (file_put_contents($pluginFile, $pluginContent) === false) {
     die("Error: Could not update plugin file\n");

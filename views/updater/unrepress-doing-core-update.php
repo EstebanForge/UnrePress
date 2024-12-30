@@ -27,7 +27,7 @@ defined('ABSPATH') or die();
                 <br/>
                 <?php esc_html_e('Redirecting to Updates page in 5 seconds', 'unrepress'); ?>.&nbsp;
                 <?php
-                // Translators: %s: UnrePress admin URL
+                // Translators: %s: WordPress about page.
                 echo wp_kses(
                     sprintf(
                         __('If you are not redirected automatically, please <a href="%s">click here</a>.', 'unrepress'),
@@ -41,9 +41,11 @@ defined('ABSPATH') or die();
     </section>
 </div>
 <script>
-    // Ensure unrepress_ajaxurl is defined
+    // Ensure unrepress is defined
     /* <![CDATA[ */
-    var unrepress_ajaxurl = '<?php echo esc_url(admin_url('admin-ajax.php')); ?>';
+    var unrepress = {
+        ajaxurl: '<?php echo esc_url(admin_url('admin-ajax.php')); ?>'
+    };
     /* ]]> */
 
     document.addEventListener('DOMContentLoaded', function() {
@@ -102,7 +104,7 @@ defined('ABSPATH') or die();
             formData.append('action', 'unrepress_get_update_log');
             formData.append('_ajax_nonce', '<?php echo wp_create_nonce('unrepress_get_update_log'); ?>');
 
-            fetch(unrepress_ajaxurl, {
+            fetch(unrepress.ajaxurl, {
                     method: 'POST',
                     credentials: 'same-origin',
                     body: formData
@@ -143,7 +145,7 @@ defined('ABSPATH') or die();
         formDataInit.append('type', 'core');
 
         // Make the initial AJAX request to start the update
-        fetch(unrepress_ajaxurl, {
+        fetch(unrepress.ajaxurl, {
                 method: 'POST',
                 credentials: 'same-origin',
                 headers: {

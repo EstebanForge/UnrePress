@@ -29,9 +29,11 @@ if (isset($_GET['force-check']) && $_GET['force-check'] == 1) {
     Helpers::clearUpdateTransients();
 }
 ?>
-<div class="wrap">
-    <h1><?php esc_html_e('UnrePress Updater', 'unrepress'); ?></h1>
-    <p><?php printf(esc_html__('Last checked on %s.', 'unrepress'), $wpLastChecked); ?></p>
+<div class="wrap unrepress">
+    <h1><?php esc_html_e('UnrePress Updater', 'unrepress'); ?>
+    </h1>
+    <p><?php printf(esc_html__('Last checked on %s.', 'unrepress'), $wpLastChecked); ?>
+    </p>
 
     <section class="updates-core">
         <h2><?php esc_html_e('Core', 'unrepress'); ?>
@@ -77,17 +79,19 @@ if (isset($_GET['force-check']) && $_GET['force-check'] == 1) {
     </section>
 </div>
 <style>
-    .updates-plugins-themes {
-        h1 {
-            display: none;
-        }
+    .unrepress {
+        .updates-plugins-themes {
+            h1 {
+                display: none;
+            }
 
-        h2.response {
-            display: none;
-        }
+            h2.response {
+                display: none;
+            }
 
-        .core-updates {
-            display: none;
+            .core-updates {
+                display: none;
+            }
         }
     }
 </style>

@@ -73,7 +73,7 @@ class UpdateCore
         // Download the update
         $downloadPath = $this->downloadUpdate($downloadUrl);
 
-        if (is_wp_error($downloadPath) || ! file_exists($downloadPath)) {
+        if (is_wp_error($downloadPath) || !file_exists($downloadPath)) {
             $this->helpers->writeUpdateLog(__('Error downloading update. No URL or Path found.', 'unrepress'));
             $this->helpers->writeUpdateLog(':(');
             $this->updateLock->unlock();
@@ -127,7 +127,7 @@ class UpdateCore
         // Can we get a no-content zip somewhere? other than the Ego's site?
         $wpContentDir = $tempCoreDir . '/wp-content';
         if (is_dir($wpContentDir)) {
-            $removeResult = $helpers->removeDirectoryWPFS($wpContentDir);
+            $removeResult = $helpers->removeDirectory($wpContentDir);
         }
 
         $this->helpers->writeUpdateLog(__('Copying update files...', 'unrepress'));
@@ -137,12 +137,12 @@ class UpdateCore
         $wpRootDir = ABSPATH;
 
         // Copy files from temporary directory to WordPress root
-        $copyResult = $helpers->copyFilesWPFS($tempCoreDir, $wpRootDir);
+        $copyResult = $helpers->copyFiles($tempCoreDir, $wpRootDir);
 
         $this->helpers->writeUpdateLog(__('Removing old temporary files...', 'unrepress'));
 
         // Clean up, use helpers removeDirectory method
-        $removeResult = $helpers->removeDirectoryWPFS($tempCoreDir);
+        $removeResult = $helpers->removeDirectory($tempCoreDir);
 
         // Remove $downloadPath
         wp_delete_file($downloadPath);

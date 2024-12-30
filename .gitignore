@@ -37,7 +37,3 @@ access_log
 *.bak
 *.swp
 *.swo
-
-index-demo/
-
-rules-wordpress.md
