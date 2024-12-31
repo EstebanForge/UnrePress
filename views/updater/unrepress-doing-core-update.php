@@ -55,6 +55,8 @@ defined('ABSPATH') or die();
         const completedMsg = document.querySelector('.unrepress-completed-ok');
         let lastMessage = '';
         let shouldPoll = true;
+        let retryCount = 0;
+        const MAX_RETRIES = 3;
 
         function addLogMessage(message) {
             // Skip if this message is the same as the last one
@@ -82,7 +84,7 @@ defined('ABSPATH') or die();
                 spinner.classList.remove('is-active');
             } else if (message === ':)' || message === ';)') {
                 shouldPoll = false;
-                statusMessage.textContent = '<?php esc_html_e('Update completed successfully!', 'unrepress'); ?>';
+                statusMessage.textContent = '<?php esc_html_e('Process completed.', 'unrepress'); ?>';
                 spinner.classList.remove('is-active');
 
                 // Show completed message
@@ -90,7 +92,7 @@ defined('ABSPATH') or die();
 
                 // Redirect after 5 seconds
                 setTimeout(() => {
-                    window.location.href = '<?php echo esc_url(admin_url('index.php?page=unrepress-updater')); ?>';
+                    window.location.href = '<?php echo esc_url(admin_url('about.php?updated')); ?>';
                 }, 5000);
             }
         }
@@ -109,11 +111,19 @@ defined('ABSPATH') or die();
                     credentials: 'same-origin',
                     body: formData
                 })
-                .then(response => response.json()) // Changed from text() to json()
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
                 .then(data => {
-                    if (data.success && Array.isArray(data.data)) {
+                    if (data.success && Array.isArray(data.data.lines)) {
+                        // Reset retry count on successful response
+                        retryCount = 0;
+
                         // Process each line in the log array
-                        data.data.forEach(line => {
+                        data.data.lines.forEach(line => {
                             if (line.trim()) { // Only process non-empty lines
                                 addLogMessage(line.trim());
                             }
@@ -121,11 +131,14 @@ defined('ABSPATH') or die();
                     }
                 })
                 .catch(error => {
-                    console.error(error);
                     console.error('Error fetching log:', error);
-                    shouldPoll = false;
-                    statusMessage.textContent = '<?php esc_html_e('Error checking update status.', 'unrepress'); ?>';
-                    spinner.classList.remove('is-active');
+                    retryCount++;
+
+                    if (retryCount >= MAX_RETRIES) {
+                        shouldPoll = false;
+                        statusMessage.textContent = '<?php esc_html_e('Error checking update status.', 'unrepress'); ?>';
+                        spinner.classList.remove('is-active');
+                    }
                 })
                 .finally(() => {
                     // Continue polling every 5 seconds if we should
@@ -154,17 +167,12 @@ defined('ABSPATH') or die();
                 body: formDataInit
             })
             .then(response => {
-                console.log(response);
-
                 if (!response.ok) {
                     throw new Error('Network response was not ok');
                 }
-
                 return response.json();
             })
             .then(data => {
-                console.log(data);
-
                 if (!data.success) {
                     shouldPoll = false;
                     statusMessage.textContent = '<?php esc_html_e('Failed to start update process.', 'unrepress'); ?>';
@@ -172,8 +180,9 @@ defined('ABSPATH') or die();
                 }
             })
             .catch(error => {
+                console.error('Error starting update:', error);
                 shouldPoll = false;
-                statusMessage.textContent = '<?php esc_js(esc_html_e('An error occurred while starting the update.', 'unrepress')); ?>';
+                statusMessage.textContent = '<?php esc_html_e('Failed to start update process.', 'unrepress'); ?>';
                 spinner.classList.remove('is-active');
             });
     });

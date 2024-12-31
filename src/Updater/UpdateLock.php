@@ -53,7 +53,7 @@ class UpdateLock
         delete_option(UNREPRESS_PREFIX . 'update_lock_time');
 
         // Clear update log
-        $this->helpers->clearUpdateLog();
+        //$this->helpers->clearUpdateLog(); // We don't want to clear the update log here, or else the user won't see the update log when core update is done.
 
         return;
     }

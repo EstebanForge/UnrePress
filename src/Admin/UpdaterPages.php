@@ -69,7 +69,6 @@ class UpdaterPages
         // Check user capabilities
         if (!current_user_can('manage_options')) {
             wp_send_json_error(['message' => __('Insufficient permissions', 'unrepress')]);
-
             return;
         }
 
@@ -77,13 +76,48 @@ class UpdaterPages
 
         if (!file_exists($logFile)) {
             wp_send_json_error(['message' => __('No update log found', 'unrepress')]);
-
             return;
         }
 
-        // An array of lines $logFile
-        $content = explode("\n", file_get_contents($logFile));
-        wp_send_json_success($content);
+        // Get the last position we read from
+        $lastPos = get_transient('unrepress_log_last_pos');
+        $lastPos = $lastPos === false ? 0 : (int) $lastPos;
+
+        // Get file size
+        $fileSize = filesize($logFile);
+
+        // If file size is smaller than last position (file was truncated)
+        // or if this is first read, start from beginning
+        if ($fileSize < $lastPos || $lastPos === 0) {
+            $lastPos = 0;
+        }
+
+        // Read only new content
+        $handle = fopen($logFile, 'r');
+        if ($lastPos > 0) {
+            fseek($handle, $lastPos);
+        }
+
+        $newContent = '';
+        while (!feof($handle)) {
+            $newContent .= fread($handle, 8192);
+        }
+
+        // Store new position
+        $newPos = ftell($handle);
+        set_transient('unrepress_log_last_pos', $newPos, HOUR_IN_SECONDS);
+
+        fclose($handle);
+
+        // Split into lines and filter empty ones
+        $lines = array_filter(
+            explode("\n", $newContent),
+            function ($line) {
+                return !empty(trim($line));
+            }
+        );
+
+        wp_send_json_success(['lines' => array_values($lines)]);
     }
 
     /**
