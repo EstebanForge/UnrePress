@@ -1,5 +1,8 @@
 # UnrePress changelog
 
+# 0.4.0 - 2024-12-31
+* Core update fallback. UnrePress will prioritize updates using its Index. But, if for some reason the Index is not available, it will fallback to use wp.org repository instead.
+
 ## 0.3.0 - 2024-12-24
 * Working themes updater.
 * Working plugins updater.

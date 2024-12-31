@@ -31,7 +31,7 @@ class UpdateCore
         $this->helpers = new Helpers();
 
         // Enable timeout test mode
-        $this->enableTestMode('timeout');
+        //$this->enableTestMode('timeout');
     }
 
     /**
@@ -77,7 +77,7 @@ class UpdateCore
 
         // Set timeout for update operation
         $startTime = time();
-        $timeout = 10; // 10 seconds timeout
+        $timeout = 30; // 30 seconds timeout
 
         // Determine WP core latest version
         $latestVersion = $this->getLatestCoreVersion();
@@ -132,6 +132,8 @@ class UpdateCore
             return false;
         }
 
+        $this->helpers->writeUpdateLog(__('Core package downloaded.', 'unrepress'));
+
         // Check timeout
         if (time() - $startTime > $timeout) {
             $this->helpers->writeUpdateLog(__('Index update operation timed out.', 'unrepress'));
@@ -154,7 +156,7 @@ class UpdateCore
         $tempDir = UNREPRESS_TEMP_PATH;
         $unzipfile = unzip_file($downloadPath, $tempDir);
 
-        $this->helpers->writeUpdateLog(__('Expanding update...', 'unrepress'));
+        $this->helpers->writeUpdateLog(wp_sprintf('Update extracted to %s', $tempDir));
 
         if (is_wp_error($unzipfile)) {
             $this->helpers->writeUpdateLog(__('Error expanding update file.', 'unrepress'));
@@ -182,7 +184,7 @@ class UpdateCore
 
         // Check if we found the directory
         if (empty($tempCoreDir)) {
-            $this->helpers->writeUpdateLog(__('Failed to find WordPress core directory in extracted update.', 'unrepress'));
+            $this->helpers->writeUpdateLog(__('Failed to find WordPress core directory in extracted package.', 'unrepress'));
             $this->helpers->writeUpdateLog(':(');
             wp_delete_file($downloadPath);
 
@@ -196,26 +198,24 @@ class UpdateCore
             return false;
         }
 
-        $helpers = new Helpers();
-
         $this->helpers->writeUpdateLog(__('Cleaning update folder...', 'unrepress'));
 
         // Remove wp-content folder.
         $wpContentDir = $tempCoreDir . '/wp-content';
         if (is_dir($wpContentDir)) {
-            $removeResult = $helpers->removeDirectory($wpContentDir);
+            $removeResult = $this->helpers->removeDirectory($wpContentDir);
         }
 
         $this->helpers->writeUpdateLog(__('Copying update files...', 'unrepress'));
 
         // Apply the update
         $wpRootDir = ABSPATH;
-        $copyResult = $helpers->copyFiles($tempCoreDir, $wpRootDir);
+        $copyResult = $this->helpers->copyFiles($tempCoreDir, $wpRootDir);
 
         $this->helpers->writeUpdateLog(__('Removing old temporary files...', 'unrepress'));
 
         // Clean up
-        $removeResult = $helpers->removeDirectory($tempCoreDir);
+        $removeResult = $this->helpers->removeDirectory($tempCoreDir);
         wp_delete_file($downloadPath);
         $this->helpers->clearTempDirectories();
 
@@ -256,8 +256,7 @@ class UpdateCore
                 return false;
             }
 
-            $this->helpers->writeUpdateLog(__('Starting WordPress core update via wp.org...', 'unrepress'));
-            $this->helpers->writeUpdateLog(sprintf(__('Update type: %s', 'unrepress'), $type));
+            $this->helpers->writeUpdateLog(__('Requesting WordPress core update via wp.org...', 'unrepress'));
 
             // Set longer timeout for core update process
             @set_time_limit(300);
@@ -273,14 +272,14 @@ class UpdateCore
 
             if (is_wp_error($result)) {
                 $this->helpers->writeUpdateLog(sprintf(
-                    __('WordPress update failed: %s', 'unrepress'),
+                    __('WordPress core update failed: %s', 'unrepress'),
                     $result->get_error_message()
                 ));
                 return false;
             }
 
             if ($result === false) {
-                $this->helpers->writeUpdateLog(__('WordPress update failed with unknown error.', 'unrepress'));
+                $this->helpers->writeUpdateLog(__('WordPress core update failed with unknown error.', 'unrepress'));
                 return false;
             }
 
@@ -433,10 +432,10 @@ class UpdateCore
      */
     public function forceCoreUpdateCheck(): void
     {
-        // Remove lock
-        $this->updateLock->unlock();
+        // Delete the transient
+        delete_transient(self::TRANSIENT_NAME);
 
-        // Clear all update transients
-        Helpers::clearUpdateTransients();
+        // Force an update check
+        wp_version_check([], true);
     }
 }
