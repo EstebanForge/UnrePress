@@ -2,7 +2,7 @@
 
 /**
  * Plugin Name: UnrePress for WordPress
- * Plugin URI: https://github.com/EstebanForge/unrepress
+ * Plugin URI: https://github.com/EstebanForge/UnrePress
  * Description: Liberate WordPress ecosystem. Core, Plugins and Themes updates, directly from their developers. Using git providers like GitHub, BitBucket or GitLab.
  * Version: 0.3.1
  * Author: Esteban Cuevas
@@ -20,10 +20,10 @@ defined('ABSPATH') or die();
 define('UNREPRESS_VERSION', get_file_data(__FILE__, ['Version' => 'Version'], false)['Version']);
 define('UNREPRESS_PLUGIN_PATH', plugin_dir_path(__FILE__));
 define('UNREPRESS_PLUGIN_URL', plugin_dir_url(__FILE__));
-define('UNREPRESS_BLOCKED_HOSTS', 'api.wordpress.org,*.wordpress.org,*.wordpress.com,*.wordpress.net,*.wordpress.tv');
 define('UNREPRESS_PREFIX', 'unrepress_');
 define('UNREPRESS_TEMP_PATH', WP_CONTENT_DIR . '/upgrade/');
-define('UNREPRESS_BLOCK_WPORG', true);
+define('UNREPRESS_BLOCK_WPORG', false);
+define('UNREPRESS_BLOCKED_HOSTS', 'api.wordpress.org,*.wordpress.org,*.wordpress.com,*.wordpress.net,*.wordpress.tv');
 
 // Define: UnrePress Index
 if (!defined('UNREPRESS_INDEX')) {

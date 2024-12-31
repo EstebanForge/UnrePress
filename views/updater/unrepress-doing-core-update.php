@@ -178,3 +178,8 @@ defined('ABSPATH') or die();
             });
     });
 </script>
+<style>
+    .notice, .update-nag {
+        display: none !important;
+    }
+</style>

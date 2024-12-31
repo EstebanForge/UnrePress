@@ -94,4 +94,8 @@ if (isset($_GET['force-check']) && $_GET['force-check'] == 1) {
             }
         }
     }
+
+    .notice, .update-nag {
+        display: none !important;
+    }
 </style>
