@@ -70,13 +70,13 @@ class GitHub implements ProviderInterface
         }
 
         $args = [
-            'method' => 'GET',
-            'timeout' => 5,
+            'method'      => 'GET',
+            'timeout'     => 5,
             'redirection' => 5,
             'httpversion' => '1.0',
-            'user-agent' => 'Mozilla/5.0 (X11; Linux x86_64; rv:133.0) Gecko/20100101 Firefox/133.0',
-            'headers' => [],
-            'sslverify' => true,
+            'user-agent'  => 'Mozilla/5.0 (X11; Linux x86_64; rv:133.0) Gecko/20100101 Firefox/133.0',
+            'headers'     => [],
+            'sslverify'   => true,
         ];
 
         // Add GitHub token authentication if available
@@ -111,7 +111,7 @@ class GitHub implements ProviderInterface
     }
 
     /**
-     * Complete WordPress plugin/theme popup
+     * Complete WordPress plugin/theme popup.
      *
      * @param array|false|object $result The result object or array. Default false.
      * @param string             $action The type of information being requested from the Plugin Installation API.
