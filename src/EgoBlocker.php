@@ -28,6 +28,9 @@ class EgoBlocker
      */
     public function BlockOrg($preempt, $parsed_args, $uri)
     {
+        if (!defined('UNREPRESS_BLOCK_WPORG') || !UNREPRESS_BLOCK_WPORG) {
+            return false;
+        }
 
         if (! defined('UNREPRESS_BLOCKED_HOSTS')) {
             return false;
