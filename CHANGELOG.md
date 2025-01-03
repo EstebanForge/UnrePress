@@ -1,5 +1,8 @@
 # UnrePress changelog
 
+# 0.4.1 - 2025-01-03
+* Added blocking of requests to "his ecommerce website". Reason: [Sybre post](https://x.com/SybreWaaijer/status/1875230654054752374). There is just [too much data](https://x.com/SybreWaaijer/status/1875230672756858980) being sent to that guy by his plugin.
+
 # 0.4.0 - 2024-12-31
 * Core update fallback. UnrePress will prioritize updates using its Index. But, if for some reason the Index is not available, it will fallback to use wp.org repository instead.
 
