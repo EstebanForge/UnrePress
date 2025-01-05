@@ -2,6 +2,8 @@
 
 UnrePress is a WordPress plugin that allows you to update WordPress core and plugins/themes directly from git providers (like GitHub, BitBucket or GitLab), instead of the "official" WordPress dot org repository.
 
+# TOC
+
 - [UnrePress](#unrepress)
   - [Main goal](#main-goal)
     - [Why?](#why)
