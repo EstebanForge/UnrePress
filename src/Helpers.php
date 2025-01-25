@@ -74,18 +74,44 @@ class Helpers
      * Write an update message (for public viewing) to the unrepress update log.
      *
      * @param string $message The message to write
-     *
      * @return void
      */
     public function writeUpdateLog($message)
     {
-        $updateLogFile = UNREPRESS_TEMP_PATH . $this->updateLogFile;
+        global $wp_filesystem;
 
-        if (!file_exists($updateLogFile)) {
-            touch($updateLogFile);
+        if (!function_exists('WP_Filesystem')) {
+            require_once ABSPATH . 'wp-admin/includes/file.php';
         }
 
-        file_put_contents($updateLogFile, $message . "\n", FILE_APPEND);
+        WP_Filesystem();
+
+        $updateLogFile = UNREPRESS_TEMP_PATH . $this->updateLogFile;
+        $updateLogDir = dirname($updateLogFile);
+
+        // Create directory if it doesn't exist
+        if (!$wp_filesystem->exists($updateLogDir)) {
+            if (!$wp_filesystem->mkdir($updateLogDir, 0755)) {
+                error_log('UnrePress: Unable to create directory at ' . $updateLogDir);
+                return;
+            }
+        }
+
+        // Ensure we can write to the file
+        if (!$wp_filesystem->exists($updateLogFile)) {
+            if (!$wp_filesystem->touch($updateLogFile)) {
+                error_log('UnrePress: Unable to create log file at ' . $updateLogFile);
+                return;
+            }
+        }
+
+        $current_content = $wp_filesystem->exists($updateLogFile) ? $wp_filesystem->get_contents($updateLogFile) : '';
+        $timestamp = current_time('mysql');
+        $new_content = $current_content . "[{$timestamp}] {$message}\n";
+
+        if (!$wp_filesystem->put_contents($updateLogFile, $new_content, FS_CHMOD_FILE)) {
+            error_log('UnrePress: Unable to write to log file at ' . $updateLogFile);
+        }
     }
 
     /**
@@ -95,13 +121,29 @@ class Helpers
      */
     public function clearUpdateLog()
     {
-        $updateLogFile = UNREPRESS_TEMP_PATH . $this->updateLogFile;
+        global $wp_filesystem;
 
-        if (!file_exists($updateLogFile)) {
-            touch($updateLogFile);
+        if (!function_exists('WP_Filesystem')) {
+            require_once ABSPATH . 'wp-admin/includes/file.php';
         }
 
-        file_put_contents($updateLogFile, '');
+        WP_Filesystem();
+
+        $updateLogFile = UNREPRESS_TEMP_PATH . $this->updateLogFile;
+        $updateLogDir = dirname($updateLogFile);
+
+        // Create directory if it doesn't exist
+        if (!$wp_filesystem->exists($updateLogDir)) {
+            if (!$wp_filesystem->mkdir($updateLogDir, 0755)) {
+                error_log('UnrePress: Unable to create directory at ' . $updateLogDir);
+                return;
+            }
+        }
+
+        // Create or clear the file
+        if (!$wp_filesystem->put_contents($updateLogFile, '', FS_CHMOD_FILE)) {
+            error_log('UnrePress: Unable to clear log file at ' . $updateLogFile);
+        }
     }
 
     /**
