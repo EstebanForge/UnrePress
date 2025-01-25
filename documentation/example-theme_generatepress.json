@@ -23,5 +23,9 @@
     "tags": "https://github.com/tomusborne/generatepress/tags",
     "update_from": "tags",
     "readme_md": "https://github.com/tomusborne/generatepress/blob/master/README.md",
-    "readme_txt": "https://github.com/tomusborne/generatepress/blob/master/readme.txt"
+    "readme_txt": "https://github.com/tomusborne/generatepress/blob/master/readme.txt",
+    "unrepress-meta": {
+        "taken-down": false,
+        "vulnerable": false
+    }
 }

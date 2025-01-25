@@ -23,5 +23,9 @@
     "tags": "https://github.com/EstebanForge/UnrePress/tags",
     "update_from": "tags",
     "readme_md": "https://raw.githubusercontent.com/EstebanForge/UnrePress/master/README.md",
-    "readme_txt": "https://raw.githubusercontent.com/EstebanForge/UnrePress/master/readme.txt"
+    "readme_txt": "https://raw.githubusercontent.com/EstebanForge/UnrePress/master/readme.txt",
+    "unrepress-meta": {
+        "taken-down": false,
+        "vulnerable": false
+    }
 }

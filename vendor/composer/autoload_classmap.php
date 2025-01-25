@@ -7,4 +7,20 @@ $baseDir = dirname($vendorDir);
 
 return array(
     'Composer\\InstalledVersions' => $vendorDir . '/composer/InstalledVersions.php',
+    'UnrePress\\Admin\\Hider' => $baseDir . '/src/Admin/Hider.php',
+    'UnrePress\\Admin\\UpdaterPages' => $baseDir . '/src/Admin/UpdaterPages.php',
+    'UnrePress\\Debugger' => $baseDir . '/src/Debugger.php',
+    'UnrePress\\Discovery\\Plugins' => $baseDir . '/src/Discovery/Plugins.php',
+    'UnrePress\\EgoBlocker' => $baseDir . '/src/EgoBlocker.php',
+    'UnrePress\\Helpers' => $baseDir . '/src/Helpers.php',
+    'UnrePress\\Index\\Index' => $baseDir . '/src/Index/Index.php',
+    'UnrePress\\Index\\PluginsIndex' => $baseDir . '/src/Index/PluginsIndex.php',
+    'UnrePress\\Index\\ThemesIndex' => $baseDir . '/src/Index/ThemesIndex.php',
+    'UnrePress\\UnrePress' => $baseDir . '/src/UnrePress.php',
+    'UnrePress\\UpdaterProvider\\GitHub' => $baseDir . '/src/UpdaterProvider/GitHub.php',
+    'UnrePress\\UpdaterProvider\\ProviderInterface' => $baseDir . '/src/UpdaterProvider/ProviderInterface.php',
+    'UnrePress\\Updater\\UpdateCore' => $baseDir . '/src/Updater/UpdateCore.php',
+    'UnrePress\\Updater\\UpdateLock' => $baseDir . '/src/Updater/UpdateLock.php',
+    'UnrePress\\Updater\\UpdatePlugins' => $baseDir . '/src/Updater/UpdatePlugins.php',
+    'UnrePress\\Updater\\UpdateThemes' => $baseDir . '/src/Updater/UpdateThemes.php',
 );

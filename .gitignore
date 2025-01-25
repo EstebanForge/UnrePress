@@ -37,3 +37,4 @@ access_log
 *.bak
 *.swp
 *.swo
+documentation/index-demo/
