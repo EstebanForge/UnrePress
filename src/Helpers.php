@@ -57,6 +57,7 @@ class Helpers
         }
 
         // Initialize the WP_Filesystem
+        global $wp_filesystem;
         WP_Filesystem();
 
         // Use copy_dir to copy source to destination
@@ -92,7 +93,7 @@ class Helpers
         // Create directory if it doesn't exist
         if (!$wp_filesystem->exists($updateLogDir)) {
             if (!$wp_filesystem->mkdir($updateLogDir, 0755)) {
-                error_log('UnrePress: Unable to create directory at ' . $updateLogDir);
+                Debugger::log('Unable to create directory at ' . $updateLogDir);
                 return;
             }
         }
@@ -100,7 +101,7 @@ class Helpers
         // Ensure we can write to the file
         if (!$wp_filesystem->exists($updateLogFile)) {
             if (!$wp_filesystem->touch($updateLogFile)) {
-                error_log('UnrePress: Unable to create log file at ' . $updateLogFile);
+                Debugger::log('Unable to create log file at ' . $updateLogFile);
                 return;
             }
         }
@@ -110,7 +111,7 @@ class Helpers
         $new_content = $current_content . "[{$timestamp}] {$message}\n";
 
         if (!$wp_filesystem->put_contents($updateLogFile, $new_content, FS_CHMOD_FILE)) {
-            error_log('UnrePress: Unable to write to log file at ' . $updateLogFile);
+            Debugger::log('Unable to write to log file at ' . $updateLogFile);
         }
     }
 
@@ -135,14 +136,14 @@ class Helpers
         // Create directory if it doesn't exist
         if (!$wp_filesystem->exists($updateLogDir)) {
             if (!$wp_filesystem->mkdir($updateLogDir, 0755)) {
-                error_log('UnrePress: Unable to create directory at ' . $updateLogDir);
+                Debugger::log('Unable to create directory at ' . $updateLogDir);
                 return;
             }
         }
 
         // Create or clear the file
         if (!$wp_filesystem->put_contents($updateLogFile, '', FS_CHMOD_FILE)) {
-            error_log('UnrePress: Unable to clear log file at ' . $updateLogFile);
+            Debugger::log('Unable to clear log file at ' . $updateLogFile);
         }
     }
 
