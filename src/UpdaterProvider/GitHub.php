@@ -94,14 +94,20 @@ class GitHub implements ProviderInterface
             return false;
         }
 
-        $response_body = json_decode(wp_remote_retrieve_body($response), true);
+        $response_body = wp_remote_retrieve_body($response);
         if (empty($response_body)) {
+            return false;
+        }
+
+        $decoded_body = json_decode($response_body, true);
+        if (empty($decoded_body)) {
             return false;
         }
 
         // If response is for a download URL and token is available, append it
         if (defined('UNREPRESS_TOKEN_GITHUB') && !empty(UNREPRESS_TOKEN_GITHUB)) {
-            $response_body['zipball_url'] = add_query_arg('access_token', UNREPRESS_TOKEN_GITHUB, $response_body['zipball_url']);
+            $decoded_body['zipball_url'] = add_query_arg('access_token', UNREPRESS_TOKEN_GITHUB, $decoded_body['zipball_url']);
+            $response_body = json_encode($decoded_body);
         }
 
         // Cache the response for 5 minutes (300 seconds)
