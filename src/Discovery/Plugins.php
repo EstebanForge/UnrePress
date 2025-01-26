@@ -3,15 +3,19 @@
 namespace UnrePress\Discovery;
 
 use UnrePress\Updater\UpdatePlugins;
+use UnrePress\UnrePress;
 
 class Plugins
 {
     private UpdatePlugins $updater;
+    private UnrePress $unrepress;
 
     public function __construct()
     {
         $this->updater = new UpdatePlugins();
+        $this->unrepress = new UnrePress();
         add_filter('plugins_api_result', [$this, 'featuredPlugins'], 10, 3);
+        add_filter('plugins_api_result', [$this, 'handleSearch'], 10, 3);
     }
 
     /**
@@ -22,13 +26,24 @@ class Plugins
      */
     private function getPluginData(string $plugin_slug): array
     {
+        // Sanitize
+        $plugin_slug = sanitize_key($plugin_slug);
+
+        $transient_key = UNREPRESS_PREFIX . 'plugin_data_' . $plugin_slug;
+        $cached_data = get_transient($transient_key);
+
+        if ($cached_data !== false) {
+            return $cached_data;
+        }
+
+        // Get plugin data
         $plugin_data = $this->updater->requestRemoteInfo($plugin_slug);
 
         if (!$plugin_data) {
             return [];
         }
 
-        return [
+        $processed_data = [
             'name'              => $plugin_data->name,
             'slug'              => $plugin_data->slug,
             'version'           => $plugin_data->version ?? '1.0.0',
@@ -57,6 +72,10 @@ class Plugins
                 'default'  => $plugin_data->icons->default ?? '',
             ],
         ];
+
+        set_transient($transient_key, $processed_data, 12 * HOUR_IN_SECONDS);
+
+        return $processed_data;
     }
 
     /**
@@ -71,14 +90,7 @@ class Plugins
     {
         if ($action === 'query_plugins' && empty($args->search)) {
             // Get main index
-            $main_index_url = rtrim(UNREPRESS_INDEX, '/') . '/index.json';
-            $main_index_response = wp_remote_get($main_index_url);
-
-            if (is_wp_error($main_index_response)) {
-                return $result;
-            }
-
-            $main_index = json_decode(wp_remote_retrieve_body($main_index_response), true);
+            $main_index = $this->unrepress->index();
 
             if (!$main_index || !isset($main_index['plugins']['featured'])) {
                 return $result;
@@ -117,5 +129,99 @@ class Plugins
         }
 
         return $result;
+    }
+
+    /**
+     * Handle the search action.
+     *
+     * @param object $result The current result.
+     * @param string $action The action being performed.
+     * @param object $args The arguments for the action.
+     *
+     * @return object The updated result.
+     */
+    public function handleSearch(object $result, string $action, object $args): object
+    {
+        if ($action === 'query_plugins' && !empty($args->search)) {
+            $term = sanitize_text_field($args->search);
+            $plugins_data = $this->searchPlugins($term);
+
+            return (object)[
+                'info' => [
+                    'page'    => 1,
+                    'pages'   => 1,
+                    'results' => count($plugins_data),
+                ],
+                'plugins' => $plugins_data,
+            ];
+        }
+        return $result;
+    }
+
+    /**
+     * Search for plugins in the plugins-index.json file.
+     *
+     * @param string $term The term to search for.
+     *
+     * @return array An array of plugins matching the search term.
+     */
+    public function searchPlugins(string $term): array
+    {
+        $main_index = $this->unrepress->index();
+
+        if (!$main_index || !isset($main_index['plugins']['index'])) {
+            return [];
+        }
+
+        // Fetch and cache plugins-index.json
+        $transient_key = UNREPRESS_PREFIX . 'discovery_plugins_index';
+        $response = get_transient($transient_key);
+
+        if (false === $response) {
+            $response = wp_remote_get($main_index['plugins']['index']);
+            if (!is_wp_error($response)) {
+                set_transient($transient_key, $response, 24 * HOUR_IN_SECONDS);
+            }
+        }
+
+        if (is_wp_error($response)) {
+            return [];
+        }
+
+        $plugins_list = json_decode(wp_remote_retrieve_body($response), true);
+
+        // Validate JSON decode and required structure
+        if (empty($plugins_list) || !is_array($plugins_list) || !isset($plugins_list['plugins']) || !is_array($plugins_list['plugins'])) {
+            return [];
+        }
+
+        $term = strtolower(trim($term));
+
+        $matches = array_filter($plugins_list['plugins'], function ($plugin) use ($term) {
+            // Validate plugin array structure
+            if (!is_array($plugin) ||
+                !isset($plugin['name'], $plugin['slug'], $plugin['description']) ||
+                !isset($plugin['tags']) || !is_array($plugin['tags'])) {
+                return false;
+            }
+
+            // Search in name, slug, description, and tags
+            $fields_to_search = [
+                strtolower($plugin['name']),
+                strtolower($plugin['slug']),
+                strtolower($plugin['description']),
+                implode(' ', array_map('strtolower', $plugin['tags']))
+            ];
+            $combined_text = implode(' ', $fields_to_search);
+
+            return stripos($combined_text, $term) !== false;
+        });
+
+        // Get FULL data for matched plugins
+        $plugins_data = array_map(function ($plugin) {
+            return $this->getPluginData($plugin['slug']);
+        }, array_values($matches));
+
+        return array_filter($plugins_data); // Remove empty entries
     }
 }
