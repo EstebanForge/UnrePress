@@ -67,11 +67,33 @@ class Plugins
                 'high' => $plugin_data->banners->high ?? '',
             ],
             'icons'             => [
-                '1x'       => $plugin_data->icons->{'1x'} ?? '',
-                '2x'       => $plugin_data->icons->{'2x'} ?? '',
+                '1x'       => $plugin_data->icons->low ?? '',
+                '2x'       => $plugin_data->icons->high ?? '',
                 'default'  => $plugin_data->icons->default ?? '',
             ],
         ];
+
+        // Check if we have valid Banners URLs
+        if (empty($processed_data['banners']['low']) || !wp_http_validate_url($processed_data['banners']['low'])) {
+            $processed_data['banners']['low'] = UNREPRESS_INDEX . 'main/assets/images/banner-1544x500.webp';
+        }
+
+        if (empty($processed_data['banners']['high']) || !wp_http_validate_url($processed_data['banners']['high'])) {
+            $processed_data['banners']['high'] = UNREPRESS_INDEX . 'main/assets/images/banner-1544x500.webp';
+        }
+
+        // Check if we have valid Icons URLs
+        if (empty($processed_data['icons']['low']) || !wp_http_validate_url($processed_data['icons']['low'])) {
+            $processed_data['icons']['low'] = UNREPRESS_INDEX . 'main/assets/images/icon-256.webp';
+        }
+
+        if (empty($processed_data['icons']['high']) || !wp_http_validate_url($processed_data['icons']['high'])) {
+            $processed_data['icons']['high'] = UNREPRESS_INDEX . 'main/assets/images/icon-1024.webp';
+        }
+
+        if (empty($processed_data['icons']['default']) || !wp_http_validate_url($processed_data['icons']['default'])) {
+            $processed_data['icons']['default'] = UNREPRESS_INDEX . 'main/assets/images/icon-256.webp';
+        }
 
         set_transient($transient_key, $processed_data, 12 * HOUR_IN_SECONDS);
 

@@ -83,6 +83,7 @@ class UpdatePlugins
                 $updateInfo->author = $remoteData->author;
                 $updateInfo->author_uri = $remoteData->author_profile;
                 $updateInfo->banner = $remoteData->banners;
+                $updateInfo->icon = $remoteData->icons;
 
                 $updateInfo->last_updated = $remoteData->last_updated ?? time();
                 $updateInfo->changelog = $remoteData->sections->changelog;
@@ -189,11 +190,42 @@ class UpdatePlugins
             'changelog' => $remote->sections->changelog,
         ];
 
+        // Banners
         if (! empty($remote->banners)) {
             $response->banners = [
                 'low' => $remote->banners->low,
                 'high' => $remote->banners->high,
             ];
+        }
+
+        // Icons
+        if (! empty($remote->icons)) {
+            $response->icons = [
+                'low' => $remote->icons->low,
+                'high' => $remote->icons->high,
+            ];
+        }
+
+        // Check if we have valid Banners URLs
+        if (empty($remote->banners->low) || !wp_http_validate_url($remote->banners->low)) {
+            $remote->banners->low = UNREPRESS_INDEX . 'main/assets/images/banner-772x250.webp';
+        }
+
+        if (empty($remote->banners->high) || !wp_http_validate_url($remote->banners->high)) {
+            $remote->banners->high = UNREPRESS_INDEX . 'main/assets/images/banner-1544x500.webp';
+        }
+
+        // Check if we have valid Icons URLs
+        if (empty($remote->icons->low) || !wp_http_validate_url($remote->icons->low)) {
+            $remote->icons->low = UNREPRESS_INDEX . 'main/assets/images/icon-256.webp';
+        }
+
+        if (empty($remote->icons->high) || !wp_http_validate_url($remote->icons->high)) {
+            $remote->icons->high = UNREPRESS_INDEX . 'main/assets/images/icon-1024.webp';
+        }
+
+        if (empty($remote->icons->default) || !wp_http_validate_url($remote->icons->default)) {
+            $remote->icons->default = UNREPRESS_INDEX . 'main/assets/images/icon-256.webp';
         }
 
         return $response;
@@ -262,7 +294,7 @@ class UpdatePlugins
             $first_letter = mb_strtolower(mb_substr($slug, 0, 1));
 
             // Get plugin info from UnrePress index
-            $remote = wp_remote_get(UNREPRESS_INDEX . 'plugins/' . $first_letter . '/' . $slug . '.json', [
+            $remote = wp_remote_get(UNREPRESS_INDEX . 'main/plugins/' . $first_letter . '/' . $slug . '.json', [
                 'timeout' => 10,
                 'headers' => [
                     'Accept' => 'application/json',

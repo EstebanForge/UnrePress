@@ -16,7 +16,7 @@ class Index
         $index = get_transient(UNREPRESS_PREFIX . 'index');
 
         if (false === $index) {
-            $indexJson = wp_remote_get(UNREPRESS_INDEX);
+            $indexJson = wp_remote_get(UNREPRESS_INDEX . 'main/index.json');
 
             if (is_wp_error($indexJson)) {
                 return false;

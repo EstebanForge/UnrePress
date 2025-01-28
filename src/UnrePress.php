@@ -47,7 +47,7 @@ class UnrePress
         }
 
         // Get main index first
-        $main_index_url = rtrim(UNREPRESS_INDEX, '/') . '/index.json';
+        $main_index_url = rtrim(UNREPRESS_INDEX, '/') . 'main/index.json';
         $main_index_response = wp_remote_get($main_index_url);
 
         if (is_wp_error($main_index_response)) {

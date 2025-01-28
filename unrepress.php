@@ -27,7 +27,7 @@ define('UNREPRESS_BLOCKED_HOSTS', 'api.wordpress.org,*.wordpress.org,*.wordpress
 
 // Define: UnrePress Index
 if (!defined('UNREPRESS_INDEX')) {
-    define('UNREPRESS_INDEX', 'https://raw.githubusercontent.com/estebanforge/unrepress-index/main/');
+    define('UNREPRESS_INDEX', 'https://raw.githubusercontent.com/estebanforge/unrepress-index/');
 }
 
 // Define: GitHub API Token

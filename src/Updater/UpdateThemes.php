@@ -117,7 +117,7 @@ class UpdateThemes
 
         if ($remote === false || ! $this->cache_results) {
             $remote = wp_remote_get(
-                UNREPRESS_INDEX . 'themes/' . $first_letter . '/' . $slug . '.json',
+                UNREPRESS_INDEX . 'main/themes/' . $first_letter . '/' . $slug . '.json',
                 [
                     'timeout' => 10,
                     'headers' => [
@@ -250,7 +250,7 @@ class UpdateThemes
             $first_letter = mb_strtolower(mb_substr($slug, 0, 1));
 
             // Get theme info from UnrePress index
-            $remote = wp_remote_get(UNREPRESS_INDEX . 'themes/' . $first_letter . '/' . $slug . '.json', [
+            $remote = wp_remote_get(UNREPRESS_INDEX . 'main/themes/' . $first_letter . '/' . $slug . '.json', [
                 'timeout' => 10,
                 'headers' => [
                     'Accept' => 'application/json',
