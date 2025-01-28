@@ -168,41 +168,42 @@ class UpdatePlugins
         // Last updated, now
         $remote->last_updated = time();
         // Changelog
-        $remote->sections->changelog = $remote->changelog;
+        $remote->sections = $remote->sections ?? new \stdClass();
+        $remote->sections->changelog = $remote->changelog ?? '';
 
-        $response->name = $remote->name;
-        $response->slug = $remote->slug;
-        $response->version = $remote->version;
-        $response->tested = $remote->tested;
-        $response->requires = $remote->requires;
-        $response->author = $remote->author;
-        $response->author_profile = $remote->author_profile;
-        $response->donate_link = $remote->donate_link;
-        $response->homepage = $remote->homepage;
-        $response->download_link = $remote->download_url;
-        $response->trunk = $remote->download_url;
-        $response->requires_php = $remote->requires_php;
+        $response->name = $remote->name ?? '';
+        $response->slug = $remote->slug ?? '';
+        $response->version = $remote->version ?? '';
+        $response->tested = $remote->tested ?? '';
+        $response->requires = $remote->requires ?? '';
+        $response->author = $remote->author ?? '';
+        $response->author_profile = $remote->author_profile ?? '';
+        $response->donate_link = $remote->donate_link ?? '';
+        $response->homepage = $remote->homepage ?? '';
+        $response->download_link = $remote->download_url ?? '';
+        $response->trunk = $remote->download_url ?? '';
+        $response->requires_php = $remote->requires_php ?? '';
         $response->last_updated = $remote->last_updated;
 
         $response->sections = [
-            'description' => $remote->sections->description,
-            'installation' => $remote->sections->installation,
-            'changelog' => $remote->sections->changelog,
+            'description' => $remote->sections->description ?? '',
+            'installation' => $remote->sections->installation ?? '',
+            'changelog' => $remote->sections->changelog ?? '',
         ];
 
         // Banners
         if (! empty($remote->banners)) {
             $response->banners = [
-                'low' => $remote->banners->low,
-                'high' => $remote->banners->high,
+                'low' => $remote->banners->low ?? '',
+                'high' => $remote->banners->high ?? '',
             ];
         }
 
         // Icons
         if (! empty($remote->icons)) {
             $response->icons = [
-                'low' => $remote->icons->low,
-                'high' => $remote->icons->high,
+                'low' => $remote->icons->low ?? '',
+                'high' => $remote->icons->high ?? '',
             ];
         }
 
