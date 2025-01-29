@@ -2,8 +2,8 @@
 
 namespace UnrePress\Discovery;
 
-use UnrePress\Updater\UpdatePlugins;
 use UnrePress\UnrePress;
+use UnrePress\Updater\UpdatePlugins;
 
 class Plugins
 {
@@ -19,7 +19,7 @@ class Plugins
     }
 
     /**
-     * Get plugin data from UnrePress index
+     * Get plugin data from UnrePress index.
      *
      * @param string $plugin_slug Plugin slug
      * @return array Plugin data
@@ -48,7 +48,7 @@ class Plugins
             'slug'              => $plugin_data->slug,
             'version'           => $plugin_data->version ?? '1.0.0',
             'author'            => $plugin_data->author,
-            'author_profile'    => $plugin_data->author_profile,
+            'author_profile'    => $plugin_data->author_url,
             'requires'          => $plugin_data->requires ?? '6.0',
             'tested'            => $plugin_data->tested ?? '6.5',
             'rating'            => 100,
@@ -101,7 +101,7 @@ class Plugins
     }
 
     /**
-     * Filter featured plugins in the WordPress plugin directory
+     * Filter featured plugins in the WordPress plugin directory.
      *
      * @param object $result The result object
      * @param string $action The type of information being requested from the Plugin Installation API
@@ -168,7 +168,7 @@ class Plugins
             $term = sanitize_text_field($args->search);
             $plugins_data = $this->searchPlugins($term);
 
-            return (object)[
+            return (object) [
                 'info' => [
                     'page'    => 1,
                     'pages'   => 1,
@@ -177,6 +177,7 @@ class Plugins
                 'plugins' => $plugins_data,
             ];
         }
+
         return $result;
     }
 
@@ -232,7 +233,7 @@ class Plugins
                 strtolower($plugin['name']),
                 strtolower($plugin['slug']),
                 strtolower($plugin['description']),
-                implode(' ', array_map('strtolower', $plugin['tags']))
+                implode(' ', array_map('strtolower', $plugin['tags'])),
             ];
             $combined_text = implode(' ', $fields_to_search);
 

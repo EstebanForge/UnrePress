@@ -3,7 +3,6 @@
 namespace UnrePress\Updater;
 
 use UnrePress\Helpers;
-use UnrePress\Debugger;
 
 class UpdatePlugins
 {
@@ -43,7 +42,7 @@ class UpdatePlugins
     private function checkforUpdates()
     {
         // Get all installed plugins
-        if (! function_exists('get_plugins')) {
+        if (!function_exists('get_plugins')) {
             require_once ABSPATH . 'wp-admin/includes/plugin.php';
         }
 
@@ -81,7 +80,7 @@ class UpdatePlugins
                 $updateInfo->plugin_uri = $remoteData->homepage;
                 $updateInfo->description = $remoteData->sections->description;
                 $updateInfo->author = $remoteData->author;
-                $updateInfo->author_uri = $remoteData->author_profile;
+                $updateInfo->author_profile = $remoteData->author_url;
                 $updateInfo->banner = $remoteData->banners;
                 $updateInfo->icon = $remoteData->icons;
 
@@ -99,7 +98,7 @@ class UpdatePlugins
 
     private function getInstalledVersion($slug)
     {
-        if (! function_exists('get_plugins')) {
+        if (!function_exists('get_plugins')) {
             require_once ABSPATH . 'wp-admin/includes/plugin.php';
         }
 
@@ -120,7 +119,7 @@ class UpdatePlugins
     {
         // Convert slug to lowercase for URL construction
         $slug = strtolower($slug);
-        $url = "https://raw.githubusercontent.com/estebanforge/unrepress-index/main/plugins/" . substr($slug, 0, 1) . "/{$slug}.json";
+        $url = 'https://raw.githubusercontent.com/estebanforge/unrepress-index/main/plugins/' . substr($slug, 0, 1) . "/{$slug}.json";
 
         $response = wp_remote_get($url);
 
@@ -159,7 +158,7 @@ class UpdatePlugins
         // get updates
         $remote = $this->requestRemoteInfo($args->slug);
 
-        if (! $remote) {
+        if (!$remote) {
             return $response;
         }
 
@@ -168,7 +167,7 @@ class UpdatePlugins
         // Last updated, now
         $remote->last_updated = time();
         // Changelog
-        $remote->sections = $remote->sections ?? new \stdClass();
+        $remote->sections ??= new \stdClass();
         $remote->sections->changelog = $remote->changelog ?? '';
 
         $response->name = $remote->name ?? '';
@@ -177,7 +176,7 @@ class UpdatePlugins
         $response->tested = $remote->tested ?? '';
         $response->requires = $remote->requires ?? '';
         $response->author = $remote->author ?? '';
-        $response->author_profile = $remote->author_profile ?? '';
+        $response->author_profile = $remote->author_url ?? '';
         $response->donate_link = $remote->donate_link ?? '';
         $response->homepage = $remote->homepage ?? '';
         $response->download_link = $remote->download_url ?? '';
@@ -192,7 +191,7 @@ class UpdatePlugins
         ];
 
         // Banners
-        if (! empty($remote->banners)) {
+        if (!empty($remote->banners)) {
             $response->banners = [
                 'low' => $remote->banners->low ?? '',
                 'high' => $remote->banners->high ?? '',
@@ -200,7 +199,7 @@ class UpdatePlugins
         }
 
         // Icons
-        if (! empty($remote->icons)) {
+        if (!empty($remote->icons)) {
             $response->icons = [
                 'low' => $remote->icons->low ?? '',
                 'high' => $remote->icons->high ?? '',
@@ -235,14 +234,14 @@ class UpdatePlugins
     public function hasUpdate($transient)
     {
         // If there's no checked plugins, initialize it
-        if (! is_object($transient)) {
+        if (!is_object($transient)) {
             $transient = new \stdClass();
         }
 
         if (empty($transient->checked)) {
             $transient->checked = [];
             // Get all plugins
-            if (! function_exists('get_plugins')) {
+            if (!function_exists('get_plugins')) {
                 require_once ABSPATH . 'wp-admin/includes/plugin.php';
             }
             $plugins = get_plugins();
@@ -264,7 +263,7 @@ class UpdatePlugins
                     $response->new_version = $updateInfo->version;
                     $response->tested = $updateInfo->tested;
                     $response->package = $updateInfo->download_link;
-                    if (! isset($transient->response)) {
+                    if (!isset($transient->response)) {
                         $transient->response = [];
                     }
                     $transient->response[$plugin] = $response;
@@ -281,7 +280,7 @@ class UpdatePlugins
     }
 
     /**
-     * Get the latest available version from the remote tags
+     * Get the latest available version from the remote tags.
      *
      * @param string $slug Plugin slug
      *
@@ -379,7 +378,7 @@ class UpdatePlugins
 
     /**
      * Fix the source directory name during plugin updates
-     * This prevents GitHub's repository naming format from being used
+     * This prevents GitHub's repository naming format from being used.
      *
      * @param string       $source        File source location
      * @param string       $remote_source Remote file source location

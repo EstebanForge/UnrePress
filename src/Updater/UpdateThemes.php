@@ -3,7 +3,6 @@
 namespace UnrePress\Updater;
 
 use UnrePress\Helpers;
-use UnrePress\Debugger;
 
 class UpdateThemes
 {
@@ -77,14 +76,14 @@ class UpdateThemes
                 $updateInfo->theme_uri = $theme->get('ThemeURI');
                 $updateInfo->description = $theme->get('Description');
                 $updateInfo->author = $theme->get('Author');
-                $updateInfo->author_uri = $theme->get('AuthorURI');
+                $updateInfo->author_profile = $theme->get('AuthorURI');
                 $updateInfo->tags = $theme->get('Tags');
                 $updateInfo->textdomain = $theme->get('TextDomain');
                 $updateInfo->template = $theme->get_template();
 
                 // Remote data for updates
                 $updateInfo->last_updated = $remoteData->last_updated ?? time();
-                $updateInfo->changelog = isset($remoteData->sections->changelog) ? $remoteData->sections->changelog : '';
+                $updateInfo->changelog = $remoteData->sections->changelog ?? '';
                 $updateInfo->screenshot = $remoteData->screenshot_url ?? '';
 
                 $updateInfo->version = $latestVersion;
@@ -101,12 +100,12 @@ class UpdateThemes
         $theme = wp_get_theme($slug);
         $version = $theme->get('Version');
 
-        return ! empty($version) ? $version : false;
+        return !empty($version) ? $version : false;
     }
 
     public function requestRemoteInfo($slug = null)
     {
-        if (! $slug) {
+        if (!$slug) {
             return false;
         }
 
@@ -115,7 +114,7 @@ class UpdateThemes
         // Get the first letter of the slug
         $first_letter = mb_strtolower(mb_substr($slug, 0, 1));
 
-        if ($remote === false || ! $this->cache_results) {
+        if ($remote === false || !$this->cache_results) {
             $remote = wp_remote_get(
                 UNREPRESS_INDEX . 'main/themes/' . $first_letter . '/' . $slug . '.json',
                 [
@@ -152,7 +151,7 @@ class UpdateThemes
         // get updates
         $remote = $this->requestRemoteInfo($args->slug);
 
-        if (! $remote) {
+        if (!$remote) {
             return $response;
         }
 
@@ -169,7 +168,7 @@ class UpdateThemes
         $response->tested = $remote->tested;
         $response->requires = $remote->requires;
         $response->author = $remote->author;
-        $response->author_profile = $remote->author_profile;
+        $response->author_profile = $remote->author_url;
         $response->donate_link = $remote->donate_link;
         $response->homepage = $remote->homepage;
         $response->download_link = $remote->download_url;
@@ -189,7 +188,7 @@ class UpdateThemes
 
     public function hasUpdate($transient)
     {
-        if (! is_object($transient)) {
+        if (!is_object($transient)) {
             $transient = new \stdClass();
         }
 
@@ -207,10 +206,10 @@ class UpdateThemes
                 $currentVersion = $transient->checked[$slug];
 
                 if (
-                    ! empty($currentVersion) && ! empty($updateInfo->version) &&
+                    !empty($currentVersion) && !empty($updateInfo->version) &&
                     version_compare($currentVersion, $updateInfo->version, '<')
                 ) {
-                    if (! isset($transient->response)) {
+                    if (!isset($transient->response)) {
                         $transient->response = [];
                     }
 
@@ -236,7 +235,7 @@ class UpdateThemes
     }
 
     /**
-     * Get the latest available version from the remote tags
+     * Get the latest available version from the remote tags.
      *
      * @param string $slug Theme slug
      *
@@ -306,14 +305,14 @@ class UpdateThemes
 
             $tagBody = json_decode(wp_remote_retrieve_body($remote));
 
-            if (! is_array($tagBody) || empty($tagBody)) {
+            if (!is_array($tagBody) || empty($tagBody)) {
                 return false;
             }
 
             // Get the newest version from tags
             $latestTag = $this->helpers->getNewestVersionFromTags($tagBody);
 
-            if (! $latestTag) {
+            if (!$latestTag) {
                 return false;
             }
 
@@ -336,11 +335,11 @@ class UpdateThemes
     }
 
     /**
-     * Fix source directory for GitHub theme updates
+     * Fix source directory for GitHub theme updates.
      */
     public function maybeFixSourceDir($source, $remote_source, $upgrader, $args)
     {
-        if (! isset($args['theme'])) {
+        if (!isset($args['theme'])) {
             return $source;
         }
 
