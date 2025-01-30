@@ -88,6 +88,7 @@ class UpdateThemes
 
                 $updateInfo->version = $latestVersion;
                 $updateInfo->download_link = get_transient($this->cache_key . 'download-url-' . $slug);
+                $updateInfo->package = get_transient($this->cache_key . 'download-url-' . $slug);
 
                 // Store this information for later use
                 $this->updateInfo[$slug] = $updateInfo;
@@ -172,6 +173,7 @@ class UpdateThemes
         $response->donate_link = $remote->donate_link;
         $response->homepage = $remote->homepage;
         $response->download_link = $remote->download_url;
+        $response->package = $remote->download_url;
         $response->trunk = $remote->download_url;
         $response->requires_php = $remote->requires_php;
         $response->last_updated = $remote->last_updated;

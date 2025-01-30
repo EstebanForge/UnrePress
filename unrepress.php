@@ -24,6 +24,7 @@ define('UNREPRESS_PREFIX', 'unrepress_');
 define('UNREPRESS_TEMP_PATH', WP_CONTENT_DIR . '/upgrade/');
 define('UNREPRESS_BLOCK_WPORG', true);
 define('UNREPRESS_BLOCKED_HOSTS', 'api.wordpress.org,*.wordpress.org,*.wordpress.com,*.wordpress.net,*.wordpress.tv,*.woocommerce.com,tracking.woocommerce.com,*.woocommerce.org');
+define('UNREPRESS_FILE', __FILE__);
 
 // Define: UnrePress Index
 if (!defined('UNREPRESS_INDEX')) {

@@ -17,6 +17,7 @@ class Plugins
 
         add_filter('plugins_api_result', [$this, 'featuredPlugins'], 10, 3);
         add_filter('plugins_api_result', [$this, 'handleSearch'], 10, 3);
+        add_filter('plugins_api_result', [$this, 'handlePluginInformation'], 10, 3);
     }
 
     /**
@@ -25,80 +26,117 @@ class Plugins
      * @param string $plugin_slug Plugin slug
      * @return array Plugin data
      */
-    private function getPluginData(string $plugin_slug): array
+    private function getPluginData($plugin_slug)
     {
-        // Sanitize
-        $plugin_slug = sanitize_key($plugin_slug);
-
-        $transient_key = UNREPRESS_PREFIX . 'plugin_data_' . $plugin_slug;
-        $cached_data = get_transient($transient_key);
-
-        if ($cached_data !== false) {
-            return $cached_data;
-        }
-
-        // Get plugin data
-        $plugin_data = $this->updater->requestRemoteInfo($plugin_slug);
-
-        if (!$plugin_data) {
+        if (empty($plugin_slug)) {
             return [];
         }
 
+        $url = UNREPRESS_INDEX . 'main/plugins/' . substr($plugin_slug, 0, 1) . "/{$plugin_slug}.json";
+        $response = wp_remote_get($url);
+
+        if (is_wp_error($response)) {
+            unrepress_debug('Error fetching plugin data: ' . $response->get_error_message());
+            return [];
+        }
+
+        $body = wp_remote_retrieve_body($response);
+        $plugin_data = json_decode($body);
+
+        if (!$plugin_data || !is_object($plugin_data)) {
+            unrepress_debug('Invalid plugin data for ' . $plugin_slug);
+            return [];
+        }
+
+        unrepress_debug('Raw plugin data for ' . $plugin_slug . ':');
+        unrepress_debug($plugin_data);
+
+        // Get the latest version from tags
+        $version = $this->getLatestVersion($plugin_data);
+
+        // Prepare the plugin data array with all required fields
         $processed_data = [
-            'name'              => $plugin_data->name,
-            'slug'              => $plugin_data->slug,
-            'version'           => $plugin_data->version ?? '1.0.0',
-            'author'            => $plugin_data->author,
-            'author_profile'    => $plugin_data->author_url,
-            'requires'          => $plugin_data->requires ?? '6.0',
-            'tested'            => $plugin_data->tested ?? '6.5',
-            'rating'            => 100,
-            'num_ratings'       => 0,
-            'active_installs'   => 1000,
-            'last_updated'      => $plugin_data->last_updated ?? date('Y-m-d H:i:s'),
-            'short_description' => wp_trim_words($plugin_data->sections->description ?? '', 20),
-            'download_link'     => $plugin_data->download_url ?? '',
-            'sections'          => [
-                'description'  => $plugin_data->sections->description ?? '',
+            'name' => $plugin_data->name ?? '',
+            'slug' => $plugin_data->slug ?? '',
+            'version' => $version,
+            'author' => $plugin_data->author ?? '',
+            'author_profile' => $plugin_data->author_url ?? '',
+            'requires' => $plugin_data->requires ?? '5.0',
+            'tested' => $plugin_data->tested ?? '6.4',
+            'requires_php' => $plugin_data->requires_php ?? '7.4',
+            'sections' => [
+                'description' => $plugin_data->sections->description ?? '',
                 'installation' => $plugin_data->sections->installation ?? '',
-                'changelog'    => $plugin_data->sections->changelog ?? '',
+                'changelog' => $plugin_data->sections->changelog ?? '',
             ],
-            'banners'           => [
-                'low'  => $plugin_data->banners->low ?? '',
-                'high' => $plugin_data->banners->high ?? '',
+            'banners' => [
+                'low' => (!empty($plugin_data->banners->low)) ? $plugin_data->banners->low : UNREPRESS_PLUGIN_URL . 'assets/images/banner-772x250.webp',
+                'high' => (!empty($plugin_data->banners->high)) ? $plugin_data->banners->high : UNREPRESS_PLUGIN_URL . 'assets/images/banner-1544x500.webp',
             ],
-            'icons'             => [
-                '1x'       => $plugin_data->icons->low ?? '',
-                '2x'       => $plugin_data->icons->high ?? '',
-                'default'  => $plugin_data->icons->default ?? '',
+            'icons' => [
+                'default' => (!empty($plugin_data->icons->high)) ? $plugin_data->icons->high : UNREPRESS_PLUGIN_URL . 'assets/images/icon-256.webp',
+                'low' => (!empty($plugin_data->icons->low)) ? $plugin_data->icons->low : UNREPRESS_PLUGIN_URL . 'assets/images/icon-256.webp',
+                'high' => (!empty($plugin_data->icons->high)) ? $plugin_data->icons->high : UNREPRESS_PLUGIN_URL . 'assets/images/icon-1024.webp',
             ],
+            'download_url' => $this->getDownloadUrl($plugin_data, $version),
+            'homepage' => $plugin_data->homepage ?? '',
+            'short_description' => substr($plugin_data->sections->description ?? '', 0, 150) . '&hellip;',
+            'rating' => 100,
+            'num_ratings' => 1,
+            'support_threads' => 0,
+            'support_threads_resolved' => 0,
+            'active_installs' => 1000,
+            'last_updated' => time(),
+            'added' => date('Y-m-d'),
+            'tags' => [],
+            'compatibility' => [
+                get_bloginfo('version') => [
+                    'compatible' => true,
+                    'requires_php' => $plugin_data->requires_php ?? '7.4',
+                ]
+            ],
+            'contributors' => [],
+            'screenshots' => [],
+            'external' => true
         ];
 
-        // Check if we have valid Banners URLs
-        if (empty($processed_data['banners']['low']) || !wp_http_validate_url($processed_data['banners']['low'])) {
-            $processed_data['banners']['low'] = UNREPRESS_INDEX . 'main/assets/images/banner-1544x500.webp';
-        }
-
-        if (empty($processed_data['banners']['high']) || !wp_http_validate_url($processed_data['banners']['high'])) {
-            $processed_data['banners']['high'] = UNREPRESS_INDEX . 'main/assets/images/banner-1544x500.webp';
-        }
-
-        // Check if we have valid Icons URLs
-        if (empty($processed_data['icons']['low']) || !wp_http_validate_url($processed_data['icons']['low'])) {
-            $processed_data['icons']['low'] = UNREPRESS_INDEX . 'main/assets/images/icon-256.webp';
-        }
-
-        if (empty($processed_data['icons']['high']) || !wp_http_validate_url($processed_data['icons']['high'])) {
-            $processed_data['icons']['high'] = UNREPRESS_INDEX . 'main/assets/images/icon-1024.webp';
-        }
-
-        if (empty($processed_data['icons']['default']) || !wp_http_validate_url($processed_data['icons']['default'])) {
-            $processed_data['icons']['default'] = UNREPRESS_INDEX . 'main/assets/images/icon-256.webp';
-        }
-
-        set_transient($transient_key, $processed_data, 12 * HOUR_IN_SECONDS);
+        unrepress_debug('Processed plugin data for ' . $plugin_slug . ':');
+        unrepress_debug($processed_data);
 
         return $processed_data;
+    }
+
+    private function getLatestVersion($plugin_data)
+    {
+        if (!empty($plugin_data->unrepress_meta->tags)) {
+            $tags_url = $plugin_data->unrepress_meta->tags;
+            $response = wp_remote_get($tags_url);
+
+            if (!is_wp_error($response) && wp_remote_retrieve_response_code($response) === 200) {
+                $tags = json_decode(wp_remote_retrieve_body($response));
+                if (is_array($tags) && !empty($tags)) {
+                    // Get the first tag (most recent)
+                    return ltrim($tags[0]->name, 'v');
+                }
+            }
+        }
+
+        // Fallback version if no tags found
+        return '1.0.0';
+    }
+
+    private function getDownloadUrl($plugin_data, $version)
+    {
+        if (!empty($plugin_data->unrepress_meta->repository)) {
+            $repo = $plugin_data->unrepress_meta->repository;
+            if (strpos($repo, 'github.com') !== false) {
+                // Convert HTTPS URL to archive URL
+                $repo = str_replace('github.com', 'api.github.com/repos', $repo);
+                return $repo . '/zipball/' . $version;
+            }
+        }
+
+        return '';
     }
 
     /**
@@ -169,7 +207,11 @@ class Plugins
             $term = sanitize_text_field($args->search);
             $plugins_data = $this->searchPlugins($term);
 
-            return (object) [
+            // Debug log
+            unrepress_debug('Search Results:');
+            unrepress_debug(print_r($plugins_data, true));
+
+            $result = (object) [
                 'info' => [
                     'page'    => 1,
                     'pages'   => 1,
@@ -177,6 +219,37 @@ class Plugins
                 ],
                 'plugins' => $plugins_data,
             ];
+
+            // Debug log the final result
+            unrepress_debug('Final Result:');
+            unrepress_debug(print_r($result, true));
+        }
+
+        return $result;
+    }
+
+    /**
+     * Handle plugin information request.
+     *
+     * @param object $result The current result.
+     * @param string $action The action being performed.
+     * @param object $args The arguments for the action.
+     *
+     * @return object The updated result.
+     */
+    public function handlePluginInformation(object $result, string $action, object $args): object
+    {
+        unrepress_debug('Action: ' . $action);
+        unrepress_debug('Args: ' . print_r($args, true));
+
+        if ($action === 'plugin_information' && !empty($args->slug)) {
+            $plugin_data = $this->getPluginData($args->slug);
+            unrepress_debug('Plugin Data for ' . $args->slug . ':');
+            unrepress_debug(print_r($plugin_data, true));
+
+            if (!empty($plugin_data)) {
+                return (object) $plugin_data;
+            }
         }
 
         return $result;

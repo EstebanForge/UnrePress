@@ -89,6 +89,7 @@ class UpdatePlugins
 
                 $updateInfo->version = $latestVersion;
                 $updateInfo->download_link = get_transient($this->cache_key . 'download-url-' . $slug);
+                $updateInfo->package = get_transient($this->cache_key . 'download-url-' . $slug);
 
                 // Store this information for later use
                 $this->updateInfo[$slug] = $updateInfo;
@@ -119,33 +120,51 @@ class UpdatePlugins
     {
         // Convert slug to lowercase for URL construction
         $slug = strtolower($slug);
-        $url = 'https://raw.githubusercontent.com/estebanforge/unrepress-index/main/plugins/' . substr($slug, 0, 1) . "/{$slug}.json";
+        $url = UNREPRESS_INDEX . 'main/plugins/' . substr($slug, 0, 1) . "/{$slug}.json";
+
+        unrepress_debug('Requesting plugin info from URL: ' . $url);
 
         $response = wp_remote_get($url);
 
         if (is_wp_error($response)) {
+            unrepress_debug('Error getting remote info for ' . $slug . ': ' . $response->get_error_message());
             return false;
         }
 
         $responseCode = wp_remote_retrieve_response_code($response);
+        unrepress_debug('Response code for ' . $slug . ': ' . $responseCode);
+
         if ($responseCode !== 200) {
+            unrepress_debug('Invalid response code for ' . $slug);
             return false;
         }
 
         $body = wp_remote_retrieve_body($response);
+        unrepress_debug('Raw response body for ' . $slug . ':');
+        unrepress_debug($body);
+
         // Remove any trailing commas before the closing brace or bracket
         $body = preg_replace('/,(\s*[\]}])/m', '$1', $body);
 
         $data = json_decode($body);
         if (json_last_error() !== JSON_ERROR_NONE) {
+            unrepress_debug('JSON decode error for ' . $slug . ': ' . json_last_error_msg());
             return false;
         }
+
+        unrepress_debug('Decoded plugin data for ' . $slug . ':');
+        unrepress_debug(print_r($data, true));
 
         return $data;
     }
 
     public function getInformation($response, $action, $args)
     {
+        unrepress_debug('Plugin information request - Action: ' . $action);
+        if (!empty($args->slug)) {
+            unrepress_debug('Plugin information request for slug: ' . $args->slug);
+        }
+
         // do nothing if you're not getting plugin information right now
         if ($action !== 'plugin_information') {
             return $response;
@@ -159,10 +178,20 @@ class UpdatePlugins
         $remote = $this->requestRemoteInfo($args->slug);
 
         if (!$remote) {
+            unrepress_debug('No remote data found for ' . $args->slug);
             return $response;
         }
 
         $response = new \stdClass();
+
+        // Get the latest version from tags
+        $version = $this->getLatestVersion($remote);
+
+        // Get the download URL
+        $download_url = $this->getDownloadUrl($remote, $version);
+
+        unrepress_debug('Version for ' . $args->slug . ': ' . $version);
+        unrepress_debug('Download URL for ' . $args->slug . ': ' . $download_url);
 
         // Last updated, now
         $remote->last_updated = time();
@@ -172,63 +201,89 @@ class UpdatePlugins
 
         $response->name = $remote->name ?? '';
         $response->slug = $remote->slug ?? '';
-        $response->version = $remote->version ?? '';
-        $response->tested = $remote->tested ?? '';
-        $response->requires = $remote->requires ?? '';
-        $response->author = $remote->author ?? '';
+        $response->version = $version;
+        $response->author = sprintf('<a href="%s">%s</a>', $remote->author_url ?? '#', $remote->author ?? '');
         $response->author_profile = $remote->author_url ?? '';
-        $response->donate_link = $remote->donate_link ?? '';
+        $response->requires = $remote->requires ?? '5.0';
+        $response->tested = $remote->tested ?? '6.4';
+        $response->requires_php = $remote->requires_php ?? '7.4';
         $response->homepage = $remote->homepage ?? '';
-        $response->download_link = $remote->download_url ?? '';
-        $response->trunk = $remote->download_url ?? '';
-        $response->requires_php = $remote->requires_php ?? '';
-        $response->last_updated = $remote->last_updated;
-
         $response->sections = [
             'description' => $remote->sections->description ?? '',
             'installation' => $remote->sections->installation ?? '',
             'changelog' => $remote->sections->changelog ?? '',
         ];
+        $response->banners = [
+            'low' => (!empty($remote->banners->low)) ? $remote->banners->low : UNREPRESS_PLUGIN_URL . 'assets/images/banner-772x250.webp',
+            'high' => (!empty($remote->banners->high)) ? $remote->banners->high : UNREPRESS_PLUGIN_URL . 'assets/images/banner-1544x500.webp',
+        ];
+        $response->icons = [
+            'default' => (!empty($remote->icons->high)) ? $remote->icons->high : UNREPRESS_PLUGIN_URL . 'assets/images/icon-256.webp',
+            'low' => (!empty($remote->icons->low)) ? $remote->icons->low : UNREPRESS_PLUGIN_URL . 'assets/images/icon-256.webp',
+            'high' => (!empty($remote->icons->high)) ? $remote->icons->high : UNREPRESS_PLUGIN_URL . 'assets/images/icon-1024.webp',
+        ];
+        $response->download_link = $download_url;
+        $response->package = $download_url;
+        $response->trunk = $download_url;
+        $response->last_updated = date('Y-m-d H:i:s', $remote->last_updated);
+        $response->rating = 100;
+        $response->num_ratings = 1;
+        $response->active_installs = 1000;
+        $response->downloaded = 1000;
+        $response->external = true;
 
-        // Banners
-        if (!empty($remote->banners)) {
-            $response->banners = [
-                'low' => $remote->banners->low ?? '',
-                'high' => $remote->banners->high ?? '',
-            ];
-        }
+        // Set compatibility information
+        $wp_version = get_bloginfo('version');
+        $response->compatibility = [
+            $wp_version => [
+                'compatible' => true,
+                'requires_php' => $remote->requires_php ?? '7.4',
+            ]
+        ];
 
-        // Icons
-        if (!empty($remote->icons)) {
-            $response->icons = [
-                'low' => $remote->icons->low ?? '',
-                'high' => $remote->icons->high ?? '',
-            ];
-        }
-
-        // Check if we have valid Banners URLs
-        if (empty($remote->banners->low) || !wp_http_validate_url($remote->banners->low)) {
-            $remote->banners->low = UNREPRESS_INDEX . 'main/assets/images/banner-772x250.webp';
-        }
-
-        if (empty($remote->banners->high) || !wp_http_validate_url($remote->banners->high)) {
-            $remote->banners->high = UNREPRESS_INDEX . 'main/assets/images/banner-1544x500.webp';
-        }
-
-        // Check if we have valid Icons URLs
-        if (empty($remote->icons->low) || !wp_http_validate_url($remote->icons->low)) {
-            $remote->icons->low = UNREPRESS_INDEX . 'main/assets/images/icon-256.webp';
-        }
-
-        if (empty($remote->icons->high) || !wp_http_validate_url($remote->icons->high)) {
-            $remote->icons->high = UNREPRESS_INDEX . 'main/assets/images/icon-1024.webp';
-        }
-
-        if (empty($remote->icons->default) || !wp_http_validate_url($remote->icons->default)) {
-            $remote->icons->default = UNREPRESS_INDEX . 'main/assets/images/icon-256.webp';
-        }
+        unrepress_debug('Processed plugin information for ' . $args->slug . ':');
+        unrepress_debug(print_r($response, true));
 
         return $response;
+    }
+
+    private function getLatestVersion($plugin_data)
+    {
+        if (!empty($plugin_data->unrepress_meta->tags)) {
+            $tags_url = $plugin_data->unrepress_meta->tags;
+            $response = wp_remote_get($tags_url);
+
+            if (!is_wp_error($response) && wp_remote_retrieve_response_code($response) === 200) {
+                $tags = json_decode(wp_remote_retrieve_body($response));
+                if (is_array($tags) && !empty($tags)) {
+                    // Get the first tag (most recent)
+                    return ltrim($tags[0]->name, 'v');
+                }
+            }
+        }
+
+        // Fallback version if no tags found
+        return '1.0.0';
+    }
+
+    private function getDownloadUrl($plugin_data, $version)
+    {
+        if (!empty($plugin_data->unrepress_meta->repository)) {
+            $repo = $plugin_data->unrepress_meta->repository;
+            if (strpos($repo, 'github.com') !== false) {
+                // Extract owner and repo name from the GitHub URL
+                $parts = explode('/', rtrim($repo, '/'));
+                $owner = $parts[count($parts) - 2] ?? '';
+                $repo_name = $parts[count($parts) - 1] ?? '';
+
+                if ($owner && $repo_name) {
+                    // Use the archive download URL format
+                    return "https://api.github.com/repos/{$owner}/{$repo_name}/zipball/{$version}";
+                }
+            }
+        }
+
+        return '';
     }
 
     public function hasUpdate($transient)
