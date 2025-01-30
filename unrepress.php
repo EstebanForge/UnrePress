@@ -43,6 +43,8 @@ if (!defined('UNREPRESS_TRANSIENT_EXPIRATION')) {
 // Composer autoloader
 if (file_exists(UNREPRESS_PLUGIN_PATH . 'vendor/autoload.php')) {
     require_once UNREPRESS_PLUGIN_PATH . 'vendor/autoload.php';
+    // Helpers
+    require_once UNREPRESS_PLUGIN_PATH . 'includes/helpers.php';
 } else {
     // Log error or display admin notice
     add_action('admin_notices', function () {

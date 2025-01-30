@@ -12,8 +12,9 @@ class Plugins
 
     public function __construct()
     {
-        $this->updater = new UpdatePlugins();
+        $this->updater   = new UpdatePlugins();
         $this->unrepress = new UnrePress();
+
         add_filter('plugins_api_result', [$this, 'featuredPlugins'], 10, 3);
         add_filter('plugins_api_result', [$this, 'handleSearch'], 10, 3);
     }

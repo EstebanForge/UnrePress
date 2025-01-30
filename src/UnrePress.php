@@ -4,6 +4,17 @@ namespace UnrePress;
 
 class UnrePress
 {
+
+    /**
+     * @var string
+     */
+    protected $mainIndex;
+
+    /**
+     * Constructor.
+     *
+     * @return void
+     */
     public function __construct() {}
 
     /**
@@ -16,19 +27,24 @@ class UnrePress
         $egoBlocker = new EgoBlocker();
 
         // Stop on frontend or rest api
-        if (! is_admin() || wp_is_serving_rest_request()) {
+        if (!is_admin() || wp_is_serving_rest_request()) {
             return;
         }
 
-        $adminHider        = new Admin\Hider();
+        // Get our main index json contents as an array
+        $mainIndex = $this->index();
+
+        $adminHider = new Admin\Hider();
         $adminUpdaterPages = new Admin\UpdaterPages();
-        $updateLock        = new Updater\UpdateLock();
-        $index             = new Index\Index();
-        $indexPlugins      = new Index\PluginsIndex();
-        $indexThemes       = new Index\ThemesIndex();
-        $updaterPlugins    = new Updater\UpdatePlugins();
-        $updaterThemes     = new Updater\UpdateThemes();
-        $pluginsDiscovery  = new Discovery\Plugins();
+        $updateLock = new Updater\UpdateLock();
+        $index = new Index\Index();
+        $indexPlugins = new Index\PluginsIndex();
+        $indexThemes = new Index\ThemesIndex();
+        $updaterPlugins = new Updater\UpdatePlugins();
+        $updaterThemes = new Updater\UpdateThemes();
+        $pluginsDiscovery = new Discovery\Plugins();
+
+        unrepress_debug('Classed initialized');
     }
 
     /**
@@ -40,26 +56,30 @@ class UnrePress
     public function index(): array|false
     {
         $transient_key = UNREPRESS_PREFIX . 'main_index';
-        $cached_index = get_transient($transient_key);
+        $cachedIndex = get_transient($transient_key);
 
-        if (false !== $cached_index) {
-            return $cached_index;
+        if (false !== $cachedIndex) {
+            return $cachedIndex;
         }
 
         // Get main index first
-        $main_index_url = rtrim(UNREPRESS_INDEX, '/') . 'main/index.json';
-        $main_index_response = wp_remote_get($main_index_url);
+        $mainIndexUrl = UNREPRESS_INDEX . 'main/index.json';
+        $mainIndexResponse = wp_remote_get($mainIndexUrl);
 
-        if (is_wp_error($main_index_response)) {
+        if (is_wp_error($mainIndexResponse)) {
             return false;
         }
 
-        $main_index = json_decode(wp_remote_retrieve_body($main_index_response), true);
+        $mainIndex = json_decode(wp_remote_retrieve_body($mainIndexResponse), true);
 
-        if ($main_index) {
-            set_transient($transient_key, $main_index, 7 * DAY_IN_SECONDS);
+        if (empty($mainIndex) || !is_array($mainIndex)) {
+            return false;
         }
 
-        return $main_index;
+        if ($mainIndex) {
+            set_transient($transient_key, $mainIndex, 30 * DAY_IN_SECONDS);
+        }
+
+        return $mainIndex;
     }
 }

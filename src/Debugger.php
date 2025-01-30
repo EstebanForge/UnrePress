@@ -16,10 +16,10 @@ class Debugger
     public static function log($message)
     {
         if (defined('WP_DEBUG') && WP_DEBUG) {
-            $formatted_message = is_array($message) ? print_r($message, true) : 
+            $formatted_message = is_array($message) ? print_r($message, true) :
                                (is_object($message) ? print_r($message, true) : $message);
             self::$log[] = date('Y-m-d H:i:s') . ' - ' . $formatted_message;
-            error_log('UnrePress Debug: ' . $formatted_message);
+            error_log('UnrePress: ' . $formatted_message);
         }
     }
 
