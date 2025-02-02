@@ -1,4 +1,4 @@
-=== API for HTMX ===
+=== UnrePress ===
 Contributors: tcattd, estebanforge
 Tags: updates, wordpress
 Stable tag: 1.0.0
