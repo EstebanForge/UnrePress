@@ -96,13 +96,30 @@ class Hider
     {
         // Handle plugin listings
         if ($action !== 'hot_tags' && !is_wp_error($response) && isset($response->plugins) && is_array($response->plugins)) {
-            foreach ($response->plugins as $plugin) {
+            foreach ($response->plugins as &$plugin) {
+                // Convert to object if it's an array
+                if (is_array($plugin)) {
+                    $plugin = (object) $plugin;
+                }
+                
                 // Remove rating related data
                 $plugin->rating = 0;
                 $plugin->num_ratings = 0;
                 $plugin->ratings = [];
                 $plugin->active_installs = 0; // Also hide active installs count
             }
+        }
+
+        // Handle single plugin info
+        if ($action === 'plugin_information' && !is_wp_error($response)) {
+            if (is_array($response)) {
+                $response = (object) $response;
+            }
+            
+            $response->rating = 0;
+            $response->num_ratings = 0;
+            $response->ratings = [];
+            $response->active_installs = 0;
         }
 
         // Handle popular tags request

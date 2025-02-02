@@ -10,7 +10,6 @@ return array(
     'UnrePress\\Admin\\Hider' => $baseDir . '/src/Admin/Hider.php',
     'UnrePress\\Admin\\UpdaterPages' => $baseDir . '/src/Admin/UpdaterPages.php',
     'UnrePress\\Debugger' => $baseDir . '/src/Debugger.php',
-    'UnrePress\\Discovery\\Plugins' => $baseDir . '/src/Discovery/Plugins.php',
     'UnrePress\\EgoBlocker' => $baseDir . '/src/EgoBlocker.php',
     'UnrePress\\Helpers' => $baseDir . '/src/Helpers.php',
     'UnrePress\\Index\\Index' => $baseDir . '/src/Index/Index.php',

@@ -3,6 +3,8 @@
 namespace UnrePress\Updater;
 
 use UnrePress\Helpers;
+use UnrePress\Updater\Debugger;
+use UnrePress\UnrePress;
 
 class UpdatePlugins
 {
@@ -18,9 +20,12 @@ class UpdatePlugins
 
     private $updateInfo = [];
 
+    private UnrePress $unrepress;
+
     public function __construct()
     {
         $this->helpers = new Helpers();
+        $this->unrepress = new UnrePress();
         $this->version = '';
         $this->cache_key = UNREPRESS_PREFIX . 'updates_plugin_';
         $this->cache_results = true;
@@ -165,11 +170,57 @@ class UpdatePlugins
             unrepress_debug('Plugin information request for slug: ' . $args->slug);
         }
 
-        // do nothing if you're not getting plugin information right now
-        if ($action !== 'plugin_information') {
+        // Handle both plugin_information and query_plugins actions
+        if ($action !== 'plugin_information' && $action !== 'query_plugins') {
             return $response;
         }
 
+        // For query_plugins action, handle search or featured plugins
+        if ($action === 'query_plugins') {
+            // Get main index
+            $main_index = $this->unrepress->index();
+
+            if (!$main_index || !isset($main_index['plugins']['featured'])) {
+                return $response;
+            }
+
+            // If search term is provided, search plugins
+            if (!empty($args->search)) {
+                $term = sanitize_text_field($args->search);
+                $plugins_data = $this->searchPlugins($term);
+            } else {
+                // Otherwise show featured plugins
+                $transient_key = UNREPRESS_PREFIX . 'discovery_featured_plugins';
+                $featured_response = get_transient($transient_key);
+
+                if (false === $featured_response) {
+                    $featured_response = wp_remote_get($main_index['plugins']['featured']);
+                    if (!is_wp_error($featured_response)) {
+                        set_transient($transient_key, $featured_response, 6 * HOUR_IN_SECONDS);
+                    }
+                }
+
+                if (!is_wp_error($featured_response)) {
+                    $featured_plugins = json_decode(wp_remote_retrieve_body($featured_response), true);
+                    if (is_array($featured_plugins) && isset($featured_plugins['featured'])) {
+                        $plugins_data = array_map([$this, 'getPluginData'], $featured_plugins['featured']);
+                        // Filter out any empty results
+                        $plugins_data = array_filter($plugins_data);
+                    }
+                }
+            }
+
+            return (object) [
+                'info' => [
+                    'page'    => 1,
+                    'pages'   => 1,
+                    'results' => count($plugins_data ?? []),
+                ],
+                'plugins' => $plugins_data ?? [],
+            ];
+        }
+
+        // For plugin_information action, handle single plugin info
         if (empty($args->slug)) {
             return $response;
         }
@@ -247,17 +298,43 @@ class UpdatePlugins
         return $response;
     }
 
-    private function getLatestVersion($plugin_data)
+    protected function getLatestVersion($plugin_data)
     {
+        unrepress_debug('Getting latest version for ' . json_encode($plugin_data));
+        unrepress_debug('Data type received: ' . gettype($plugin_data));
+
+        // Check if we have a cached version first
+        $transient_key = $this->cache_key . 'latest_tag_' . $plugin_data->slug;
+        $cached_tag = get_transient($transient_key);
+
+        if ($cached_tag !== false) {
+            unrepress_debug('Using cached tag for ' . $plugin_data->slug . ': ' . $cached_tag);
+            return $cached_tag;
+        }
+
         if (!empty($plugin_data->unrepress_meta->tags)) {
-            $tags_url = $plugin_data->unrepress_meta->tags;
+            $tags_url = $this->helpers->normalizeTagUrl($plugin_data->unrepress_meta->tags);
+
             $response = wp_remote_get($tags_url);
+
+            unrepress_debug('Tags URL: ' . $tags_url);
+            unrepress_debug('Tags response: ' . print_r($response, true));
 
             if (!is_wp_error($response) && wp_remote_retrieve_response_code($response) === 200) {
                 $tags = json_decode(wp_remote_retrieve_body($response));
+
+                unrepress_debug('Tags: ' . print_r($tags, true));
+
                 if (is_array($tags) && !empty($tags)) {
+                    $latest_tag = ltrim($tags[0]->name, 'v');
+
+                    unrepress_debug('Latest tag: ' . $latest_tag);
+
+                    // Cache the tag for 3 hours
+                    set_transient($transient_key, $latest_tag, 3 * HOUR_IN_SECONDS);
+
                     // Get the first tag (most recent)
-                    return ltrim($tags[0]->name, 'v');
+                    return $latest_tag;
                 }
             }
         }
@@ -375,7 +452,7 @@ class UpdatePlugins
             }
 
             // Get tag information from GitHub
-            $tagUrl = $pluginInfo->tags ?? '';
+            $tagUrl = $pluginInfo->unrepress_meta->tags ?? '';
             if (empty($tagUrl)) {
                 return false;
             }
@@ -448,5 +525,182 @@ class UpdatePlugins
         }
 
         return $this->helpers->fixSourceDir($source, $remote_source, $args['plugin'], 'plugin');
+    }
+
+    /**
+     * Get plugin data from UnrePress index.
+     *
+     * @param string $plugin_slug Plugin slug
+     * @return array Plugin data
+     */
+    private function getPluginData($plugin_slug)
+    {
+        if (empty($plugin_slug)) {
+            return [];
+        }
+
+        unrepress_debug('Getting plugin data for ' . $plugin_slug);
+
+        $plugin_data = $this->requestRemoteInfo($plugin_slug);
+
+        if (!$plugin_data) {
+            unrepress_debug('Invalid plugin data for ' . $plugin_slug);
+            return [];
+        }
+
+        unrepress_debug('Raw plugin data for ' . $plugin_slug . ':');
+        unrepress_debug($plugin_data);
+
+        // Get the latest version from tags
+        $version = $this->getLatestVersion($plugin_data);
+
+        // Get server's WordPress and PHP versions for compatibility
+        $wp_version = get_bloginfo('version');
+        $php_version = phpversion();
+
+        unrepress_debug('Remote version for ' . $plugin_slug . ' is ' . $version);
+        unrepress_debug('Server WordPress version is ' . $wp_version);
+        unrepress_debug('Server PHP version is ' . $php_version);
+
+        // Prepare the plugin data array with all required fields
+        $processed_data = [
+            'name' => $plugin_data->name ?? '',
+            'slug' => $plugin_data->slug ?? '',
+            'version' => $version,
+            'author' => $plugin_data->author ?? '',
+            'author_profile' => $plugin_data->author_url ?? '',
+            'requires' => $plugin_data->requires ?? $wp_version,
+            'tested' => $plugin_data->tested ?? $wp_version,
+            'requires_php' => $plugin_data->requires_php ?? $php_version,
+            'sections' => [
+                'description' => $plugin_data->sections->description ?? '',
+                'installation' => $plugin_data->sections->installation ?? '',
+                'changelog' => $plugin_data->sections->changelog ?? '',
+            ],
+            'banners' => [
+                'low' => (!empty($plugin_data->banners->low)) ? $plugin_data->banners->low : UNREPRESS_PLUGIN_URL . 'assets/images/banner-772x250.webp',
+                'high' => (!empty($plugin_data->banners->high)) ? $plugin_data->banners->high : UNREPRESS_PLUGIN_URL . 'assets/images/banner-1544x500.webp',
+            ],
+            'icons' => [
+                'default' => (!empty($plugin_data->icons->high)) ? $plugin_data->icons->high : UNREPRESS_PLUGIN_URL . 'assets/images/icon-256.webp',
+                'low' => (!empty($plugin_data->icons->low)) ? $plugin_data->icons->low : UNREPRESS_PLUGIN_URL . 'assets/images/icon-256.webp',
+                'high' => (!empty($plugin_data->icons->high)) ? $plugin_data->icons->high : UNREPRESS_PLUGIN_URL . 'assets/images/icon-1024.webp',
+            ],
+            'download_url' => $this->getDownloadUrl($plugin_data, $version),
+            'homepage' => $plugin_data->homepage ?? '',
+            'short_description' => substr($plugin_data->sections->description ?? '', 0, 150) . '&hellip;',
+            'rating' => 100,
+            'num_ratings' => 1,
+            'support_threads' => 0,
+            'support_threads_resolved' => 0,
+            'active_installs' => 1000,
+            'last_updated' => time(),
+            'added' => date('Y-m-d'),
+            'tags' => [],
+            'compatibility' => [
+                get_bloginfo('version') => [
+                    'compatible' => true,
+                    'requires_php' => $plugin_data->requires_php ?? '7.4',
+                ]
+            ],
+            'contributors' => [],
+            'screenshots' => [],
+            'external' => true
+        ];
+
+        unrepress_debug('Processed plugin data for ' . $plugin_slug . ':');
+        unrepress_debug($processed_data);
+
+        return $processed_data;
+    }
+
+    /**
+     * Search for plugins in the UnrePress index.
+     *
+     * @param string $term The search term
+     * @return array Array of plugin data
+     */
+    private function searchPlugins($term)
+    {
+        unrepress_debug('Searching for plugins with term: ' . $term);
+
+        // Get plugins index
+        $transient_key = UNREPRESS_PREFIX . 'plugins_index';
+        $plugins_index = get_transient($transient_key);
+
+        if (false === $plugins_index) {
+            unrepress_debug('No cached plugins index found, fetching from remote');
+
+            // Get main index first to get the plugins index URL
+            $main_index = $this->unrepress->index();
+
+            if (!$main_index || !isset($main_index['plugins']['index'])) {
+                unrepress_debug('Main index is empty or missing plugins index URL');
+                return [];
+            }
+
+            $index_url = $main_index['plugins']['index'];
+            unrepress_debug('Fetching plugins index from: ' . $index_url);
+
+            $response = wp_remote_get($index_url);
+
+            if (is_wp_error($response)) {
+                unrepress_debug('Failed to fetch plugins index: ' . $response->get_error_message());
+                return [];
+            }
+
+            $response_code = wp_remote_retrieve_response_code($response);
+            $response_body = wp_remote_retrieve_body($response);
+
+            if ($response_code !== 200) {
+                unrepress_debug('Invalid response code from plugins index: ' . $response_code);
+                return [];
+            }
+
+            $plugins_index = json_decode($response_body, true);
+            if (!$plugins_index || !isset($plugins_index['plugins'])) {
+                unrepress_debug('Invalid plugins index format');
+                return [];
+            }
+
+            set_transient($transient_key, $plugins_index, 3 * HOUR_IN_SECONDS);
+            unrepress_debug('Cached plugins index for 3 hours');
+        } else {
+            unrepress_debug('Using cached plugins index');
+        }
+
+        unrepress_debug('Searching through ' . count($plugins_index['plugins']) . ' plugins');
+
+        // Convert search term to lowercase for case-insensitive search
+        $term = strtolower($term);
+        $matching_plugins = [];
+
+        foreach ($plugins_index['plugins'] as $plugin) {
+            // Search in name, description, and tags
+            $searchable_text = strtolower(
+                $plugin['name'] . ' ' .
+                $plugin['description'] . ' ' .
+                implode(' ', $plugin['tags'])
+            );
+
+            if (strpos($searchable_text, $term) !== false) {
+                unrepress_debug('Found matching plugin: ' . $plugin['name']);
+                $matching_plugins[] = $plugin['slug'];
+            }
+        }
+
+        unrepress_debug('Found ' . count($matching_plugins) . ' matching plugins');
+
+        if (empty($matching_plugins)) {
+            return [];
+        }
+
+        // Get full plugin data for each matching plugin
+        $plugins_data = array_map([$this, 'getPluginData'], $matching_plugins);
+        $filtered_plugins = array_filter($plugins_data);
+
+        unrepress_debug('After processing: ' . count($filtered_plugins) . ' valid plugins');
+
+        return $filtered_plugins;
     }
 }

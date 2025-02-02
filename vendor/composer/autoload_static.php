@@ -25,7 +25,6 @@ class ComposerStaticInitad1a62003a49bd753605ec3636ac5d78
         'UnrePress\\Admin\\Hider' => __DIR__ . '/../..' . '/src/Admin/Hider.php',
         'UnrePress\\Admin\\UpdaterPages' => __DIR__ . '/../..' . '/src/Admin/UpdaterPages.php',
         'UnrePress\\Debugger' => __DIR__ . '/../..' . '/src/Debugger.php',
-        'UnrePress\\Discovery\\Plugins' => __DIR__ . '/../..' . '/src/Discovery/Plugins.php',
         'UnrePress\\EgoBlocker' => __DIR__ . '/../..' . '/src/EgoBlocker.php',
         'UnrePress\\Helpers' => __DIR__ . '/../..' . '/src/Helpers.php',
         'UnrePress\\Index\\Index' => __DIR__ . '/../..' . '/src/Index/Index.php',

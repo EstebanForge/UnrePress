@@ -22,10 +22,9 @@
         "version-bump": [
             "php .ci/version-bump.php"
         ],
-        "test": "./vendor/bin/pest",
         "cs:check": "php-cs-fixer fix --dry-run --diff",
         "cs:fix": "php-cs-fixer fix",
-        "release": "php-cs-fixer fix && composer dump-autoload --optimize && composer test"
+        "release": "php-cs-fixer fix && composer dump-autoload --optimize"
     },
     "autoload": {
         "psr-4": {

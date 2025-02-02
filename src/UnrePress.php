@@ -42,7 +42,6 @@ class UnrePress
         $indexThemes = new Index\ThemesIndex();
         $updaterPlugins = new Updater\UpdatePlugins();
         $updaterThemes = new Updater\UpdateThemes();
-        $pluginsDiscovery = new Discovery\Plugins();
 
         unrepress_debug('Classed initialized');
     }
