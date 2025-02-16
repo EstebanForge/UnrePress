@@ -1,5 +1,11 @@
 # UnrePress changelog
 
+# 0.5.0 - 2025-02-16
+* UnrePress now supports Plugins and Themes installation.
+* Fixed plugin and theme installation issues with correct slug detection.
+* Added early slug capture from install button data and URL parameters.
+* Improved source directory handling during installation process.
+
 # 0.4.1 - 2025-01-03
 * Added blocking of requests to "his ecommerce website". Reason: [Sybre post](https://x.com/SybreWaaijer/status/1875230654054752374). There is just [too much data](https://x.com/SybreWaaijer/status/1875230672756858980) being sent to that guy by his plugin.
 
