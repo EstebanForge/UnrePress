@@ -31,6 +31,7 @@ class UpdateThemes
         add_filter('site_transient_update_themes', [$this, 'hasUpdate']);
         add_action('upgrader_process_complete', [$this, 'cleanAfterUpdate'], 10, 2);
         add_filter('upgrader_source_selection', [$this, 'maybeFixSourceDir'], 10, 4);
+        add_filter('upgrader_pre_download', [$this, 'captureThemeSlug'], 10, 3);
     }
 
     /**
@@ -341,11 +342,36 @@ class UpdateThemes
         return $remoteVersion;
     }
 
+    private $current_theme_slug = null;
+
+    /**
+     * Capture the theme slug from the AJAX request or URL parameters
+     * This runs before the download starts
+     */
+    public function captureThemeSlug($response, $package, $upgrader)
+    {
+        if (!empty($_REQUEST['theme']) && $_REQUEST['action'] === 'install-theme') {
+            $this->current_theme_slug = sanitize_text_field($_REQUEST['theme']);
+        } elseif (!empty($_REQUEST['slug'])) {
+            $this->current_theme_slug = sanitize_text_field($_REQUEST['slug']);
+        } elseif (!empty($_POST['slug'])) {
+            $this->current_theme_slug = sanitize_text_field($_POST['slug']);
+        }
+
+        return $response;
+    }
+
     /**
      * Fix source directory for GitHub theme updates.
      */
     public function maybeFixSourceDir($source, $remote_source, $upgrader, $args)
     {
+        // First try to get the slug from the captured AJAX/URL parameter
+        if (!empty($this->current_theme_slug)) {
+            return $this->helpers->fixSourceDir($source, $remote_source, $this->current_theme_slug, 'theme');
+        }
+
+        // Fallback to args if available
         if (isset($args['theme'])) {
             return $this->helpers->fixSourceDir($source, $remote_source, $args['theme'], 'theme');
         }
