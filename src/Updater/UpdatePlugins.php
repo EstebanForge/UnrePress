@@ -36,6 +36,7 @@ class UpdatePlugins
         add_filter('site_transient_update_plugins', [$this, 'hasUpdate']);
         add_action('upgrader_process_complete', [$this, 'cleanAfterUpdate'], 10, 2);
         add_filter('upgrader_source_selection', [$this, 'maybeFixSourceDir'], 10, 4);
+        add_filter('upgrader_pre_download', [$this, 'capturePluginSlug'], 10, 3);
     }
 
     /**
@@ -520,8 +521,33 @@ class UpdatePlugins
      * @param array       $args          Extra arguments passed to hooked filters
      * @return string|WP_Error
      */
+    private $current_plugin_slug = null;
+
+    /**
+     * Capture the plugin slug from the AJAX request or URL parameters
+     * This runs before the download starts
+     */
+    public function capturePluginSlug($response, $package, $upgrader)
+    {
+        if (!empty($_REQUEST['plugin']) && $_REQUEST['action'] === 'install-plugin') {
+            $this->current_plugin_slug = sanitize_text_field($_REQUEST['plugin']);
+        } elseif (!empty($_REQUEST['slug'])) {
+            $this->current_plugin_slug = sanitize_text_field($_REQUEST['slug']);
+        } elseif (!empty($_POST['slug'])) {
+            $this->current_plugin_slug = sanitize_text_field($_POST['slug']);
+        }
+
+        return $response;
+    }
+
     public function maybeFixSourceDir($source, $remote_source, $upgrader, $args)
     {
+        // First try to get the slug from the captured AJAX/URL parameter
+        if (!empty($this->current_plugin_slug)) {
+            return $this->helpers->fixSourceDir($source, $remote_source, $this->current_plugin_slug, 'plugin');
+        }
+
+        // Fallback to args if available
         if (isset($args['plugin'])) {
             return $this->helpers->fixSourceDir($source, $remote_source, $args['plugin'], 'plugin');
         }
