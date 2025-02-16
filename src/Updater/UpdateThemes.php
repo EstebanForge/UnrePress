@@ -87,6 +87,8 @@ class UpdateThemes
                 $updateInfo->screenshot = $remoteData->screenshot_url ?? '';
 
                 $updateInfo->version = $latestVersion;
+                $updateInfo->url = get_transient($this->cache_key . 'download-url-' . $slug);
+                $updateInfo->download_url = get_transient($this->cache_key . 'download-url-' . $slug);
                 $updateInfo->download_link = get_transient($this->cache_key . 'download-url-' . $slug);
                 $updateInfo->package = get_transient($this->cache_key . 'download-url-' . $slug);
 
@@ -172,6 +174,7 @@ class UpdateThemes
         $response->author_profile = $remote->author_url;
         $response->donate_link = $remote->donate_link;
         $response->homepage = $remote->homepage;
+        $response->download_url = $remote->download_url;
         $response->download_link = $remote->download_url;
         $response->package = $remote->download_url;
         $response->trunk = $remote->download_url;
@@ -221,6 +224,8 @@ class UpdateThemes
                         'new_version' => $updateInfo->version,
                         'url' => $updateInfo->theme_uri ?? '',
                         'package' => $updateInfo->download_link,
+                        'download_url' => $updateInfo->download_link,
+                        'download_link' => $updateInfo->download_link,
                         'requires' => $updateInfo->requires ?? '',
                         'requires_php' => $updateInfo->requires_php ?? '',
                     ];
@@ -341,12 +346,14 @@ class UpdateThemes
      */
     public function maybeFixSourceDir($source, $remote_source, $upgrader, $args)
     {
-        if (!isset($args['theme'])) {
-            return $source;
+        if (isset($args['theme'])) {
+            return $this->helpers->fixSourceDir($source, $remote_source, $args['theme'], 'theme');
         }
 
-        $result = Helpers::fixSourceDir($source, $remote_source, $args['theme'], 'theme');
+        if (isset($args['type']) && $args['type'] == 'theme') {
+            return $this->helpers->fixSourceDir($source, $remote_source, $args, 'theme');
+        }
 
-        return $result;
+        return $source;
     }
 }

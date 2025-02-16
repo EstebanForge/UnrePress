@@ -2,6 +2,7 @@
 
 namespace UnrePress;
 
+/** @package UnrePress */
 class Helpers
 {
     private $updateLogFile = 'unrepress_update_log.txt';
@@ -107,8 +108,8 @@ class Helpers
         }
 
         $current_content = $wp_filesystem->exists($updateLogFile) ? $wp_filesystem->get_contents($updateLogFile) : '';
-        $timestamp = current_time('mysql');
-        $new_content = $current_content . "[{$timestamp}] {$message}\n";
+        //$timestamp = current_time('mysql');
+        $new_content = $current_content . "{$message}\n";
 
         if (!$wp_filesystem->put_contents($updateLogFile, $new_content, FS_CHMOD_FILE)) {
             Debugger::log('Unable to write to log file at ' . $updateLogFile);
@@ -292,14 +293,24 @@ class Helpers
      */
     public static function fixSourceDir($source, $remote_source, $slug, $type = 'theme')
     {
+        Debugger::log('Received values for fixSourceDir:');
+        Debugger::log('source: ' . $source);
+        Debugger::log('remote_source: ' . $remote_source);
+        Debugger::log('slug: ' . $slug);
+        Debugger::log('type: ' . $type);
+
         // Initialize WP_Filesystem
         global $wp_filesystem;
         if (!WP_Filesystem()) {
             return $source;
         }
 
+        if(is_array($slug) && isset($slug['slug'])) {
+            $slug = $slug['slug'];
+        }
+
         // Remove unwanted directories like .git, .github, etc.
-        $directories_to_remove = ['.git', '.github', '.wordpress-org', '.ci'];
+        $directories_to_remove = ['.git', '.github', '.wordpress-org', '.ci', '.gitignore'];
         foreach ($directories_to_remove as $dir) {
             $dir_path = $source . $dir;
             if ($wp_filesystem->exists($dir_path)) {
@@ -331,7 +342,14 @@ class Helpers
         // For plugins and other types
         if ($type === 'plugin') {
             // Extract just the plugin directory name from the full slug path
-            $clean_slug = explode('/', $slug)[0];
+            $clean_slug = '';
+
+            if (is_string($slug)) {
+                $clean_slug = explode('/', $slug)[0];
+            }
+
+            Debugger::log('Cleaned slug: ' . $clean_slug);
+
             if (empty($clean_slug)) {
                 return $source;
             }

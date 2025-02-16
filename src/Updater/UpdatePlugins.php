@@ -2,8 +2,8 @@
 
 namespace UnrePress\Updater;
 
+use UnrePress\Debugger;
 use UnrePress\Helpers;
-use UnrePress\Updater\Debugger;
 use UnrePress\UnrePress;
 
 class UpdatePlugins
@@ -188,6 +188,7 @@ class UpdatePlugins
             if (!empty($args->search)) {
                 $term = sanitize_text_field($args->search);
                 $plugins_data = $this->searchPlugins($term);
+                Debugger::log('Search results for ' . $term . ': ' . print_r($plugins_data, true));
             } else {
                 // Otherwise show featured plugins
                 $transient_key = UNREPRESS_PREFIX . 'discovery_featured_plugins';
@@ -273,6 +274,7 @@ class UpdatePlugins
             'low' => (!empty($remote->icons->low)) ? $remote->icons->low : UNREPRESS_PLUGIN_URL . 'assets/images/icon-256.webp',
             'high' => (!empty($remote->icons->high)) ? $remote->icons->high : UNREPRESS_PLUGIN_URL . 'assets/images/icon-1024.webp',
         ];
+        $response->download_url = $download_url;
         $response->download_link = $download_url;
         $response->package = $download_url;
         $response->trunk = $download_url;
@@ -520,11 +522,15 @@ class UpdatePlugins
      */
     public function maybeFixSourceDir($source, $remote_source, $upgrader, $args)
     {
-        if (!isset($args['plugin'])) {
-            return $source;
+        if (isset($args['plugin'])) {
+            return $this->helpers->fixSourceDir($source, $remote_source, $args['plugin'], 'plugin');
         }
 
-        return $this->helpers->fixSourceDir($source, $remote_source, $args['plugin'], 'plugin');
+        if (isset($args['type']) && $args['type'] == 'plugin') {
+            return $this->helpers->fixSourceDir($source, $remote_source, $args, 'plugin');
+        }
+
+        return $source;
     }
 
     /**
@@ -587,6 +593,7 @@ class UpdatePlugins
                 'high' => (!empty($plugin_data->icons->high)) ? $plugin_data->icons->high : UNREPRESS_PLUGIN_URL . 'assets/images/icon-1024.webp',
             ],
             'download_url' => $this->getDownloadUrl($plugin_data, $version),
+            'download_link' => $this->getDownloadUrl($plugin_data, $version),
             'homepage' => $plugin_data->homepage ?? '',
             'short_description' => substr($plugin_data->sections->description ?? '', 0, 150) . '&hellip;',
             'rating' => 100,
