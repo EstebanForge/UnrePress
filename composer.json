@@ -17,7 +17,7 @@
         "phpunit/phpunit": "^9.5",
         "pestphp/pest": "^1.23",
         "friendsofphp/php-cs-fixer": "^3.64",
-        "dingo-d/wp-pest-integration-test-setup": "^1.6"
+        "dingo-d/wp-pest": "^1.6"
     },
     "scripts": {
         "version-bump": [
@@ -25,14 +25,19 @@
         ],
         "cs:check": "php-cs-fixer fix --dry-run --diff",
         "cs:fix": "php-cs-fixer fix",
-        "release": "php-cs-fixer fix && composer dump-autoload --optimize",
+        "release": "php-cs-fixer fix && composer prefix-namespaces",
+        "prefix-namespaces": [
+            "strauss",
+            "composer dump-autoload --optimize --no-dev"
+        ],
         "post-install-cmd": [
-            "strauss compose",
-            "composer dump-autoload"
+            "@prefix-namespaces"
         ],
         "post-update-cmd": [
-            "strauss compose",
-            "composer dump-autoload"
+            "@prefix-namespaces"
+        ],
+        "post-autoload-dump": [
+            "strauss include-autoloader"
         ]
     },
     "autoload": {
@@ -55,20 +60,14 @@
         }
     },
     "extra": {
-        "mozart": {
-            "dep_namespace": "EstebanForge\\UnrePress\\Dependencies\\",
-            "dep_directory": "/src/Dependencies/",
-            "classmap_directory": "/classes/dependencies/",
+        "strauss": {
+            "target_directory": "vendor-dist",
+            "namespace_prefix": "EstebanForge\\UnrePress\\",
             "classmap_prefix": "ESFR_",
-            "packages": [
-                "pimple/pimple"
-            ],
-            "excluded_packages": [
-                "psr/container"
-            ],
-            "override_autoload": {
-            },
-            "delete_vendor_directories": true
+            "constant_prefix": "ESFR_",
+            "packages": [],
+            "override_autoload": {},
+            "delete_vendor_packages": true
         }
     }
 }

@@ -23,7 +23,7 @@ define('UNREPRESS_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('UNREPRESS_PREFIX', 'unrepress_');
 define('UNREPRESS_TEMP_PATH', WP_CONTENT_DIR . '/upgrade/');
 define('UNREPRESS_BLOCK_WPORG', true);
-define('UNREPRESS_BLOCKED_HOSTS', 'api.wordpress.org,*.wordpress.org,*.wordpress.com,*.wordpress.net,*.wordpress.tv,*.woocommerce.com,tracking.woocommerce.com,*.woocommerce.org');
+define('UNREPRESS_BLOCKED_HOSTS', 'api.wordpress.org,*.wordpress.org,*.wordpress.com,*.wordpress.net,*.wordpress.tv,*.woocommerce.com,tracking.woocommerce.com,*.woocommerce.org,*.wp.com,*.wp.org,*.wp.net');
 define('UNREPRESS_FILE', __FILE__);
 
 // Define: UnrePress Index
@@ -42,8 +42,8 @@ if (!defined('UNREPRESS_TRANSIENT_EXPIRATION')) {
 }
 
 // Composer autoloader
-if (file_exists(UNREPRESS_PLUGIN_PATH . 'vendor/autoload.php')) {
-    require_once UNREPRESS_PLUGIN_PATH . 'vendor/autoload.php';
+if (file_exists(UNREPRESS_PLUGIN_PATH . 'vendor-dist/autoload.php')) {
+    require_once UNREPRESS_PLUGIN_PATH . 'vendor-dist/autoload.php';
     // Helpers
     require_once UNREPRESS_PLUGIN_PATH . 'includes/helpers.php';
 } else {
