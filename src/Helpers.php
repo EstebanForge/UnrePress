@@ -252,31 +252,68 @@ class Helpers
                 $b_num = intval($b_parts[$i]);
 
                 if ($a_num !== $b_num) {
-                    return $b_num - $a_num; // Descending order
+                    return $b_num - $a_num; // Descending order (highest version comes first)
                 }
             }
 
             return 0;
         };
 
-        // Sort each group
-        usort($v_tags, $version_compare);
-        usort($numeric_tags, $version_compare);
-        usort($other_tags, $version_compare);
+        // Prioritize v-prefixed tags, then numeric-only tags
+        if (!empty($v_tags)) {
+            usort($v_tags, $version_compare);
+            return $v_tags[0]['tag']; // Return the first element for descending sort
+        } elseif (!empty($numeric_tags)) {
+            usort($numeric_tags, $version_compare);
+            return $numeric_tags[0]['tag']; // Return the first element for descending sort
+        }
 
-        // Return the highest version in order of preference:
-        // 1. Numeric tags (e.g., "9.4.5")
-        // 2. v-prefixed tags (e.g., "v2.7.7")
-        // 3. Other tags
-        if (!empty($numeric_tags)) {
-            return $numeric_tags[0]['tag'];
-        } elseif (!empty($v_tags)) {
-            return $v_tags[0]['tag'];
-        } elseif (!empty($other_tags)) {
+        // If only other tags exist, return the first one (no reliable sorting)
+        if (!empty($other_tags)) {
             return $other_tags[0]['tag'];
         }
 
         return null;
+    }
+
+    /**
+     * Constructs a download URL for a given tag from a specific provider.
+     *
+     * @param string $repo_url The base repository URL.
+     * @param string $tag_name The version/tag string (e.g., "1.2.3" or "v1.2.3").
+     * @param string $slug Slug of the theme/plugin, used as a hint for some URL structures.
+     * @param string $provider The provider hint (e.g., "github"). Currently only supports "github".
+     * @return string|false The download URL or false on failure.
+     */
+    public function getDownloadUrlForProviderTag($repo_url, $tag_name, $slug, $provider = 'github')
+    {
+        if (empty($repo_url) || empty($tag_name)) {
+            Debugger::log('getDownloadUrlForProviderTag: Missing repo_url or tag_name.');
+            return false;
+        }
+
+        $download_url = false;
+        // $version_bare = ltrim($tag_name, 'v'); // No longer needed here, using exact tag_name
+        // $version_prefixed_v = 'v' . $version_bare; // No longer needed here
+
+        if (strtolower($provider) === 'github') {
+            if (strpos($repo_url, 'github.com') !== false) {
+                // GitHub provides ZIPs of tags at /archive/refs/tags/TAG_NAME.zip
+                // Construct URL directly using the provided $tag_name
+                $download_url = rtrim($repo_url, '/') . '/archive/refs/tags/' . $tag_name . '.zip';
+
+                Debugger::log('getDownloadUrlForProviderTag (GitHub): Constructed URL: ' . $download_url . ' for repo: ' . $repo_url . ' tag_name: ' . $tag_name);
+
+            } else {
+                Debugger::log('getDownloadUrlForProviderTag: Repo URL does not seem to be a GitHub URL: ' . $repo_url);
+                return false;
+            }
+        } else {
+            Debugger::log('getDownloadUrlForProviderTag: Provider ' . $provider . ' not yet supported.');
+            return false;
+        }
+
+        return $download_url;
     }
 
     /**

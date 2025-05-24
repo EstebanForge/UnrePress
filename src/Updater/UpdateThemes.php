@@ -251,63 +251,82 @@ class UpdateThemes
 
         unrepress_debug('UpdateThemes::getInformation - Getting theme info for slug: ' . $args->slug);
 
-        // Try to get theme information from index first
-        $themesIndex = new \UnrePress\Index\ThemesIndex();
-        $theme_info = $themesIndex->getThemeInformation($args->slug);
+        // Fetch the theme's core data from its JSON file in the UnrePress index
+        // This is analogous to UpdatePlugins::requestRemoteInfo()
+        $theme_data_from_index = $this->requestRemoteInfo($args->slug); // Assuming requestRemoteInfo fetches and decodes the theme's JSON
 
-        if ($theme_info) {
-            unrepress_debug('UpdateThemes::getInformation - Found theme info in index: ' . print_r($theme_info, true));
-            return $theme_info;
+        if (!$theme_data_from_index) {
+            unrepress_debug('UpdateThemes::getInformation - Could not fetch remote theme data for slug: ' . $args->slug);
+            return $response; // Return original $response if our index doesn't have it
         }
 
-        unrepress_debug('UpdateThemes::getInformation - Theme not found in index, trying fallback method');
+        // Now, dynamically determine the latest version and download URL
+        // This mirrors the logic in UpdatePlugins::getInformation
+        $latest_tag_object = $this->getLatestVersionFromMeta($theme_data_from_index);
 
-        // Fallback to existing method for backward compatibility
-        $remote = $this->requestRemoteInfo($args->slug);
+        $actual_tag_name_for_url = (is_object($latest_tag_object) && isset($latest_tag_object->name)) ? $latest_tag_object->name : null;
+        $display_version = (is_object($latest_tag_object) && isset($latest_tag_object->name)) ? ltrim($latest_tag_object->name, 'v') : ($theme_data_from_index->version ?? '0.0.0');
 
-        if (!$remote) {
-            unrepress_debug('UpdateThemes::getInformation - Fallback method also failed');
+        $download_url = $this->getDownloadUrlFromMeta($theme_data_from_index, $actual_tag_name_for_url);
+
+        unrepress_debug('UpdateThemes::getInformation - Slug: ' . $args->slug . ' | Latest Tag Name: ' . $actual_tag_name_for_url . ' | Display Version: ' . $display_version . ' | Download URL: ' . $download_url);
+
+        // If we couldn't determine a download URL, we can't proceed with installation info
+        if (empty($download_url)) {
+            unrepress_debug('UpdateThemes::getInformation - Could not determine download_url for: ' . $args->slug);
+            // Optionally, try to fall back to a hardcoded download_url from theme_data_from_index if it exists and is preferred for some themes
+            // For now, we strictly follow the dynamic approach.
+            // return $response; // Or, if ThemesIndex::getThemeInformation is more suitable for display data:
+            $theme_display_info = (new \UnrePress\Index\ThemesIndex())->getThemeInformation($args->slug);
+            if ($theme_display_info) return $theme_display_info; // Return rich display data if download link is missing
             return $response;
         }
 
-        unrepress_debug('UpdateThemes::getInformation - Fallback method found data: ' . print_r($remote, true));
+        // Construct the $response object for WordPress themes_api
+        $api_response = new \stdClass();
 
-        $response = new \stdClass();
+        // Populate with data from $theme_data_from_index and dynamic values
+        $api_response->name = $theme_data_from_index->name ?? $args->slug;
+        $api_response->slug = $args->slug;
+        $api_response->version = $display_version; // Use display version (normalized)
+        $api_response->author = $theme_data_from_index->author ?? '';
+        $api_response->author_profile = $theme_data_from_index->author_url ?? ''; // Match your JSON field: author_url
 
-        // Last updated, now
-        $remote->last_updated = time();
-        // Changelog
-        if (isset($remote->sections) && isset($remote->sections->changelog)) {
-            $remote->sections->changelog = $remote->sections->changelog;
+        $api_response->requires = $theme_data_from_index->requires ?? '6.0'; // Default from your getThemeInformation
+        $api_response->tested = $theme_data_from_index->tested ?? '6.7';   // Default from your getThemeInformation
+        $api_response->requires_php = $theme_data_from_index->requires_php ?? '8.1'; // Default from your getThemeInformation
+
+        $api_response->homepage = $theme_data_from_index->homepage ?? '';
+        $api_response->preview_url = $theme_data_from_index->preview_url ?? ''; // Assuming this exists in theme's JSON
+        $api_response->screenshot_url = $theme_data_from_index->screenshot_url ?? ''; // Assuming this exists
+
+        $api_response->rating = $theme_data_from_index->rating ?? 0;
+        $api_response->num_ratings = $theme_data_from_index->num_ratings ?? 0;
+        $api_response->downloaded = $theme_data_from_index->downloaded ?? 0;
+        $api_response->last_updated = $theme_data_from_index->last_updated ?? date('Y-m-d'); // Or a field from unrepress_meta if available
+
+        // Sections: description, installation, changelog
+        $api_response->sections = [];
+        if (isset($theme_data_from_index->sections) && is_object($theme_data_from_index->sections)) {
+            $api_response->sections['description'] = $theme_data_from_index->sections->description ?? '';
+            $api_response->sections['installation'] = $theme_data_from_index->sections->installation ?? '';
+            $api_response->sections['changelog'] = $theme_data_from_index->sections->changelog ?? '';
+        } elseif (isset($theme_data_from_index->description)) { // Fallback for flat description
+            $api_response->sections['description'] = $theme_data_from_index->description;
         }
 
-        $response->name = $remote->name ?? '';
-        $response->slug = $remote->slug ?? $args->slug;
-        $response->version = $remote->version ?? '';
-        $response->tested = $remote->tested ?? '';
-        $response->requires = $remote->requires ?? '';
-        $response->author = $remote->author ?? '';
-        $response->author_profile = $remote->author_url ?? '';
-        $response->donate_link = $remote->donate_link ?? '';
-        $response->homepage = $remote->homepage ?? '';
-        $response->download_url = $remote->download_url ?? '';
-        $response->download_link = $remote->download_url ?? '';
-        $response->package = $remote->download_url ?? '';
-        $response->trunk = $remote->download_url ?? '';
-        $response->requires_php = $remote->requires_php ?? '';
-        $response->last_updated = $remote->last_updated ?? time();
-        $response->screenshot_url = $remote->screenshot_url ?? '';
-
-        if (isset($remote->sections)) {
-            $response->sections = [
-                'description' => $remote->sections->description ?? '',
-                'installation' => $remote->sections->installation ?? '',
-                'changelog' => $remote->sections->changelog ?? '',
-            ];
+        // Tags
+        $api_response->tags = $theme_data_from_index->tags ?? [];
+        if (is_object($api_response->tags)) { // WordPress expects an array for tags in some contexts
+            $api_response->tags = (array) $api_response->tags;
         }
 
-        unrepress_debug('UpdateThemes::getInformation - Returning fallback response: ' . print_r($response, true));
-        return $response;
+        // Crucial: Download link and package
+        $api_response->download_link = $download_url;
+        $api_response->package = $download_url;
+
+        unrepress_debug('UpdateThemes::getInformation - Serving theme_information for ' . $args->slug . ': ' . print_r($api_response, true));
+        return $api_response;
     }
 
     /**
@@ -589,5 +608,140 @@ class UpdateThemes
         }
 
         return $source;
+    }
+
+    /**
+     * Get the latest version from unrepress_meta->tags URL.
+     *
+     * @param object $theme_data Theme data object from the UnrePress index JSON file.
+     * @return string|false Version string or false on failure.
+     */
+    protected function getLatestVersionFromMeta($theme_data)
+    {
+        // Ensure $theme_data itself is an object and has unrepress_meta property
+        if (!is_object($theme_data) || !isset($theme_data->unrepress_meta) || !is_object($theme_data->unrepress_meta)) {
+            unrepress_debug('getLatestVersionFromMeta: Basic theme_data structure invalid or unrepress_meta missing/not an object for theme: ' . (isset($theme_data->slug) ? $theme_data->slug : 'unknown'));
+            // Fallback logic as before
+            if (is_object($theme_data) && !empty($theme_data->version)) {
+                 $mock_tag = new \stdClass();
+                 $mock_tag->name = $theme_data->version;
+                 unrepress_debug('getLatestVersionFromMeta: Falling back to version from theme JSON (structure issue): ' . $theme_data->version);
+                 return $mock_tag;
+            }
+            return false;
+        }
+
+        // Now we know $theme_data->unrepress_meta is an object.
+        // Check required properties within unrepress_meta
+        $meta = $theme_data->unrepress_meta; // Use a shorter variable for clarity
+        if (
+            empty($meta->tags) || // Check for non-empty string for tags URL
+            !isset($meta->update_from) ||
+            $meta->update_from !== 'tags' ||
+            !is_string($meta->tags) // Ensure tags is a string before passing to normalizeTagUrl
+        ) {
+            unrepress_debug('getLatestVersionFromMeta: unrepress_meta missing critical string properties (tags, update_from), or update_from not set to "tags" for theme: ' . ($theme_data->slug ?? 'unknown'));
+            // Fallback logic as before
+            if (!empty($theme_data->version)) {
+                 $mock_tag = new \stdClass();
+                 $mock_tag->name = $theme_data->version;
+                 unrepress_debug('getLatestVersionFromMeta: Falling back to version from theme JSON (meta content issue): ' . $theme_data->version);
+                 return $mock_tag;
+            }
+            return false;
+        }
+
+        // Proceed with valid meta
+        $repository_url = (isset($meta->repository) && is_string($meta->repository)) ? $meta->repository : '';
+        $tags_url = $this->helpers->normalizeTagUrl($meta->tags, $repository_url);
+        unrepress_debug('getLatestVersionFromMeta: Fetching tags from: ' . $tags_url . ' for theme: ' . ($theme_data->slug ?? 'unknown'));
+
+        $response = wp_remote_get($tags_url, [
+            'timeout' => 10,
+            'headers' => [
+                'Accept' => 'application/json', // GitHub and GitLab usually provide JSON for /tags API
+            ],
+        ]);
+
+        if (is_wp_error($response) || 200 !== wp_remote_retrieve_response_code($response)) {
+            unrepress_debug('getLatestVersionFromMeta: Error fetching tags or bad response code for theme: ' . ($theme_data->slug ?? 'unknown') . ' Error: ' . (is_wp_error($response) ? $response->get_error_message() : wp_remote_retrieve_response_code($response)));
+            return false;
+        }
+
+        $tags_body = json_decode(wp_remote_retrieve_body($response));
+        if (json_last_error() !== JSON_ERROR_NONE || !is_array($tags_body) || empty($tags_body)) {
+            unrepress_debug('getLatestVersionFromMeta: JSON decode error or empty/invalid tags array for theme: ' . ($theme_data->slug ?? 'unknown') . ' Error: ' . json_last_error_msg());
+            return false;
+        }
+
+        $latest_tag = $this->helpers->getNewestVersionFromTags($tags_body);
+        if (!$latest_tag || empty($latest_tag->name)) {
+            unrepress_debug('getLatestVersionFromMeta: Could not determine newest tag from body for theme: ' . ($theme_data->slug ?? 'unknown'));
+            return false;
+        }
+
+        unrepress_debug('getLatestVersionFromMeta: Determined latest tag object: ' . print_r($latest_tag, true) . ' for theme: ' . ($theme_data->slug ?? 'unknown'));
+        return $latest_tag; // Return the whole tag object
+    }
+
+    /**
+     * Construct the download URL for the theme based on the version and unrepress_meta.
+     *
+     * @param object $theme_data Theme data object from the UnrePress index JSON file.
+     * @param string|null $tag_name The specific tag name (e.g., "v1.2.3" or "1.2.3") to download. Null if not found.
+     * @return string|false The direct download URL or false on failure.
+     */
+    private function getDownloadUrlFromMeta($theme_data, $tag_name)
+    {
+        if (empty($tag_name) || empty($theme_data->unrepress_meta->repository)) {
+            unrepress_debug('getDownloadUrlFromMeta: Missing tag_name or repository URL for theme: ' . ($theme_data->slug ?? 'unknown'));
+            return false;
+        }
+
+        $repo_url = $theme_data->unrepress_meta->repository;
+        // Basic GitHub URL construction: REPO_URL/archive/refs/tags/vTAG.zip or REPO_URL/archive/refs/tags/TAG.zip
+        // Some use REPO_URL/releases/download/TAG/archive_name.zip
+        // This needs to be robust or configurable based on provider or `update_from` strategy if it varies.
+        // For now, assume GitHub tag archive structure.
+
+        $download_url = '';
+        // Check if the repository is GitHub
+        if (strpos($repo_url, 'github.com') !== false) {
+            // Attempt with common GitHub tag archive formats
+            $tag_prefixed_v = 'v' . $tag_name;
+            $tag_bare = $tag_name;
+
+            // Format 1: /archive/refs/tags/vX.Y.Z.zip
+            $url1 = rtrim($repo_url, '/') . '/archive/refs/tags/' . $tag_prefixed_v . '.zip';
+            // Format 2: /archive/refs/tags/X.Y.Z.zip
+            $url2 = rtrim($repo_url, '/') . '/archive/refs/tags/' . $tag_bare . '.zip';
+            // Format 3: /releases/download/vX.Y.Z/theme-slug.zip (less common for general tags, more for releases)
+            // Format 4: /releases/download/X.Y.Z/theme-slug.zip
+            // We would typically need to know the asset name for release downloads.
+            // For simplicity with tags, we prioritize the /archive/refs/tags/ structure.
+
+            // To be robust, UnrePress could HEAD check these URLs or have a more deterministic way from unrepress_meta.
+            // For now, let's prefer a common one. Helpers.php might have a more advanced getDownloadUrlForTag.
+            // Let's assume a helper function `getGithubDownloadUrlForTag` exists or is added to `Helpers.php`
+
+            $download_url = $this->helpers->getDownloadUrlForProviderTag(
+                $repo_url,
+                $tag_name,
+                $theme_data->slug ?? 'theme', // asset name hint
+                'github' // provider hint
+            );
+
+        } else {
+            // Add logic for other providers (GitLab, Bitbucket) if needed
+            unrepress_debug('getDownloadUrlFromMeta: Non-GitHub repositories not yet fully supported for dynamic URL generation. Repo: ' . $repo_url);
+            // Fallback to a direct download_url if present in unrepress_meta or theme_data itself, as a last resort.
+            if (!empty($theme_data->download_url)) {
+                 return $theme_data->download_url;
+            }
+            return false;
+        }
+
+        unrepress_debug('getDownloadUrlFromMeta: Constructed download URL: ' . $download_url . ' for theme: ' . ($theme_data->slug ?? 'unknown'));
+        return $download_url;
     }
 }
