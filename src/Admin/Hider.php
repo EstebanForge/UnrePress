@@ -16,9 +16,9 @@ class Hider
         add_action('admin_menu', [$this, 'removeMenus']);
         add_action('admin_head', [$this, 'removeMenus']);
         add_action('current_screen', [$this, 'redirectWPCoreUpdate']);
-        add_action('install_plugins_tabs', [$this, 'hideTabs'], 10, 1);
+        add_filter('install_plugins_tabs', [$this, 'hideTabs'], 10, 1);
         add_filter('plugins_api_result', [$this, 'hidePluginCardElements'], 10, 3);
-        add_action('admin_head', [$this, 'hideRatingStyles']);
+        add_action('admin_head', [$this, 'applyAdminHeadModifications']);
     }
 
     /**
@@ -101,7 +101,7 @@ class Hider
                 if (is_array($plugin)) {
                     $plugin = (object) $plugin;
                 }
-                
+
                 // Remove rating related data
                 $plugin->rating = 0;
                 $plugin->num_ratings = 0;
@@ -115,7 +115,7 @@ class Hider
             if (is_array($response)) {
                 $response = (object) $response;
             }
-            
+
             $response->rating = 0;
             $response->num_ratings = 0;
             $response->ratings = [];
@@ -131,25 +131,58 @@ class Hider
     }
 
     /**
-     * Add CSS to hide rating elements from plugin cards
-     * This serves as a fallback in case filters don't catch everything
+     * Add CSS to hide rating elements from plugin cards and manage theme tabs.
+     * This serves as a fallback in case filters don't catch everything.
      */
-    public function hideRatingStyles(): void
+    public function applyAdminHeadModifications(): void
     {
         $screen = get_current_screen();
 
-        if (!$screen || $screen->id !== 'plugin-install') {
-            return;
+        // Hide plugin card elements
+        if ($screen && $screen->id === 'plugin-install') {
+            ?>
+            <style>
+                .plugin-card .column-rating,
+                .plugin-card .column-downloaded,
+                .plugin-card .vers.column-rating,
+                .plugin-card .num-ratings,
+                .plugins-popular-tags-wrapper {
+                    display: none !important;
+                }
+            </style>
+            <?php
         }
 
-        echo '<style>
-            .plugin-card .column-rating,
-            .plugin-card .column-downloaded,
-            .plugin-card .vers.column-rating,
-            .plugin-card .num-ratings,
-            .plugins-popular-tags-wrapper {
-                display: none !important;
-            }
-        </style>';
+        // Modify theme install page tabs
+        if ($screen && $screen->id === 'theme-install') {
+            // CSS to hide unwanted tabs
+            ?>
+            <style>
+                .wp-filter .filter-links li a[data-sort="new"],
+                .wp-filter .filter-links li a[data-sort="latest"],
+                .wp-filter .filter-links li a[data-sort="block-themes"],
+                .wp-filter .filter-links li a[data-sort="favorites"] {
+                    display: none !important;
+                }
+            </style>
+            <?php
+
+            // JavaScript to rename "Popular" to "Featured"
+            $featured_text = esc_js(_x('Featured', 'themes'));
+            ?>
+            <script type="text/javascript">
+                document.addEventListener('DOMContentLoaded', function() {
+                    var popularTabLink = document.querySelector('.wp-filter .filter-links li a[data-sort="popular"]');
+                    if (popularTabLink) {
+                        popularTabLink.textContent = '<?php echo $featured_text; ?>';
+                        // unrepress_debug is a PHP function, cannot be called directly in JS
+                        // console.log("UnrePress Hider: Renamed Popular tab to Featured via vanilla JS");
+                    } else {
+                        // console.log("UnrePress Hider: Popular tab link not found for vanilla JS rename");
+                    }
+                });
+            </script>
+            <?php
+        }
     }
 }

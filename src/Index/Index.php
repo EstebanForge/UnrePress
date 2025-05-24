@@ -46,7 +46,13 @@ class Index
 
         $slug = $this->normalizeSlug($slug);
 
-        return UNREPRESS_INDEX . 'main/' . $type . '/' . $slug . '.json';
+        // Get the first letter of the slug for directory structure
+        $first_letter = mb_strtolower(mb_substr($slug, 0, 1));
+
+        // Pluralize the type for URL structure
+        $type_plural = $type === 'theme' ? 'themes' : 'plugins';
+
+        return UNREPRESS_INDEX . 'main/' . $type_plural . '/' . $first_letter . '/' . $slug . '.json';
     }
 
     /**
