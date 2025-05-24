@@ -1,7 +1,7 @@
 {
     "name": "estebanforge/unrepress",
     "description": "WordPress plugin to obtain updates directly from git providers (like GitHub, BitBucket or GitLab)",
-    "version": "0.5.0",
+    "version": "0.7.0",
     "type": "wordpress-plugin",
     "license": "GPL-2.0-or-later",
     "authors": [
@@ -58,7 +58,7 @@
             "classmap_prefix": "ESFR_",
             "constant_prefix": "ESFR_",
             "packages": [],
-            "override_autoload": {},
+            "override_autoload": [],
             "delete_vendor_packages": true
         }
     }

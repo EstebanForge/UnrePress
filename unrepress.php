@@ -4,7 +4,7 @@
  * Plugin Name: UnrePress for WordPress
  * Plugin URI: https://github.com/EstebanForge/UnrePress
  * Description: Liberate WordPress ecosystem. Core, Plugins and Themes updates, directly from their developers. Using git providers like GitHub, BitBucket or GitLab.
- * Version: 0.5.0
+ * Version: 0.7.0
  * Author: Esteban Cuevas
  * Author URI: https://actitud.xyz
  * License: GPL-2.0+

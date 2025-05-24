@@ -1,5 +1,12 @@
 # UnrePress changelog
 
+# 0.7.0 - 2025-05-24
+* Themes and Plugin discovery, search and install inside wp-admin, now is ready.
+* Improved the WordPress core update logic.
+* Now blocking wp.org and all the related "personal" domains by default. [This is too much](https://www.reddit.com/r/Wordpress/comments/1ktpzv3/wordpress_68_seems_to_be_breaking_update/). Will offer an options page to disable this. This can already be done by using the `UNREPRESS_BLOCK_WPORG` constant tho.
+* Improved `unrepress_debug()` function.
+* Now using [strauss](https://github.com/BrianHenryIE/strauss) to prefix vendor files.
+
 # 0.5.0 - 2025-02-16
 * UnrePress now supports Plugins and Themes installation.
 * Fixed plugin and theme installation issues with correct slug detection.
