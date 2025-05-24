@@ -227,78 +227,122 @@ class UpdatePlugins
             return $response;
         }
 
-        // get updates
-        $remote = $this->requestRemoteInfo($args->slug);
+        $remote = $this->requestRemoteInfo($args->slug); // This is the plugin's data from UnrePress index
 
         if (!$remote) {
-            //unrepress_debug('No remote data found for ' . $args->slug);
-            return $response;
+            Debugger::log('getInformation (Plugin): No remote data found for slug: ' . $args->slug);
+            return $response; // Return original $response if UnrePress index doesn't have it
         }
 
-        $response = new \stdClass();
+        // This now returns the full tag object or false
+        $latest_tag_object = $this->getLatestVersion($remote);
 
-        // Get the latest version from tags
-        $version = $this->getLatestVersion($remote);
+        // Extract the actual tag name string for use in URLs
+        $actual_tag_name_for_url = (is_object($latest_tag_object) && isset($latest_tag_object->name)) ? $latest_tag_object->name : null;
 
-        // Get the download URL
-        $download_url = $this->getDownloadUrl($remote, $version);
+        // Determine the version string for display (e.g., '1.2.3')
+        $display_version = null;
+        if ($actual_tag_name_for_url) {
+            $display_version = ltrim($actual_tag_name_for_url, 'v');
+        } elseif (isset($remote->version) && is_string($remote->version)) {
+            $display_version = $remote->version;
+        } else {
+            $display_version = '0.0.0'; // Default display version
+        }
 
-        //unrepress_debug('Version for ' . $args->slug . ': ' . $version);
-        //unrepress_debug('Download URL for ' . $args->slug . ': ' . $download_url);
+        // Get the download URL using the actual tag name string
+        $download_url = $this->getDownloadUrl($remote, $actual_tag_name_for_url);
 
-        // Last updated, now
-        $remote->last_updated = time();
-        // Changelog
-        $remote->sections ??= new \stdClass();
-        $remote->sections->changelog = $remote->changelog ?? '';
+        Debugger::log('getInformation (Plugin): Slug: ' . $args->slug . ' | Actual Tag: ' . ($actual_tag_name_for_url ?? 'N/A') . ' | Display Version: ' . $display_version . ' | Download URL: ' . ($download_url ?: 'N/A'));
 
-        $response->name = $remote->name ?? '';
-        $response->slug = $remote->slug ?? '';
-        $response->version = $version;
-        $response->author = sprintf('<a href="%s">%s</a>', $remote->author_url ?? '#', $remote->author ?? '');
-        $response->author_profile = $remote->author_url ?? '';
-        $response->requires = $remote->requires ?? '5.0';
-        $response->tested = $remote->tested ?? '6.4';
-        $response->requires_php = $remote->requires_php ?? '7.4';
-        $response->homepage = $remote->homepage ?? '';
-        $response->sections = [
-            'description' => $remote->sections->description ?? '',
-            'installation' => $remote->sections->installation ?? '',
-            'changelog' => $remote->sections->changelog ?? '',
+        if (empty($download_url)) {
+            Debugger::log('getInformation (Plugin): Could not determine download_url for: ' . $args->slug . '. Returning basic info.');
+            // Fallback: Populate a minimal response object if we can't get a download URL
+            // This ensures the plugin card might still show some info rather than breaking.
+            $api_response = new \stdClass();
+            $api_response->name = $remote->name ?? $args->slug;
+            $api_response->slug = $args->slug;
+            $api_response->version = $display_version;
+            $api_response->author = $remote->author ?? '';
+            // Add other essential fields like sections->description if you want a richer fallback display
+            $api_response->sections = new \stdClass();
+            $api_response->sections->description = $remote->sections->description ?? 'Description not available.';
+            return $api_response;
+        }
+
+        // Construct the full $response object for WordPress plugins_api
+        $api_response = new \stdClass();
+
+        $api_response->name = $remote->name ?? $args->slug;
+        $api_response->slug = $args->slug;
+        $api_response->version = $display_version;
+        $api_response->author = sprintf('<a href="%s" target="_blank">%s</a>', esc_url($remote->author_url ?? '#'), esc_html($remote->author ?? 'Unknown Author'));
+        $api_response->author_profile = $remote->author_url ?? '';
+
+        $api_response->requires = $remote->requires ?? '5.0';
+        $api_response->tested = $remote->tested ?? (defined('get_bloginfo') ? get_bloginfo('version') : '0.0');
+        $api_response->requires_php = $remote->requires_php ?? '7.4';
+
+        $api_response->homepage = $remote->homepage ?? '';
+        $api_response->last_updated = !empty($remote->last_updated) ? date('Y-m-d H:i:s', is_numeric($remote->last_updated) ? $remote->last_updated : strtotime($remote->last_updated)) : date('Y-m-d H:i:s');
+
+        // Sections
+        $api_response->sections = new \stdClass();
+        $default_description = 'No description provided.';
+        if (isset($remote->sections) && is_object($remote->sections)) {
+            $api_response->sections->description = $remote->sections->description ?? $default_description;
+            $api_response->sections->installation = $remote->sections->installation ?? '';
+            $api_response->sections->changelog = $remote->sections->changelog ?? '';
+        } else {
+            $api_response->sections->description = $remote->description ?? $default_description; // Fallback for flat description
+        }
+
+        // Banners & Icons (with fallbacks to UnrePress assets)
+        $default_banner_low = UNREPRESS_PLUGIN_URL . 'assets/images/banner-772x250.webp';
+        $default_banner_high = UNREPRESS_PLUGIN_URL . 'assets/images/banner-1544x500.webp';
+        $default_icon = UNREPRESS_PLUGIN_URL . 'assets/images/icon-256.webp';
+
+        $api_response->banners = [
+            'low' => (!empty($remote->banners->low) && is_string($remote->banners->low)) ? $remote->banners->low : $default_banner_low,
+            'high' => (!empty($remote->banners->high) && is_string($remote->banners->high)) ? $remote->banners->high : $default_banner_high,
         ];
-        $response->banners = [
-            'low' => (!empty($remote->banners->low)) ? $remote->banners->low : UNREPRESS_PLUGIN_URL . 'assets/images/banner-772x250.webp',
-            'high' => (!empty($remote->banners->high)) ? $remote->banners->high : UNREPRESS_PLUGIN_URL . 'assets/images/banner-1544x500.webp',
+        $api_response->icons = [
+            'default' => (!empty($remote->icons->default) && is_string($remote->icons->default)) ? $remote->icons->default : $default_icon,
+            '1x'      => (!empty($remote->icons->low) && is_string($remote->icons->low)) ? $remote->icons->low : $default_icon, // WordPress uses 1x often
+            '2x'      => (!empty($remote->icons->high) && is_string($remote->icons->high)) ? $remote->icons->high : $default_icon, // WordPress uses 2x often
+            // Preserving low/high for any other potential uses if absolutely necessary, but WP prefers 1x/2x/svg
+            'low'     => (!empty($remote->icons->low) && is_string($remote->icons->low)) ? $remote->icons->low : $default_icon,
+            'high'    => (!empty($remote->icons->high) && is_string($remote->icons->high)) ? $remote->icons->high : $default_icon,
         ];
-        $response->icons = [
-            'default' => (!empty($remote->icons->high)) ? $remote->icons->high : UNREPRESS_PLUGIN_URL . 'assets/images/icon-256.webp',
-            'low' => (!empty($remote->icons->low)) ? $remote->icons->low : UNREPRESS_PLUGIN_URL . 'assets/images/icon-256.webp',
-            'high' => (!empty($remote->icons->high)) ? $remote->icons->high : UNREPRESS_PLUGIN_URL . 'assets/images/icon-1024.webp',
-        ];
-        $response->download_url = $download_url;
-        $response->download_link = $download_url;
-        $response->package = $download_url;
-        $response->trunk = $download_url;
-        $response->last_updated = date('Y-m-d H:i:s', $remote->last_updated);
-        $response->rating = 100;
-        $response->num_ratings = 1;
-        $response->active_installs = 1000;
-        $response->downloaded = 1000;
-        $response->external = true;
+        if(!empty($remote->icons->svg) && is_string($remote->icons->svg)){
+            $api_response->icons['svg'] = $remote->icons->svg;
+        }
 
-        // Set compatibility information
-        $wp_version = get_bloginfo('version');
-        $response->compatibility = [
-            $wp_version => [
-                'compatible' => true,
-                'requires_php' => $remote->requires_php ?? '7.4',
-            ]
-        ];
+        // Crucial: Download link and package
+        $api_response->download_link = $download_url;
+        $api_response->package = $download_url;
+        $api_response->trunk = $download_url; // Often same as package
 
-        //unrepress_debug('Processed plugin information for ' . $args->slug . ':');
-        //unrepress_debug(print_r($response, true));
+        // Other fields WordPress might expect or use for display
+        $api_response->rating = $remote->rating ?? 0; // 0-100
+        $api_response->num_ratings = $remote->num_ratings ?? 0;
+        $api_response->active_installs = $remote->active_installs ?? 0;
+        $api_response->downloaded = $remote->downloaded ?? 0;
+        $api_response->tags = $remote->tags ?? [];
+        if (is_object($api_response->tags)) { $api_response->tags = (array) $api_response->tags; }
 
-        return $response;
+        // WordPress compatibility section
+        $wp_version_global = defined('get_bloginfo') ? get_bloginfo('version') : '0.0';
+        $api_response->compatibility = new \stdClass(); // WordPress expects an object here
+        $api_response->compatibility->$wp_version_global = new \stdClass();
+        $api_response->compatibility->$wp_version_global->compatible = true; // Assuming compatibility if listed
+        $api_response->compatibility->$wp_version_global->requires_php = $api_response->requires_php;
+        // Add more versions if compatibility data is available per version.
+
+        $api_response->external = true; // Mark as externally hosted
+
+        Debugger::log('getInformation (Plugin): Serving plugin_information for ' . $args->slug . ': ' . print_r($api_response, true));
+        return $api_response;
     }
 
     protected function getLatestVersion($plugin_data)
@@ -306,64 +350,130 @@ class UpdatePlugins
         //unrepress_debug('Getting latest version for ' . json_encode($plugin_data));
         //unrepress_debug('Data type received: ' . gettype($plugin_data));
 
+        if (!is_object($plugin_data) || !isset($plugin_data->slug)) {
+            Debugger::log('getLatestVersion (Plugin): Invalid plugin_data object or slug missing.');
+            return false;
+        }
+
         // Check if we have a cached version first
-        $transient_key = $this->cache_key . 'latest_tag_' . $plugin_data->slug;
-        $cached_tag = get_transient($transient_key);
+        $transient_key = $this->cache_key . 'latest_tag_object_' . $plugin_data->slug; // Changed transient name for clarity
+        $cached_tag_object = get_transient($transient_key);
 
-        if ($cached_tag !== false) {
-            //unrepress_debug('Using cached tag for ' . $plugin_data->slug . ': ' . $cached_tag);
-            return $cached_tag;
+        if ($cached_tag_object !== false) {
+            Debugger::log('getLatestVersion (Plugin): Using cached tag object for ' . $plugin_data->slug . ': ' . print_r($cached_tag_object, true));
+            return $cached_tag_object;
         }
 
-        if (!empty($plugin_data->unrepress_meta->tags)) {
-            $tags_url = $this->helpers->normalizeTagUrl($plugin_data->unrepress_meta->tags);
-
-            $response = wp_remote_get($tags_url);
-
-            //unrepress_debug('Tags URL: ' . $tags_url);
-            //unrepress_debug('Tags response: ' . print_r($response, true));
-
-            if (!is_wp_error($response) && wp_remote_retrieve_response_code($response) === 200) {
-                $tags = json_decode(wp_remote_retrieve_body($response));
-
-                //unrepress_debug('Tags: ' . print_r($tags, true));
-
-                if (is_array($tags) && !empty($tags)) {
-                    $latest_tag = ltrim($tags[0]->name, 'v');
-
-                    //unrepress_debug('Latest tag: ' . $latest_tag);
-
-                    // Cache the tag for 3 hours
-                    set_transient($transient_key, $latest_tag, 3 * HOUR_IN_SECONDS);
-
-                    // Get the first tag (most recent)
-                    return $latest_tag;
-                }
+        // Ensure unrepress_meta and necessary sub-properties exist
+        if (
+            !isset($plugin_data->unrepress_meta) || !is_object($plugin_data->unrepress_meta) ||
+            empty($plugin_data->unrepress_meta->tags) || !is_string($plugin_data->unrepress_meta->tags) || // Must be a string URL
+            !isset($plugin_data->unrepress_meta->update_from) // update_from is checked by calling logic normally
+        ) {
+            Debugger::log('getLatestVersion (Plugin): unrepress_meta structure invalid, or tags URL missing for plugin: ' . $plugin_data->slug);
+            // Fallback if only version is present in main plugin_data
+            if (!empty($plugin_data->version) && is_string($plugin_data->version)) {
+                $mock_tag = new \stdClass();
+                $mock_tag->name = $plugin_data->version;
+                Debugger::log('getLatestVersion (Plugin): Falling back to version from plugin JSON: ' . $plugin_data->version);
+                set_transient($transient_key, $mock_tag, 3 * HOUR_IN_SECONDS); // Cache mock tag too
+                return $mock_tag;
             }
+            return false;
         }
 
-        // Fallback version if no tags found
-        return '1.0.0';
+        // Only proceed if update_from is 'tags', otherwise version is determined by release typically
+        // However, this function's job is to get the latest from tags API if tags URL is present.
+        // The calling function can decide if this version is used based on update_from strategy.
+
+        $tags_url = $this->helpers->normalizeTagUrl($plugin_data->unrepress_meta->tags, $plugin_data->unrepress_meta->repository ?? '');
+        Debugger::log('getLatestVersion (Plugin): Fetching tags from: ' . $tags_url . ' for plugin: ' . $plugin_data->slug);
+
+        $response = wp_remote_get($tags_url, [
+            'timeout' => 10,
+            'headers' => ['Accept' => 'application/json'],
+        ]);
+
+        if (is_wp_error($response) || 200 !== wp_remote_retrieve_response_code($response)) {
+            Debugger::log('getLatestVersion (Plugin): Error fetching tags for plugin: ' . $plugin_data->slug . ' Error: ' . (is_wp_error($response) ? $response->get_error_message() : wp_remote_retrieve_response_code($response)));
+            return false;
+        }
+
+        $tags_body = json_decode(wp_remote_retrieve_body($response));
+        if (json_last_error() !== JSON_ERROR_NONE || !is_array($tags_body) || empty($tags_body)) {
+            Debugger::log('getLatestVersion (Plugin): JSON decode error or empty tags array for plugin: ' . $plugin_data->slug . ' Error: ' . json_last_error_msg());
+            return false;
+        }
+
+        $latestTagObject = $this->helpers->getNewestVersionFromTags($tags_body);
+
+        if (!$latestTagObject || empty($latestTagObject->name)) {
+            Debugger::log('getLatestVersion (Plugin): Could not determine newest tag for plugin: ' . $plugin_data->slug);
+            return false;
+        }
+
+        Debugger::log('getLatestVersion (Plugin): Determined latest tag object: ' . print_r($latestTagObject, true) . ' for plugin: ' . $plugin_data->slug);
+        set_transient($transient_key, $latestTagObject, 3 * HOUR_IN_SECONDS); // Cache the full tag object
+        return $latestTagObject;
     }
 
-    private function getDownloadUrl($plugin_data, $version)
+    private function getDownloadUrl($plugin_data, $original_tag_name)
     {
-        if (!empty($plugin_data->unrepress_meta->repository)) {
-            $repo = $plugin_data->unrepress_meta->repository;
-            if (strpos($repo, 'github.com') !== false) {
-                // Extract owner and repo name from the GitHub URL
-                $parts = explode('/', rtrim($repo, '/'));
-                $owner = $parts[count($parts) - 2] ?? '';
-                $repo_name = $parts[count($parts) - 1] ?? '';
-
-                if ($owner && $repo_name) {
-                    // Use the archive download URL format
-                    return "https://api.github.com/repos/{$owner}/{$repo_name}/zipball/{$version}";
-                }
-            }
+        if (empty($original_tag_name) || !is_object($plugin_data) || !isset($plugin_data->unrepress_meta) || !is_object($plugin_data->unrepress_meta)) {
+            Debugger::log('getDownloadUrl (Plugin): Missing original_tag_name or invalid plugin_data/unrepress_meta for plugin: ' . ($plugin_data->slug ?? 'unknown'));
+            return false;
         }
 
-        return '';
+        $meta = $plugin_data->unrepress_meta;
+        $repo_url = $meta->repository ?? '';
+        $update_from = $meta->update_from ?? 'tags'; // Default to tags
+        $download_url = false;
+
+        if (empty($repo_url) || !is_string($repo_url)) {
+            Debugger::log('getDownloadUrl (Plugin): Repository URL missing or not a string in unrepress_meta for plugin: ' . ($plugin_data->slug ?? 'unknown'));
+            return false;
+        }
+
+        if ($update_from === 'release') {
+            if (!empty($meta->release_asset) && is_string($meta->release_asset)){
+                // The $original_tag_name is the release tag (e.g., "v1.2.3" or "1.2.3")
+                $normalized_version_for_asset = ltrim($original_tag_name, 'v');
+                $asset_name = str_replace('{version}', $normalized_version_for_asset, $meta->release_asset);
+                $asset_name = str_replace('{slug}', $plugin_data->slug, $asset_name);
+
+                if (strpos($repo_url, 'github.com') !== false) {
+                    $download_url = rtrim($repo_url, '/') . '/releases/download/' . $original_tag_name . '/' . $asset_name;
+                    Debugger::log('getDownloadUrl (Plugin): Constructed GitHub release asset URL: ' . $download_url);
+                } else {
+                    Debugger::log('getDownloadUrl (Plugin): Release asset downloads for non-GitHub providers not fully implemented. Repo: ' . $repo_url);
+                    return !empty($meta->download_url) && is_string($meta->download_url) ? $meta->download_url : false;
+                }
+            } else {
+                Debugger::log('getDownloadUrl (Plugin): update_from is \'release\' but release_asset is missing or invalid in unrepress_meta for plugin: ' . ($plugin_data->slug ?? 'unknown'));
+                return false;
+            }
+        } elseif ($update_from === 'tags') {
+            $provider = 'other';
+            if (strpos($repo_url, 'github.com') !== false) {
+                $provider = 'github';
+            } // Add elif for gitlab, bitbucket etc. if needed
+
+            $download_url = $this->helpers->getDownloadUrlForProviderTag($repo_url, $original_tag_name, $plugin_data->slug, $provider);
+            Debugger::log('getDownloadUrl (Plugin): URL from getDownloadUrlForProviderTag (tags strategy): ' . $download_url);
+        } else {
+            Debugger::log('getDownloadUrl (Plugin): Unknown update_from strategy: [' . $update_from . '] or missing required unrepress_meta for plugin: ' . ($plugin_data->slug ?? 'unknown'));
+            // Fallback: if a direct download_url is in unrepress_meta, use it.
+            if (!empty($meta->download_url) && is_string($meta->download_url)) {
+                Debugger::log('getDownloadUrl (Plugin): Falling back to direct download_url from unrepress_meta: ' . $meta->download_url);
+                return $meta->download_url;
+            }
+            return false;
+        }
+
+        // Optional: $this->helpers->validate_download_url($download_url);
+        // For now, assume constructed URL is usable if logic passed.
+
+        return $download_url;
     }
 
     public function hasUpdate($transient)
@@ -583,14 +693,27 @@ class UpdatePlugins
         //unrepress_debug('Raw plugin data for ' . $plugin_slug . ':');
         //unrepress_debug($plugin_data);
 
-        // Get the latest version from tags
-        $version = $this->getLatestVersion($plugin_data);
+        // Get the latest version from tags (this returns the full tag object or false)
+        $latest_tag_object = $this->getLatestVersion($plugin_data);
+
+        // Extract the actual tag name string for use in URLs
+        $actual_tag_name_for_url = (is_object($latest_tag_object) && isset($latest_tag_object->name)) ? $latest_tag_object->name : null;
+
+        // Determine the version string for display (e.g., '1.2.3')
+        $display_version = null;
+        if ($actual_tag_name_for_url) {
+            $display_version = ltrim($actual_tag_name_for_url, 'v');
+        } elseif (isset($plugin_data->version) && is_string($plugin_data->version)) {
+            $display_version = $plugin_data->version;
+        } else {
+            $display_version = '0.0.0'; // Default display version
+        }
 
         // Get server's WordPress and PHP versions for compatibility
         $wp_version = get_bloginfo('version');
         $php_version = phpversion();
 
-        //unrepress_debug('Remote version for ' . $plugin_slug . ' is ' . $version);
+        //unrepress_debug('Remote version for ' . $plugin_slug . ' is ' . $display_version);
         //unrepress_debug('Server WordPress version is ' . $wp_version);
         //unrepress_debug('Server PHP version is ' . $php_version);
 
@@ -598,7 +721,7 @@ class UpdatePlugins
         $processed_data = [
             'name' => $plugin_data->name ?? '',
             'slug' => $plugin_data->slug ?? '',
-            'version' => $version,
+            'version' => $display_version,
             'author' => $plugin_data->author ?? '',
             'author_profile' => $plugin_data->author_url ?? '',
             'requires' => $plugin_data->requires ?? $wp_version,
@@ -618,12 +741,12 @@ class UpdatePlugins
                 'low' => (!empty($plugin_data->icons->low)) ? $plugin_data->icons->low : UNREPRESS_PLUGIN_URL . 'assets/images/icon-256.webp',
                 'high' => (!empty($plugin_data->icons->high)) ? $plugin_data->icons->high : UNREPRESS_PLUGIN_URL . 'assets/images/icon-1024.webp',
             ],
-            'download_url' => $this->getDownloadUrl($plugin_data, $version),
-            'download_link' => $this->getDownloadUrl($plugin_data, $version),
+            'download_url' => $this->getDownloadUrl($plugin_data, $actual_tag_name_for_url),
+            'download_link' => $this->getDownloadUrl($plugin_data, $actual_tag_name_for_url),
             'homepage' => $plugin_data->homepage ?? '',
-            'short_description' => substr($plugin_data->sections->description ?? '', 0, 150) . '&hellip;',
-            'rating' => 100,
-            'num_ratings' => 1,
+            'short_description' => isset($plugin_data->sections->description) ? substr($plugin_data->sections->description, 0, 150) . '&hellip;' : (isset($plugin_data->description) ? substr($plugin_data->description, 0, 150) . '&hellip;' : ''),
+            'rating' => $plugin_data->rating ?? 100,
+            'num_ratings' => $plugin_data->num_ratings ?? 1,
             'support_threads' => 0,
             'support_threads_resolved' => 0,
             'active_installs' => 1000,
