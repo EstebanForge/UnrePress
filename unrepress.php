@@ -28,12 +28,12 @@ define('UNREPRESS_FILE', __FILE__);
 
 // Define: UnrePress Index
 if (!defined('UNREPRESS_INDEX')) {
-    define('UNREPRESS_INDEX', 'https://raw.githubusercontent.com/estebanforge/unrepress-index/');
+    define('UNREPRESS_INDEX', 'https://raw.githubusercontent.com/EstebanForge/UnrePress-index/');
 }
 
 // Define: GitHub API Token
 if (!defined('UNREPRESS_TOKEN_GITHUB')) {
-    define('UNREPRESS_TOKEN_GITHUB', '');
+    define('UNREPRESS_TOKEN_GITHUB', apply_filters('unrepress_github_token', ''));
 }
 
 // Define transient expiration time (60 minutes by default)

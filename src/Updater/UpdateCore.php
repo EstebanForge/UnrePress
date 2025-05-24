@@ -222,6 +222,9 @@ class UpdateCore
         $this->helpers->writeUpdateLog(__('Core update completed.', 'unrepress'));
         $this->helpers->writeUpdateLog(':)');
 
+        // Delete transients
+        $this->helpers->clearUpdateTransients();
+
         $this->updateLock->unlock();
 
         return true;
@@ -322,7 +325,7 @@ class UpdateCore
     }
 
     /**
-     * Gets the latest version of WordPress core from the GitHub API.
+     * Gets the latest version of WordPress core using the UnrePress index system.
      *
      * The API is only queried if the transient does not exist or has expired.
      *
@@ -330,32 +333,146 @@ class UpdateCore
      */
     public function getLatestCoreVersion(): ?string
     {
+        unrepress_debug('UpdateCore::getLatestCoreVersion() - Starting core version check');
+
         // Test: Simulate failure in getting latest version
         if ($this->testMode && $this->testScenario === 'version_fail') {
+            unrepress_debug('UpdateCore::getLatestCoreVersion() - Test mode: simulating version failure');
             return null;
-        }
-
-        if ($this->provider == 'github') {
-            $updaterProvider = new GitHub();
         }
 
         // Check if the transient exists
         $cachedVersion = get_transient(self::TRANSIENT_NAME);
         if ($cachedVersion !== false) {
+            unrepress_debug('UpdateCore::getLatestCoreVersion() - Using cached version: ' . $cachedVersion);
             return $cachedVersion;
         }
 
-        $latestVersion = $updaterProvider->getLatestVersion('WordPress/WordPress');
+        unrepress_debug('UpdateCore::getLatestCoreVersion() - No cached version, fetching from index');
 
-        if ($latestVersion) {
-            // Set the transient with the new version
-            set_transient(self::TRANSIENT_NAME, $latestVersion, UNREPRESS_TRANSIENT_EXPIRATION);
+        try {
+            // Get WordPress core info from UnrePress index
+            $coreInfo = $this->getCoreInfoFromIndex();
+            unrepress_debug('UpdateCore::getLatestCoreVersion() - Core info from index:', $coreInfo);
 
-            // Save unrepress_last_checked
-            update_option(UNREPRESS_PREFIX . 'last_checked', time());
+            if (!$coreInfo || !isset($coreInfo['tags'])) {
+                unrepress_debug('UpdateCore::getLatestCoreVersion() - No core info found in index or missing tags URL');
+                error_log('UnrePress: No core info found in index or missing tags URL');
+                return null;
+            }
+
+            // Use GitHub provider to get latest version from the index-defined tags URL
+            if ($this->provider == 'github') {
+                $updaterProvider = new GitHub();
+                unrepress_debug('UpdateCore::getLatestCoreVersion() - Created GitHub provider');
+            }
+
+            // Get the repository slug from the index
+            $repository = $coreInfo['repository'] ?? 'https://github.com/WordPress/WordPress/';
+            unrepress_debug('UpdateCore::getLatestCoreVersion() - Repository URL from index: ' . $repository);
+
+            $repositorySlug = $this->extractRepositorySlugFromUrl($repository);
+            unrepress_debug('UpdateCore::getLatestCoreVersion() - Extracted repository slug: ' . $repositorySlug);
+
+            $latestVersion = $updaterProvider->getLatestVersion($repositorySlug);
+            unrepress_debug('UpdateCore::getLatestCoreVersion() - Latest version from GitHub provider: ' . ($latestVersion ?: 'NULL'));
+
+            if ($latestVersion) {
+                // Set the transient with the new version
+                set_transient(self::TRANSIENT_NAME, $latestVersion, UNREPRESS_TRANSIENT_EXPIRATION);
+                unrepress_debug('UpdateCore::getLatestCoreVersion() - Cached version in transient: ' . $latestVersion);
+
+                // Save unrepress_last_checked
+                update_option(UNREPRESS_PREFIX . 'last_checked', time());
+                unrepress_debug('UpdateCore::getLatestCoreVersion() - Updated last_checked timestamp');
+
+                error_log("UnrePress: Found WordPress core version {$latestVersion} from index system");
+            } else {
+                unrepress_debug('UpdateCore::getLatestCoreVersion() - GitHub provider returned no version');
+            }
+
+            return $latestVersion;
+
+        } catch (\Exception $e) {
+            unrepress_debug('UpdateCore::getLatestCoreVersion() - Exception caught: ' . $e->getMessage());
+            error_log('UnrePress: Error getting core version from index: ' . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Get WordPress core information from the UnrePress index system
+     *
+     * @return array|null Core information array or null on error
+     */
+    private function getCoreInfoFromIndex(): ?array
+    {
+        unrepress_debug('UpdateCore::getCoreInfoFromIndex() - Starting to get core info from index');
+
+        // Get main index
+        $unrepress = new \UnrePress\UnrePress();
+        $mainIndex = $unrepress->index();
+        unrepress_debug('UpdateCore::getCoreInfoFromIndex() - Main index loaded:', $mainIndex);
+
+        if (!$mainIndex || !isset($mainIndex['wordpress']['url'])) {
+            unrepress_debug('UpdateCore::getCoreInfoFromIndex() - Main index is null or missing wordpress.url');
+            return null;
         }
 
-        return $latestVersion;
+        // Get WordPress core index
+        $coreIndexUrl = $mainIndex['wordpress']['url'];
+        unrepress_debug('UpdateCore::getCoreInfoFromIndex() - Core index URL: ' . $coreIndexUrl);
+
+        $coreIndexResponse = wp_remote_get($coreIndexUrl, ['timeout' => 10]);
+
+        if (is_wp_error($coreIndexResponse)) {
+            unrepress_debug('UpdateCore::getCoreInfoFromIndex() - wp_remote_get error: ' . $coreIndexResponse->get_error_message());
+            return null;
+        }
+
+        $responseCode = wp_remote_retrieve_response_code($coreIndexResponse);
+        $responseBody = wp_remote_retrieve_body($coreIndexResponse);
+        unrepress_debug('UpdateCore::getCoreInfoFromIndex() - Response code: ' . $responseCode);
+        unrepress_debug('UpdateCore::getCoreInfoFromIndex() - Response body (first 200 chars): ' . substr($responseBody, 0, 200));
+
+        $coreInfo = json_decode($responseBody, true);
+
+        if (!is_array($coreInfo)) {
+            unrepress_debug('UpdateCore::getCoreInfoFromIndex() - JSON decode failed or not an array');
+            unrepress_debug('UpdateCore::getCoreInfoFromIndex() - JSON last error: ' . json_last_error_msg());
+            return null;
+        }
+
+        unrepress_debug('UpdateCore::getCoreInfoFromIndex() - Successfully decoded core info with keys: ' . implode(', ', array_keys($coreInfo)));
+        return $coreInfo;
+    }
+
+    /**
+     * Extract repository slug (owner/repo) from GitHub URL
+     *
+     * @param string $url GitHub repository URL
+     * @return string Repository slug in format "owner/repo"
+     */
+    private function extractRepositorySlugFromUrl(string $url): string
+    {
+        unrepress_debug('UpdateCore::extractRepositorySlugFromUrl() - Input URL: ' . $url);
+
+        // Default fallback
+        $defaultSlug = 'WordPress/WordPress';
+
+        // Remove trailing slash and .git
+        $cleanUrl = rtrim($url, '/');
+        $cleanUrl = str_replace('.git', '', $cleanUrl);
+        unrepress_debug('UpdateCore::extractRepositorySlugFromUrl() - Cleaned URL: ' . $cleanUrl);
+
+        // Extract owner/repo from GitHub URL
+        if (preg_match('#github\.com/([^/]+/[^/]+)#', $cleanUrl, $matches)) {
+            unrepress_debug('UpdateCore::extractRepositorySlugFromUrl() - Regex matched: ' . $matches[1]);
+            return $matches[1];
+        }
+
+        unrepress_debug('UpdateCore::extractRepositorySlugFromUrl() - No regex match, using default: ' . $defaultSlug);
+        return $defaultSlug;
     }
 
     public function getDownloadUrl(string $repo, string $version): string
@@ -365,11 +482,29 @@ class UpdateCore
             return 'https://invalid.url/that/will/fail';
         }
 
-        if ($this->provider == 'github') {
-            $updaterProvider = new GitHub();
-        }
+        try {
+            // Get repository slug from index if not provided in correct format
+            if ($repo === 'WordPress/WordPress' || empty($repo)) {
+                $coreInfo = $this->getCoreInfoFromIndex();
+                if ($coreInfo && isset($coreInfo['repository'])) {
+                    $repo = $this->extractRepositorySlugFromUrl($coreInfo['repository']);
+                }
+            }
 
-        return $updaterProvider->getDownloadUrl($repo, $version);
+            if ($this->provider == 'github') {
+                $updaterProvider = new GitHub();
+            }
+
+            return $updaterProvider->getDownloadUrl($repo, $version);
+
+        } catch (\Exception $e) {
+            error_log('UnrePress: Error getting download URL: ' . $e->getMessage());
+            // Fallback to default
+            if ($this->provider == 'github') {
+                $updaterProvider = new GitHub();
+            }
+            return $updaterProvider->getDownloadUrl('WordPress/WordPress', $version);
+        }
     }
 
     /**
@@ -437,5 +572,71 @@ class UpdateCore
 
         // Force an update check
         wp_version_check([], true);
+    }
+
+    /**
+     * Hook into WordPress native wp_version_check to provide GitHub-based updates
+     * This leverages WordPress' existing cron system and bypasses WP 6.8 limitations
+     *
+     * @return void
+     */
+    public function checkCoreUpdatesFromGitHub(): void
+    {
+        try {
+            $latestVersion = $this->getLatestCoreVersion();
+
+            if (!$latestVersion) {
+                return;
+            }
+
+            // Get current WordPress version
+            global $wp_version;
+
+            // Only proceed if GitHub version is newer than current
+            if (!version_compare($latestVersion, $wp_version, '>')) {
+                return;
+            }
+
+            // Get or create the update_core transient
+            $current = get_site_transient('update_core');
+            if (!is_object($current)) {
+                $current = new \stdClass();
+                $current->updates = [];
+                $current->version_checked = $wp_version;
+            }
+
+            // Create update object matching WordPress core format
+            $update = new \stdClass();
+            $update->response = 'upgrade';
+            $update->download = $this->getDownloadUrl('WordPress/WordPress', $latestVersion);
+            $update->locale = get_locale();
+            $update->packages = new \stdClass();
+            $update->packages->full = $update->download;
+            $update->packages->no_content = '';
+            $update->packages->new_bundled = '';
+            $update->packages->partial = '';
+            $update->packages->rollback = '';
+            $update->current = $latestVersion;
+            $update->version = $latestVersion;
+            $update->php_version = '7.4';
+            $update->mysql_version = '5.7';
+            $update->new_bundled = '';
+            $update->partial_version = '';
+
+            // Set the update in the transient
+            $current->updates = [$update];
+            $current->version_checked = $wp_version;
+            $current->last_checked = time();
+
+            // Save the transient
+            set_site_transient('update_core', $current);
+
+            // Log success for debugging
+            error_log("UnrePress: Core update detected - WordPress {$latestVersion} available from GitHub");
+
+        } catch (\Exception $e) {
+            // Log error but don't break the update process
+            error_log('UnrePress Core Update Check Error: ' . $e->getMessage());
+        }
     }
 }

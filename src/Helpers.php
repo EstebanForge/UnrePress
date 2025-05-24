@@ -6,7 +6,6 @@ namespace UnrePress;
 class Helpers
 {
     private $updateLogFile = 'unrepress_update_log.txt';
-    private const TRANSIENT_NAME = UNREPRESS_PREFIX . 'updates_core_latest_version';
 
     /**
      * Removes a directory and all its contents recursively using WP_Filesystem.
@@ -474,10 +473,14 @@ class Helpers
      */
     public static function clearUpdateTransients(): void
     {
-        delete_transient(self::TRANSIENT_NAME);
-        delete_transient('unrepress_updates_count');
+        delete_transient(UNREPRESS_PREFIX . 'updates_count');
+        delete_transient(UNREPRESS_PREFIX . 'updates_core_latest_version');
+        delete_transient(UNREPRESS_PREFIX . 'log_last_pos');
+
         delete_transient('update_plugins');
         delete_transient('update_themes');
         delete_transient('update_core');
+
+        wp_version_check(); // Force immediate core update check
     }
 }

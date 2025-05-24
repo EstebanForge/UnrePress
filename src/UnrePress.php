@@ -42,9 +42,15 @@ class UnrePress
         $indexThemes = new Index\ThemesIndex();
         $updaterPlugins = new Updater\UpdatePlugins();
         $updaterThemes = new Updater\UpdateThemes();
+        $updaterCore = new Updater\UpdateCore();
 
-        unrepress_debug('Classed initialized');
+        // Hook into WordPress native cron-based core update checks
+        add_action('wp_version_check', [$updaterCore, 'checkCoreUpdatesFromGitHub'], 5);
+
+        //unrepress_debug('Classed initialized');
     }
+
+
 
     /**
      * Get our main index.json content. Cached.

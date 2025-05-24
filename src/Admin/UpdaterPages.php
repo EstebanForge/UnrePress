@@ -149,9 +149,12 @@ class UpdaterPages
 
     private function getUpdateCount(): int
     {
+        unrepress_debug('UpdaterPages::getUpdateCount() - Starting update count calculation');
+
         // Check if we have a cached count
         $cached_count = get_transient('unrepress_updates_count');
         if ($cached_count !== false) {
+            unrepress_debug('UpdaterPages::getUpdateCount() - Using cached count: ' . $cached_count);
             return (int) $cached_count;
         }
 
@@ -159,24 +162,34 @@ class UpdaterPages
 
         // Check core updates
         $wpLocalVersion = get_bloginfo('version');
+        unrepress_debug('UpdaterPages::getUpdateCount() - Current WP version: ' . $wpLocalVersion);
+
         $updateCore = new UpdateCore();
         $latestVersion = $updateCore->getLatestCoreVersion();
+        unrepress_debug('UpdaterPages::getUpdateCount() - Latest core version: ' . ($latestVersion ?: 'NULL'));
 
         if ($latestVersion && version_compare($wpLocalVersion, $latestVersion, '<')) {
             $count++;
+            unrepress_debug('UpdaterPages::getUpdateCount() - Core update available, count++');
+        } else {
+            unrepress_debug('UpdaterPages::getUpdateCount() - No core update available');
         }
 
         // Check plugin updates
         $pluginUpdates = get_plugin_updates();
         if (!empty($pluginUpdates)) {
             $count += count($pluginUpdates);
+            unrepress_debug('UpdaterPages::getUpdateCount() - Plugin updates: ' . count($pluginUpdates));
         }
 
         // Check theme updates
         $themeUpdates = get_theme_updates();
         if (!empty($themeUpdates)) {
             $count += count($themeUpdates);
+            unrepress_debug('UpdaterPages::getUpdateCount() - Theme updates: ' . count($themeUpdates));
         }
+
+        unrepress_debug('UpdaterPages::getUpdateCount() - Total update count: ' . $count);
 
         // Cache the count for 3 hours
         set_transient('unrepress_updates_count', $count, 3 * HOUR_IN_SECONDS);
@@ -231,6 +244,8 @@ class UpdaterPages
      */
     public function updaterIndex(): void
     {
+        unrepress_debug('UpdaterPages::updaterIndex() - Starting updater page rendering');
+
         // Clear updater log
         $this->helpers->clearUpdateLog();
 
@@ -238,21 +253,31 @@ class UpdaterPages
         $updateCoreUrl = add_query_arg('_wpnonce', wp_create_nonce('update-core'), $updateCoreUrl);
 
         $wpLocalVersion = get_bloginfo('version');
+        unrepress_debug('UpdaterPages::updaterIndex() - Current WP version: ' . $wpLocalVersion);
+
         $updateNeeded = false;
         $coreLatestVersion = '';
 
         $updateCore = new UpdateCore();
+        unrepress_debug('UpdaterPages::updaterIndex() - Created UpdateCore instance, calling getLatestCoreVersion()');
+
         $latestVersion = $updateCore->getLatestCoreVersion();
+        unrepress_debug('UpdaterPages::updaterIndex() - getLatestCoreVersion() returned: ' . ($latestVersion ?: 'NULL'));
 
         $coreLatestVersion = $latestVersion;
         if ($coreLatestVersion && version_compare($wpLocalVersion, $coreLatestVersion, '<')) {
             $updateNeeded = true;
+            unrepress_debug('UpdaterPages::updaterIndex() - Update needed! ' . $wpLocalVersion . ' < ' . $coreLatestVersion);
+        } else {
+            unrepress_debug('UpdaterPages::updaterIndex() - No update needed. Latest: ' . ($coreLatestVersion ?: 'NULL') . ', Current: ' . $wpLocalVersion);
         }
 
         $wpLastChecked = get_option('unrepress_last_checked', time());
         // Format it to human readable time: YYYY-MM-DD HH:MM AM/PM
         $wpLastChecked = date('Y-m-d - H:i A', $wpLastChecked);
+        unrepress_debug('UpdaterPages::updaterIndex() - Last checked: ' . $wpLastChecked);
 
+        unrepress_debug('UpdaterPages::updaterIndex() - Loading updater view with updateNeeded=' . ($updateNeeded ? 'true' : 'false'));
         require_once UNREPRESS_PLUGIN_PATH . 'views/updater/unrepress-updater.php';
     }
 

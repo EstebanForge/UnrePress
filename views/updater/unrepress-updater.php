@@ -17,16 +17,42 @@ require_once ABSPATH . 'wp-admin/includes/misc.php';
 
 // Verify nonce if force-check is requested
 if (isset($_GET['force-check']) && $_GET['force-check'] == 1) {
+    unrepress_debug('Force-check requested - clearing transients and forcing updates');
+
     // Force an update check when requested.
     $force_check = !empty($_GET['force-check']);
+
+    // Clear core transients first to ensure fresh check
+    delete_site_transient('update_core');
+    delete_transient('unrepress_updates_core_latest_version');
+    delete_transient('unrepress_updates_count');
+    unrepress_debug('Force-check - cleared core transients');
+
+    // Force GitHub core update check
+    try {
+        $updateCore = new \UnrePress\Updater\UpdateCore();
+        unrepress_debug('Force-check - calling checkCoreUpdatesFromGitHub()');
+        $updateCore->checkCoreUpdatesFromGitHub();
+        unrepress_debug('Force-check - checkCoreUpdatesFromGitHub() completed');
+    } catch (Exception $e) {
+        unrepress_debug('Force-check - checkCoreUpdatesFromGitHub() error: ' . $e->getMessage());
+        error_log('UnrePress force-check error: ' . $e->getMessage());
+    }
+
+    // Force WordPress core update check
+    unrepress_debug('Force-check - calling wp_version_check()');
     wp_version_check([], $force_check);
 
     // Force refresh of plugin and theme updates
+    unrepress_debug('Force-check - calling wp_update_plugins() and wp_update_themes()');
     wp_update_plugins();
     wp_update_themes();
 
     // Clear transients
+    unrepress_debug('Force-check - calling clearUpdateTransients()');
     Helpers::clearUpdateTransients();
+
+    unrepress_debug('Force-check completed');
 }
 ?>
 <div class="wrap unrepress">
