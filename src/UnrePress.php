@@ -46,8 +46,6 @@ class UnrePress
 
         // Hook into WordPress native cron-based core update checks
         add_action('wp_version_check', [$updaterCore, 'checkCoreUpdatesFromGitHub'], 5);
-
-        //unrepress_debug('Classed initialized');
     }
 
 

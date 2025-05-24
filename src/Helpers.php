@@ -171,24 +171,75 @@ class Helpers
 
     /**
      * Normalize a Github Tags URL, to be used with the Github API.
+     * It can also construct the full tags API URL if a base repository URL is provided
+     * and the initial tags URL is just a path segment (e.g., "/tags").
      *
-     * @param string $url The URL to normalize.
+     * @param string $tags_or_repo_url The URL to the tags endpoint OR the base repository URL.
+     *                                If it's a full tags API URL, it will be returned as is (or with minor adjustments).
+     *                                If it's a base repo URL, $tags_path_segment must be provided.
+     * @param string|null $tags_path_segment Optional. If $tags_or_repo_url is a base repo URL,
+     *                                      this should be the path segment for tags (e.g., "/tags", or an empty string if $tags_or_repo_url already includes it implicitly and just needs API conversion).
      *
-     * @return string The normalized URL.
+     * @return string The normalized and potentially completed tags API URL.
      */
-    public function normalizeTagUrl($url)
+    public function normalizeTagUrl($tags_or_repo_url, $tags_path_segment = null)
     {
-        // Is github.com url?
-        if (!str_contains($url, 'github.com')) {
-            return $url;
+        $url_to_process = trim($tags_or_repo_url);
+        $segment = $tags_path_segment ? trim($tags_path_segment) : '';
+
+        // Case 1: $url_to_process is already a full GitHub API tags URL
+        if (strpos($url_to_process, 'api.github.com/repos/') !== false && strpos($url_to_process, '/tags') !== false) {
+            Debugger::log('normalizeTagUrl: Already a full API tags URL: ' . $url_to_process);
+            return rtrim($url_to_process, '/'); // Ensure no trailing slash for consistency
         }
 
-        // Does it has "api." on it?
-        if (str_contains($url, 'api.')) {
-            return $url;
+        // Case 2: $url_to_process is a browser URL to a GitHub repository's tags page (e.g., github.com/user/repo/tags)
+        if (strpos($url_to_process, 'github.com/') !== false && strpos($url_to_process, '/tags') !== false) {
+            $api_url = preg_replace('~github\.com/([^/]+)/([^/]+)(/tags)?~i', 'api.github.com/repos/$1/$2/tags', $url_to_process);
+            Debugger::log('normalizeTagUrl: Converted browser tags URL to API URL: ' . $api_url);
+            return rtrim($api_url, '/');
         }
 
-        return str_replace('github.com', 'api.github.com/repos', $url);
+        // Case 3: $url_to_process is a base repository URL (e.g., github.com/user/repo) and $segment might be "/tags" or empty
+        if (strpos($url_to_process, 'github.com/') !== false) {
+            // Ensure it's a base repo URL structure, not something else
+            if (preg_match('~github\.com/([^/]+)/([^/]+)/?$~i', rtrim($url_to_process, '/'), $matches)) {
+                $user = $matches[1];
+                $repo = $matches[2];
+                $base_api_url = "https://api.github.com/repos/{$user}/{$repo}";
+
+                // Determine the final tags path
+                $final_tags_path = '/tags'; // Default
+                if (!empty($segment) && $segment !== '/tags') {
+                    // If segment is provided and isn't just "/tags", append it.
+                    // This handles cases where $segment might be a specific ref like "refs/tags" but shouldn't usually be needed if meta->tags is the tags API endpoint itself.
+                    $final_tags_path = strpos($segment, '/') === 0 ? $segment : '/' . $segment;
+                } elseif (empty($segment)) {
+                     // If segment is empty, we assume the base repo URL needs /tags appended for the API.
+                }
+                // if $segment is exactly '/tags', it's already handled by $final_tags_path default
+
+                $full_api_url = $base_api_url . rtrim($final_tags_path, '/');
+                Debugger::log('normalizeTagUrl: Constructed API URL from base repo: ' . $full_api_url);
+                return $full_api_url;
+            }
+        }
+
+        // Case 4: $url_to_process is not a GitHub URL, or it's a non-standard GitHub URL we don't automatically convert.
+        // It might be a direct API endpoint for GitLab, Bitbucket, etc.
+        // Or, $url_to_process is a partial path like "/tags" and $segment contains the base repo URL (less common)
+        if (!empty($segment) && filter_var($segment, FILTER_VALIDATE_URL) && strpos($url_to_process, '/') === 0) {
+             // This is a less common scenario: $url_to_process is a path, $segment is the base URL.
+             // Example: $url_to_process = "/tags", $segment = "https://api.somegit.com/repos/foo/bar"
+             $combined_url = rtrim($segment, '/') . $url_to_process;
+             Debugger::log('normalizeTagUrl: Combined base URL from segment with path: ' . $combined_url);
+             return $combined_url;
+        }
+
+        // Default: Return the original URL if no specific GitHub transformation applies
+        // It might be a pre-formed API URL for another service or already correct.
+        Debugger::log('normalizeTagUrl: No specific GitHub normalization applied, returning: ' . $url_to_process);
+        return rtrim($url_to_process, '/');
     }
 
     /**
@@ -200,79 +251,90 @@ class Helpers
      */
     public function getNewestVersionFromTags($tags)
     {
-        if (empty($tags)) {
+        if (empty($tags) || !is_array($tags)) {
+            Debugger::log('getNewestVersionFromTags: No tags provided or not an array.');
             return null;
         }
 
-        // First, separate tags into groups (v-prefixed, numeric-only, and others)
+        Debugger::log('getNewestVersionFromTags: Processing ' . count($tags) . ' tags.');
+
         $v_tags = [];
         $numeric_tags = [];
         $other_tags = [];
 
         foreach ($tags as $tag) {
-            $name = $tag->name;
+            if (!is_object($tag) || !isset($tag->name) || !is_string($tag->name)) {
+                Debugger::log('getNewestVersionFromTags: Skipping invalid tag object or missing name.');
+                continue;
+            }
+            $tag_name = $tag->name;
+            $tag_type = '';
 
-            // Remove 'v' prefix if it exists for comparison
-            $version = ltrim($name, 'v');
+            // Attempt to normalize the version string by removing 'v' prefix
+            $normalized_version = ltrim($tag_name, 'v');
 
-            // Check if the remaining string contains only numbers and dots
-            if (preg_match('/^[\d.]+$/', $version)) {
-                if (strpos($name, 'v') === 0) {
-                    $v_tags[] = [
-                        'tag' => $tag,
-                        'normalized' => $version,
-                    ];
-                } else {
-                    $numeric_tags[] = [
-                        'tag' => $tag,
-                        'normalized' => $version,
-                    ];
-                }
+            // Further clean up to keep only numbers and dots for robust comparison
+            // but preserve the original $tag_name for download URL construction.
+            $comparable_version = preg_replace('/[^0-9.]/', '', $normalized_version);
+
+
+            if (strpos($tag_name, 'v') === 0 && preg_match('/^[0-9.]+$/', $comparable_version)) {
+                $tag_type = 'v_prefixed';
+            } elseif (preg_match('/^[0-9.]+$/', $comparable_version)) {
+                // This will catch tags like "1.0.0", "1.2", "1"
+                $tag_type = 'numeric';
+            } else {
+                $tag_type = 'other';
+            }
+
+            Debugger::log('Tag: ' . $tag_name . ' | Normalized for compare: ' . $comparable_version . ' | Type: ' . $tag_type);
+
+            if ($tag_type === 'v_prefixed') {
+                $v_tags[] = [
+                    'tag' => $tag, // Store the original tag object
+                    'normalized' => $comparable_version
+                ];
+            } elseif ($tag_type === 'numeric') {
+                $numeric_tags[] = [
+                    'tag' => $tag,
+                    'normalized' => $comparable_version
+                ];
             } else {
                 $other_tags[] = [
                     'tag' => $tag,
-                    'normalized' => $version,
+                    'normalized' => $comparable_version // May not be truly comparable, but store it
                 ];
             }
         }
 
+        Debugger::log('V_TAGS count: ' . count($v_tags));
+        Debugger::log('NUMERIC_TAGS count: ' . count($numeric_tags));
+        Debugger::log('OTHER_TAGS count: ' . count($other_tags));
+
         // Custom version comparison function
         $version_compare = function ($a, $b) {
-            $a_parts = explode('.', $a['normalized']);
-            $b_parts = explode('.', $b['normalized']);
-
-            // Pad arrays to equal length
-            $max_length = max(count($a_parts), count($b_parts));
-            $a_parts = array_pad($a_parts, $max_length, '0');
-            $b_parts = array_pad($b_parts, $max_length, '0');
-
-            // Compare each part numerically
-            for ($i = 0; $i < $max_length; $i++) {
-                $a_num = intval($a_parts[$i]);
-                $b_num = intval($b_parts[$i]);
-
-                if ($a_num !== $b_num) {
-                    return $b_num - $a_num; // Descending order (highest version comes first)
-                }
-            }
-
-            return 0;
+            // Use version_compare for robust comparison of version strings
+            return version_compare($b['normalized'], $a['normalized']); // Descending order
         };
 
         // Prioritize v-prefixed tags, then numeric-only tags
         if (!empty($v_tags)) {
             usort($v_tags, $version_compare);
-            return $v_tags[0]['tag']; // Return the first element for descending sort
+            Debugger::log('Latest v_tag selected: ' . ($v_tags[0]['tag']->name ?? 'Error'));
+            return $v_tags[0]['tag']; // Return the full tag object
         } elseif (!empty($numeric_tags)) {
             usort($numeric_tags, $version_compare);
-            return $numeric_tags[0]['tag']; // Return the first element for descending sort
+            Debugger::log('Latest numeric_tag selected: ' . ($numeric_tags[0]['tag']->name ?? 'Error'));
+            return $numeric_tags[0]['tag'];
         }
 
-        // If only other tags exist, return the first one (no reliable sorting)
+        // If only other tags exist, return the first one (no reliable sorting here, but it's a fallback)
         if (!empty($other_tags)) {
+            Debugger::log('Latest other_tag selected (fallback): ' . ($other_tags[0]['tag']->name ?? 'Error'));
             return $other_tags[0]['tag'];
         }
 
+        Debugger::log('No suitable latest tag found after processing all tags.');
         return null;
     }
 

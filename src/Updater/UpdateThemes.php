@@ -27,14 +27,11 @@ class UpdateThemes
 
         $this->checkforUpdates();
 
-        unrepress_debug('UpdateThemes::__construct - Registering themes_api filter');
         add_filter('themes_api', [$this, 'getInformation'], 20, 3);
         add_filter('site_transient_update_themes', [$this, 'hasUpdate']);
         add_action('upgrader_process_complete', [$this, 'cleanAfterUpdate'], 10, 2);
         add_filter('upgrader_source_selection', [$this, 'maybeFixSourceDir'], 10, 4);
         add_filter('upgrader_pre_download', [$this, 'captureThemeSlug'], 10, 3);
-
-        unrepress_debug('UpdateThemes::__construct - All filters and actions registered');
     }
 
     /**
@@ -62,43 +59,45 @@ class UpdateThemes
         }
 
         $installedVersion = $this->getInstalledVersion($slug);
-        $latestVersion = $this->getRemoteVersion($slug);
+        if (!$installedVersion) {
+            return; // Cannot compare if installed version is unknown
+        }
 
-        if ($remoteData && $installedVersion && $latestVersion) {
-            if (version_compare($installedVersion, $latestVersion, '<')) {
-                $updateInfo = new \stdClass();
+        // Get the latest tag object using the same logic as getInformation
+        $latest_tag_object = $this->getLatestVersionFromMeta($remoteData);
 
-                $theme = wp_get_theme($slug);
+        if (!is_object($latest_tag_object) || !isset($latest_tag_object->name)) {
+            return;
+        }
 
-                // Get data from the remote source
-                $updateInfo->requires = $remoteData->requires ?? '6.5';
-                $updateInfo->tested = $remoteData->tested ?? '6.7';
-                $updateInfo->requires_php = $remoteData->requires_php ?? '8.1';
+        $actual_tag_name_for_url = $latest_tag_object->name;
+        $latest_version_string = ltrim($actual_tag_name_for_url, 'v');
 
-                // Get data from the local theme object
-                $updateInfo->name = $theme->get('Name');
-                $updateInfo->theme_uri = $theme->get('ThemeURI');
-                $updateInfo->description = $theme->get('Description');
-                $updateInfo->author = $theme->get('Author');
-                $updateInfo->author_profile = $theme->get('AuthorURI');
-                $updateInfo->tags = $theme->get('Tags');
-                $updateInfo->textdomain = $theme->get('TextDomain');
-                $updateInfo->template = $theme->get_template();
+        // Get the proper download URL using the consistent method
+        $download_url = $this->getDownloadUrlFromMeta($remoteData, $actual_tag_name_for_url);
 
-                // Remote data for updates
-                $updateInfo->last_updated = $remoteData->last_updated ?? time();
-                $updateInfo->changelog = $remoteData->sections->changelog ?? '';
-                $updateInfo->screenshot = $remoteData->screenshot_url ?? '';
+        if (!$download_url) {
+            return;
+        }
 
-                $updateInfo->version = $latestVersion;
-                $updateInfo->url = get_transient($this->cache_key . 'download-url-' . $slug);
-                $updateInfo->download_url = get_transient($this->cache_key . 'download-url-' . $slug);
-                $updateInfo->download_link = get_transient($this->cache_key . 'download-url-' . $slug);
-                $updateInfo->package = get_transient($this->cache_key . 'download-url-' . $slug);
+        if (version_compare($installedVersion, $latest_version_string, '<')) {
+            $updateInfo = new \stdClass();
+            $theme = wp_get_theme($slug); // Get local theme object for some details
 
-                // Store this information for later use
-                $this->updateInfo[$slug] = $updateInfo;
-            }
+            // Populate with data from $remoteData, local theme, and our determined values
+            $updateInfo->theme = $slug; // WordPress uses 'theme' key for slug in transient
+            $updateInfo->new_version = $latest_version_string;
+            $updateInfo->url = $remoteData->homepage ?? $theme->get('ThemeURI'); // A presentation URL
+            $updateInfo->package = $download_url; // The actual download zip
+
+            // Additional fields WordPress might check or display from the transient
+            // (though themes_api is the primary source for full display)
+            $updateInfo->requires = $remoteData->requires ?? '5.0';
+            $updateInfo->requires_php = $remoteData->requires_php ?? '7.4';
+            $updateInfo->tested = $remoteData->tested ?? (defined('get_bloginfo') ? get_bloginfo('version') : '0.0');
+
+            // Store this information for later use in hasUpdate filter
+            $this->updateInfo[$slug] = $updateInfo;
         }
     }
 
@@ -146,34 +145,24 @@ class UpdateThemes
 
     public function getInformation($response, $action, $args)
     {
-        unrepress_debug('UpdateThemes::getInformation called with action: ' . $action);
-        unrepress_debug('UpdateThemes::getInformation args: ' . print_r($args, true));
+        unrepress_debug('UpdateThemes::getInformation called: action=' . $action . ', slug=' . ($args->slug ?? 'N/A') . ', browse=' . ($args->browse ?? 'N/A') . ', search=' . ($args->search ?? 'N/A'));
 
-        // Handle both theme_information and query_themes actions
         if ($action !== 'theme_information' && $action !== 'query_themes') {
             unrepress_debug('UpdateThemes::getInformation - Action not supported: ' . $action);
             return $response;
         }
 
-        // For query_themes action, handle search, featured, popular, and latest themes
         if ($action === 'query_themes') {
-            unrepress_debug('UpdateThemes::getInformation - Handling query_themes action');
-
             $themesIndex = new \UnrePress\Index\ThemesIndex();
 
-            // Default values for pagination
             $page = isset($args->page) ? intval($args->page) : 1;
             $per_page = isset($args->per_page) ? intval($args->per_page) : 24;
 
-            unrepress_debug('UpdateThemes::getInformation - Pagination: page=' . $page . ', per_page=' . $per_page);
-
-            // Handle search - always return empty since search is not supported
             if (!empty($args->search)) {
                 $search_term = sanitize_text_field($args->search);
-                unrepress_debug('UpdateThemes::getInformation - Search term: ' . $search_term . ' - Attempting search.');
-
+                unrepress_debug('UpdateThemes::getInformation - Search term: ' . $search_term);
                 $themes_data = $themesIndex->searchThemes($search_term, $page, $per_page);
-                unrepress_debug('UpdateThemes::getInformation - Search result from ThemesIndex: ' . print_r($themes_data, true));
+                unrepress_debug('UpdateThemes::getInformation - Search themes_data count: ' . count($themes_data->themes ?? []));
 
                 if ($themes_data && isset($themes_data->themes) && !empty($themes_data->themes)) {
                     $formatted_response = $this->formatThemesResponse($themes_data, $action);
@@ -181,21 +170,16 @@ class UpdateThemes
                     return $formatted_response;
                 } else {
                     unrepress_debug('UpdateThemes::getInformation - Search returned no data or empty themes array from ThemesIndex');
-                    return $this->getEmptyThemesResponse(); // Return an empty response if no themes found
+                    return $this->getEmptyThemesResponse();
                 }
             }
-            // Handle browse categories
             elseif (!empty($args->browse)) {
                 $browse_type = sanitize_text_field($args->browse);
                 unrepress_debug('UpdateThemes::getInformation - Browse type: ' . $browse_type);
 
                 switch ($browse_type) {
                     case 'featured':
-                        unrepress_debug('UpdateThemes::getInformation - Getting featured themes');
-                        $themes_data = $themesIndex->getFeaturedThemes($page, $per_page);
-                        break;
-                    case 'popular':
-                        unrepress_debug('UpdateThemes::getInformation - Popular tab renamed to Featured, returning featured themes');
+                    case 'popular': // Popular tab now shows featured
                         $themes_data = $themesIndex->getFeaturedThemes($page, $per_page);
                         break;
                     case 'new':
@@ -203,46 +187,37 @@ class UpdateThemes
                         unrepress_debug('UpdateThemes::getInformation - Latest/new themes not available, returning empty');
                         return $this->getEmptyThemesResponse();
                     default:
-                        unrepress_debug('UpdateThemes::getInformation - Unknown browse type, defaulting to featured');
                         $themes_data = $themesIndex->getFeaturedThemes($page, $per_page);
                         break;
                 }
 
-                unrepress_debug('UpdateThemes::getInformation - Browse result: ' . print_r($themes_data, true));
+                unrepress_debug('UpdateThemes::getInformation - Browse result count: ' . count($themes_data->themes ?? []));
 
                 if ($themes_data) {
                     $formatted_response = $this->formatThemesResponse($themes_data, $action);
                     unrepress_debug('UpdateThemes::getInformation - Returning browse response with ' . count($formatted_response->themes) . ' themes');
-                    unrepress_debug('UpdateThemes::getInformation - Exact structure of formatted_response: ' . print_r($formatted_response, true));
                     return $formatted_response;
                 } else {
                     unrepress_debug('UpdateThemes::getInformation - Browse returned no data');
                 }
             }
-            // Default to featured themes
             else {
                 unrepress_debug('UpdateThemes::getInformation - No search or browse specified, defaulting to featured');
                 $themes_data = $themesIndex->getFeaturedThemes($page, $per_page);
-
-                unrepress_debug('UpdateThemes::getInformation - Default featured result: ' . print_r($themes_data, true));
+                unrepress_debug('UpdateThemes::getInformation - Default featured result count: ' . count($themes_data->themes ?? []));
 
                 if ($themes_data) {
                     $formatted_response = $this->formatThemesResponse($themes_data, $action);
                     unrepress_debug('UpdateThemes::getInformation - Returning default response with ' . count($formatted_response->themes) . ' themes');
-                    unrepress_debug('UpdateThemes::getInformation - Exact structure of formatted_response (default): ' . print_r($formatted_response, true));
                     return $formatted_response;
                 } else {
                     unrepress_debug('UpdateThemes::getInformation - Default featured returned no data');
                 }
             }
 
-            // Return empty response if no data found
-            unrepress_debug('UpdateThemes::getInformation - Returning empty response');
+            unrepress_debug('UpdateThemes::getInformation - Returning empty response for query_themes');
             return $this->getEmptyThemesResponse();
         }
-
-        // Handle theme_information action (existing functionality)
-        unrepress_debug('UpdateThemes::getInformation - Handling theme_information action');
 
         if (empty($args->slug)) {
             unrepress_debug('UpdateThemes::getInformation - No slug provided for theme_information');
@@ -269,7 +244,7 @@ class UpdateThemes
 
         $download_url = $this->getDownloadUrlFromMeta($theme_data_from_index, $actual_tag_name_for_url);
 
-        unrepress_debug('UpdateThemes::getInformation - Slug: ' . $args->slug . ' | Latest Tag Name: ' . $actual_tag_name_for_url . ' | Display Version: ' . $display_version . ' | Download URL: ' . $download_url);
+        unrepress_debug('UpdateThemes::getInformation - Slug: ' . $args->slug . ' | Latest Tag Name: ' . ($actual_tag_name_for_url ?? 'N/A') . ' | Display Version: ' . $display_version . ' | Download URL: ' . ($download_url ?? 'N/A'));
 
         // If we couldn't determine a download URL, we can't proceed with installation info
         if (empty($download_url)) {
@@ -325,7 +300,6 @@ class UpdateThemes
         $api_response->download_link = $download_url;
         $api_response->package = $download_url;
 
-        unrepress_debug('UpdateThemes::getInformation - Serving theme_information for ' . $args->slug . ': ' . print_r($api_response, true));
         return $api_response;
     }
 
@@ -466,107 +440,7 @@ class UpdateThemes
 
     public function cleanAfterUpdate($upgrader, $options)
     {
-        $this->helpers->cleanAfterUpdate($upgrader, $options, $this->cache_key);
-    }
-
-    /**
-     * Get the latest available version from the remote tags.
-     *
-     * @param string $slug Theme slug
-     *
-     * @return string|false Version string or false on failure
-     */
-    private function getRemoteVersion($slug)
-    {
-        $remoteVersion = get_transient($this->cache_key . 'remote-version-' . $slug);
-
-        if ($remoteVersion === false || !$this->cache_results) {
-            $first_letter = mb_strtolower(mb_substr($slug, 0, 1));
-
-            // Get theme info from UnrePress index
-            $remote = wp_remote_get(UNREPRESS_INDEX . 'main/themes/' . $first_letter . '/' . $slug . '.json', [
-                'timeout' => 10,
-                'headers' => [
-                    'Accept' => 'application/json',
-                ],
-            ]);
-
-            if (is_wp_error($remote)) {
-                return false;
-            }
-
-            if (200 !== wp_remote_retrieve_response_code($remote)) {
-                return false;
-            }
-
-            if (empty(wp_remote_retrieve_body($remote))) {
-                return false;
-            }
-
-            $body = json_decode(wp_remote_retrieve_body($remote));
-
-            if (is_wp_error($body)) {
-                return false;
-            }
-
-            $tagUrl = $body->tags ?? '';
-
-            if (empty($tagUrl)) {
-                return false;
-            }
-
-            // Normalize tag URL
-            $tagUrl = $this->helpers->normalizeTagUrl($tagUrl);
-
-            // Get tag information
-            $remote = wp_remote_get($tagUrl, [
-                'timeout' => 10,
-                'headers' => [
-                    'Accept' => 'application/json',
-                ],
-            ]);
-
-            if (is_wp_error($remote)) {
-                return false;
-            }
-
-            if (200 !== wp_remote_retrieve_response_code($remote)) {
-                return false;
-            }
-
-            if (empty(wp_remote_retrieve_body($remote))) {
-                return false;
-            }
-
-            $tagBody = json_decode(wp_remote_retrieve_body($remote));
-
-            if (!is_array($tagBody) || empty($tagBody)) {
-                return false;
-            }
-
-            // Get the newest version from tags
-            $latestTag = $this->helpers->getNewestVersionFromTags($tagBody);
-
-            if (!$latestTag) {
-                return false;
-            }
-
-            $remoteVersion = $latestTag->name;
-            $remoteZip = $latestTag->zipball_url;
-
-            // Store version and download information
-            if ($remoteVersion) {
-                // Clean version number (remove 'v' prefix if present)
-                $remoteVersion = ltrim($remoteVersion, 'v');
-
-                set_transient($this->cache_key . 'download-url-' . $slug, $remoteZip, DAY_IN_SECONDS);
-                set_transient($this->cache_key . 'remote-version-' . $slug, $remoteVersion, DAY_IN_SECONDS);
-            } else {
-                return false;
-            }
-        }
-
-        return $remoteVersion;
+        $this->helpers->cleanAfterUpdate($upgrader, $options, $this->cache_key, 'theme');
     }
 
     private $current_theme_slug = null;
@@ -680,7 +554,7 @@ class UpdateThemes
             return false;
         }
 
-        unrepress_debug('getLatestVersionFromMeta: Determined latest tag object: ' . print_r($latest_tag, true) . ' for theme: ' . ($theme_data->slug ?? 'unknown'));
+        unrepress_debug('getLatestVersionFromMeta: Determined latest tag: ' . ($latest_tag->name ?? 'N/A') . ' for theme: ' . ($theme_data->slug ?? 'unknown'));
         return $latest_tag; // Return the whole tag object
     }
 

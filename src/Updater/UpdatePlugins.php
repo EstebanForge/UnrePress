@@ -67,39 +67,86 @@ class UpdatePlugins
     {
         $remoteData = $this->requestRemoteInfo($slug);
 
-        // If we can't get plugin info, skip this plugin
         if (!$remoteData) {
+            // Debugger::log('checkForPluginUpdate: No remote data for slug: ' . $slug);
             return;
         }
 
         $installedVersion = $this->getInstalledVersion($slug);
-        $latestVersion = $this->getRemoteVersion($slug);
+        if (!$installedVersion) {
+            // Debugger::log('checkForPluginUpdate: Could not get installed version for slug: ' . $slug);
+            return;
+        }
 
-        if ($remoteData && $installedVersion && $latestVersion) {
-            if (version_compare($installedVersion, $latestVersion, '<')) {
-                $updateInfo = new \stdClass();
+        $latest_tag_object = $this->getLatestVersion($remoteData);
 
-                $updateInfo->requires = $remoteData->requires ?? '6.5';
-                $updateInfo->tested = $remoteData->tested ?? '6.7';
-                $updateInfo->requires_php = $remoteData->requires_php ?? '8.1';
-                $updateInfo->name = $remoteData->name;
-                $updateInfo->plugin_uri = $remoteData->homepage;
-                $updateInfo->description = $remoteData->sections->description;
-                $updateInfo->author = $remoteData->author;
-                $updateInfo->author_profile = $remoteData->author_url;
-                $updateInfo->banner = $remoteData->banners;
-                $updateInfo->icon = $remoteData->icons;
+        if (!is_object($latest_tag_object) || !isset($latest_tag_object->name)) {
+            // Debugger::log('checkForPluginUpdate: Could not determine latest tag object or name for slug: ' . $slug);
+            return;
+        }
 
-                $updateInfo->last_updated = $remoteData->last_updated ?? time();
-                $updateInfo->changelog = $remoteData->sections->changelog;
+        $actual_tag_name_for_url = $latest_tag_object->name;
+        $latest_version_string = ltrim($actual_tag_name_for_url, 'v');
 
-                $updateInfo->version = $latestVersion;
-                $updateInfo->download_link = get_transient($this->cache_key . 'download-url-' . $slug);
-                $updateInfo->package = get_transient($this->cache_key . 'download-url-' . $slug);
+        $download_url = $this->getDownloadUrl($remoteData, $actual_tag_name_for_url);
 
-                // Store this information for later use
-                $this->updateInfo[$slug] = $updateInfo;
+        if (!$download_url) {
+            // Debugger::log('checkForPluginUpdate: Could not determine download URL for slug: ' . $slug . ' version: ' . $latest_version_string);
+            return;
+        }
+
+        if (version_compare($installedVersion, $latest_version_string, '<')) {
+            // Debugger::log('checkForPluginUpdate: Update available for ' . $slug . '. Installed: ' . $installedVersion . ', Latest: ' . $latest_version_string);
+            $updateInfo = new \stdClass();
+
+            // Populate with data from $remoteData and our determined values
+            $updateInfo->slug = $slug; // Ensure slug is set for the update array key
+            $updateInfo->name = $remoteData->name ?? $slug;
+            $updateInfo->version = $latest_version_string; // This is the new version
+            $updateInfo->package = $download_url; // This is the correct download URL
+            $updateInfo->download_link = $download_url; // Redundant but often set
+
+            $updateInfo->requires = $remoteData->requires ?? '5.0'; // Default or from remote
+            $updateInfo->tested = $remoteData->tested ?? (defined('get_bloginfo') ? get_bloginfo('version') : '0.0');
+            $updateInfo->requires_php = $remoteData->requires_php ?? '7.4';
+
+            $updateInfo->plugin_uri = $remoteData->homepage ?? '';
+
+            if (isset($remoteData->sections) && is_object($remoteData->sections)) {
+                $updateInfo->description = $remoteData->sections->description ?? '';
+                $updateInfo->changelog = $remoteData->sections->changelog ?? '';
+            } else {
+                $updateInfo->description = $remoteData->description ?? ''; // Fallback for flat description
+                $updateInfo->changelog = $remoteData->changelog ?? ''; // Fallback for flat changelog
             }
+
+            $updateInfo->author = $remoteData->author ?? '';
+            $updateInfo->author_profile = $remoteData->author_url ?? '';
+
+            // Banners and Icons with fallbacks
+            $default_banner_low = UNREPRESS_PLUGIN_URL . 'assets/images/banner-772x250.webp';
+            $default_banner_high = UNREPRESS_PLUGIN_URL . 'assets/images/banner-1544x500.webp';
+            $default_icon = UNREPRESS_PLUGIN_URL . 'assets/images/icon-256.webp';
+
+            $updateInfo->banners = new \stdClass();
+            $updateInfo->banners->low = (!empty($remoteData->banners->low) && is_string($remoteData->banners->low)) ? $remoteData->banners->low : $default_banner_low;
+            $updateInfo->banners->high = (!empty($remoteData->banners->high) && is_string($remoteData->banners->high)) ? $remoteData->banners->high : $default_banner_high;
+
+            $updateInfo->icons = new \stdClass(); // WordPress expects icons as an object in some contexts, array in others. API returns array.
+                                                // For site_transient_update_plugins, it's less critical but let's be consistent with $api_response in getInformation
+            $updateInfo->icons->default = (!empty($remoteData->icons->default) && is_string($remoteData->icons->default)) ? $remoteData->icons->default : $default_icon;
+            $updateInfo->icons->low = (!empty($remoteData->icons->low) && is_string($remoteData->icons->low)) ? $remoteData->icons->low : $default_icon;
+            $updateInfo->icons->high = (!empty($remoteData->icons->high) && is_string($remoteData->icons->high)) ? $remoteData->icons->high : $default_icon;
+            if (!empty($remoteData->icons->svg) && is_string($remoteData->icons->svg)) {
+                 $updateInfo->icons->svg = $remoteData->icons->svg;
+            }
+
+
+            $updateInfo->last_updated = !empty($remoteData->last_updated) ? date('Y-m-d H:i:s', is_numeric($remoteData->last_updated) ? $remoteData->last_updated : strtotime($remoteData->last_updated)) : date('Y-m-d H:i:s');
+
+            // Store this information for later use in hasUpdate filter
+            $this->updateInfo[$slug] = $updateInfo;
+            // Debugger::log('checkForPluginUpdate: Stored update info for ' . $slug . ': ' . print_r($updateInfo, true));
         }
     }
 
@@ -128,50 +175,40 @@ class UpdatePlugins
         $slug = strtolower($slug);
         $url = UNREPRESS_INDEX . 'main/plugins/' . substr($slug, 0, 1) . "/{$slug}.json";
 
-        //unrepress_debug('Requesting plugin info from URL: ' . $url);
+        Debugger::log('Requesting plugin info from URL: ' . $url);
 
         $response = wp_remote_get($url);
 
         if (is_wp_error($response)) {
-            //unrepress_debug('Error getting remote info for ' . $slug . ': ' . $response->get_error_message());
+            Debugger::log('Error getting remote info for ' . $slug . ': ' . $response->get_error_message());
             return false;
         }
 
         $responseCode = wp_remote_retrieve_response_code($response);
-        //unrepress_debug('Response code for ' . $slug . ': ' . $responseCode);
 
         if ($responseCode !== 200) {
-            //unrepress_debug('Invalid response code for ' . $slug);
+            Debugger::log('Invalid response code for ' . $slug . ': ' . $responseCode); // Keep response code here
             return false;
         }
 
         $body = wp_remote_retrieve_body($response);
-        //unrepress_debug('Raw response body for ' . $slug . ':');
-        //unrepress_debug($body);
 
         // Remove any trailing commas before the closing brace or bracket
         $body = preg_replace('/,(\s*[\]}])/m', '$1', $body);
 
         $data = json_decode($body);
         if (json_last_error() !== JSON_ERROR_NONE) {
-            //unrepress_debug('JSON decode error for ' . $slug . ': ' . json_last_error_msg());
+            Debugger::log('JSON decode error for ' . $slug . ': ' . json_last_error_msg());
             return false;
         }
-
-        //unrepress_debug('Decoded plugin data for ' . $slug . ':');
-        //unrepress_debug(print_r($data, true));
 
         return $data;
     }
 
     public function getInformation($response, $action, $args)
     {
-        //unrepress_debug('Plugin information request - Action: ' . $action);
-        if (!empty($args->slug)) {
-            //unrepress_debug('Plugin information request for slug: ' . $args->slug);
-        }
+        Debugger::log('Plugin information request - Action: ' . $action . (!empty($args->slug) ? ', Slug: ' . $args->slug : ''));
 
-        // Handle both plugin_information and query_plugins actions
         if ($action !== 'plugin_information' && $action !== 'query_plugins') {
             return $response;
         }
@@ -189,7 +226,7 @@ class UpdatePlugins
             if (!empty($args->search)) {
                 $term = sanitize_text_field($args->search);
                 $plugins_data = $this->searchPlugins($term);
-                Debugger::log('Search results for ' . $term . ': ' . print_r($plugins_data, true));
+                Debugger::log('Search results for ' . $term . ': found ' . count($plugins_data ?? []) . ' items');
             } else {
                 // Otherwise show featured plugins
                 $transient_key = UNREPRESS_PREFIX . 'discovery_featured_plugins';
@@ -341,15 +378,12 @@ class UpdatePlugins
 
         $api_response->external = true; // Mark as externally hosted
 
-        Debugger::log('getInformation (Plugin): Serving plugin_information for ' . $args->slug . ': ' . print_r($api_response, true));
+        // Debugger::log('getInformation (Plugin): Serving plugin_information for ' . $args->slug . ': ' . print_r($api_response, true));
         return $api_response;
     }
 
     protected function getLatestVersion($plugin_data)
     {
-        //unrepress_debug('Getting latest version for ' . json_encode($plugin_data));
-        //unrepress_debug('Data type received: ' . gettype($plugin_data));
-
         if (!is_object($plugin_data) || !isset($plugin_data->slug)) {
             Debugger::log('getLatestVersion (Plugin): Invalid plugin_data object or slug missing.');
             return false;
@@ -360,7 +394,7 @@ class UpdatePlugins
         $cached_tag_object = get_transient($transient_key);
 
         if ($cached_tag_object !== false) {
-            Debugger::log('getLatestVersion (Plugin): Using cached tag object for ' . $plugin_data->slug . ': ' . print_r($cached_tag_object, true));
+            Debugger::log('getLatestVersion (Plugin): Using cached tag object for ' . $plugin_data->slug);
             return $cached_tag_object;
         }
 
@@ -370,7 +404,7 @@ class UpdatePlugins
             empty($plugin_data->unrepress_meta->tags) || !is_string($plugin_data->unrepress_meta->tags) || // Must be a string URL
             !isset($plugin_data->unrepress_meta->update_from) // update_from is checked by calling logic normally
         ) {
-            Debugger::log('getLatestVersion (Plugin): unrepress_meta structure invalid, or tags URL missing for plugin: ' . $plugin_data->slug);
+            Debugger::log('getLatestVersion (Plugin): unrepress_meta structure invalid, or tags URL missing for plugin: ' . ($plugin_data->slug ?? 'unknown'));
             // Fallback if only version is present in main plugin_data
             if (!empty($plugin_data->version) && is_string($plugin_data->version)) {
                 $mock_tag = new \stdClass();
@@ -412,7 +446,7 @@ class UpdatePlugins
             return false;
         }
 
-        Debugger::log('getLatestVersion (Plugin): Determined latest tag object: ' . print_r($latestTagObject, true) . ' for plugin: ' . $plugin_data->slug);
+        Debugger::log('getLatestVersion (Plugin): Determined latest tag: ' . ($latestTagObject->name ?? 'N/A') . ' for plugin: ' . $plugin_data->slug);
         set_transient($transient_key, $latestTagObject, 3 * HOUR_IN_SECONDS); // Cache the full tag object
         return $latestTagObject;
     }
@@ -525,103 +559,6 @@ class UpdatePlugins
     }
 
     /**
-     * Get the latest available version from the remote tags.
-     *
-     * @param string $slug Plugin slug
-     *
-     * @return string|false Version string or false on failure
-     */
-    private function getRemoteVersion($slug)
-    {
-        $remoteVersion = get_transient($this->cache_key . 'remote-version-' . $slug);
-
-        if ($remoteVersion === false || !$this->cache_results) {
-            $first_letter = mb_strtolower(mb_substr($slug, 0, 1));
-
-            // Get plugin info from UnrePress index
-            $remote = wp_remote_get(UNREPRESS_INDEX . 'main/plugins/' . $first_letter . '/' . $slug . '.json', [
-                'timeout' => 10,
-                'headers' => [
-                    'Accept' => 'application/json',
-                ],
-            ]);
-
-            if (is_wp_error($remote)) {
-                return false;
-            }
-
-            if (200 !== wp_remote_retrieve_response_code($remote)) {
-                return false;
-            }
-
-            $body = wp_remote_retrieve_body($remote);
-            if (empty($body)) {
-                return false;
-            }
-
-            $pluginInfo = json_decode($body);
-            if (json_last_error() !== JSON_ERROR_NONE) {
-                return false;
-            }
-
-            // Get tag information from GitHub
-            $tagUrl = $pluginInfo->unrepress_meta->tags ?? '';
-            if (empty($tagUrl)) {
-                return false;
-            }
-
-            $remote = wp_remote_get($tagUrl, [
-                'timeout' => 10,
-                'headers' => [
-                    'Accept' => 'application/json',
-                ],
-            ]);
-
-            if (is_wp_error($remote)) {
-                return false;
-            }
-
-            if (200 !== wp_remote_retrieve_response_code($remote)) {
-                return false;
-            }
-
-            $tagBody = wp_remote_retrieve_body($remote);
-            if (empty($tagBody)) {
-                return false;
-            }
-
-            $tags = json_decode($tagBody);
-            if (json_last_error() !== JSON_ERROR_NONE) {
-                return false;
-            }
-
-            if (!is_array($tags) || empty($tags)) {
-                return false;
-            }
-
-            // Get the newest version from tags
-            $latestTag = $this->helpers->getNewestVersionFromTags($tags);
-            if (!$latestTag) {
-                return false;
-            }
-
-            $remoteVersion = $latestTag->name;
-            if (strpos($remoteVersion, 'v') === 0) {
-                $remoteVersion = substr($remoteVersion, 1);
-            }
-
-            // Store the download URL
-            $downloadUrl = $latestTag->zipball_url;
-            set_transient($this->cache_key . 'download-url-' . $slug, $downloadUrl, DAY_IN_SECONDS);
-
-            // Store the version
-            set_transient($this->cache_key . 'remote-version-' . $slug, $remoteVersion, DAY_IN_SECONDS);
-        }
-
-        return $remoteVersion;
-    }
-
-    /**
      * Fix the source directory name during plugin updates
      * This prevents GitHub's repository naming format from being used.
      *
@@ -681,17 +618,14 @@ class UpdatePlugins
             return [];
         }
 
-        //unrepress_debug('Getting plugin data for ' . $plugin_slug);
+        Debugger::log('Getting plugin data for ' . $plugin_slug);
 
         $plugin_data = $this->requestRemoteInfo($plugin_slug);
 
         if (!$plugin_data) {
-            //unrepress_debug('Invalid plugin data for ' . $plugin_slug);
+            Debugger::log('Invalid plugin data for ' . $plugin_slug . ' in getPluginData'); // Added context
             return [];
         }
-
-        //unrepress_debug('Raw plugin data for ' . $plugin_slug . ':');
-        //unrepress_debug($plugin_data);
 
         // Get the latest version from tags (this returns the full tag object or false)
         $latest_tag_object = $this->getLatestVersion($plugin_data);
@@ -713,9 +647,9 @@ class UpdatePlugins
         $wp_version = get_bloginfo('version');
         $php_version = phpversion();
 
-        //unrepress_debug('Remote version for ' . $plugin_slug . ' is ' . $display_version);
-        //unrepress_debug('Server WordPress version is ' . $wp_version);
-        //unrepress_debug('Server PHP version is ' . $php_version);
+        Debugger::log('Remote version for ' . $plugin_slug . ' is ' . $display_version);
+        Debugger::log('Server WordPress version is ' . $wp_version);
+        Debugger::log('Server PHP version is ' . $php_version);
 
         // Prepare the plugin data array with all required fields
         $processed_data = [
@@ -764,8 +698,8 @@ class UpdatePlugins
             'external' => true
         ];
 
-        //unrepress_debug('Processed plugin data for ' . $plugin_slug . ':');
-        //unrepress_debug($processed_data);
+        Debugger::log('Processed plugin data for ' . $plugin_slug . ':');
+        Debugger::log($processed_data);
 
         return $processed_data;
     }
@@ -778,30 +712,30 @@ class UpdatePlugins
      */
     private function searchPlugins($term)
     {
-        //unrepress_debug('Searching for plugins with term: ' . $term);
+        Debugger::log('Searching for plugins with term: ' . $term);
 
         // Get plugins index
         $transient_key = UNREPRESS_PREFIX . 'plugins_index';
         $plugins_index = get_transient($transient_key);
 
         if (false === $plugins_index) {
-            //unrepress_debug('No cached plugins index found, fetching from remote');
+            Debugger::log('No cached plugins index found, fetching from remote for search term: ' . $term);
 
             // Get main index first to get the plugins index URL
             $main_index = $this->unrepress->index();
 
             if (!$main_index || !isset($main_index['plugins']['index'])) {
-                //unrepress_debug('Main index is empty or missing plugins index URL');
+                Debugger::log('Main index is empty or missing plugins index URL for search term: ' . $term);
                 return [];
             }
 
             $index_url = $main_index['plugins']['index'];
-            //unrepress_debug('Fetching plugins index from: ' . $index_url);
+            Debugger::log('Fetching plugins index from: ' . $index_url . ' for search term: ' . $term);
 
             $response = wp_remote_get($index_url);
 
             if (is_wp_error($response)) {
-                //unrepress_debug('Failed to fetch plugins index: ' . $response->get_error_message());
+                Debugger::log('Failed to fetch plugins index for search: ' . $response->get_error_message());
                 return [];
             }
 
@@ -809,23 +743,18 @@ class UpdatePlugins
             $response_body = wp_remote_retrieve_body($response);
 
             if ($response_code !== 200) {
-                //unrepress_debug('Invalid response code from plugins index: ' . $response_code);
+                Debugger::log('Invalid response code from plugins index for search: ' . $response_code);
                 return [];
             }
 
             $plugins_index = json_decode($response_body, true);
             if (!$plugins_index || !isset($plugins_index['plugins'])) {
-                //unrepress_debug('Invalid plugins index format');
+                Debugger::log('Invalid plugins index format for search');
                 return [];
             }
 
             set_transient($transient_key, $plugins_index, 3 * HOUR_IN_SECONDS);
-            //unrepress_debug('Cached plugins index for 3 hours');
-        } else {
-            //unrepress_debug('Using cached plugins index');
         }
-
-        //unrepress_debug('Searching through ' . count($plugins_index['plugins']) . ' plugins');
 
         // Convert search term to lowercase for case-insensitive search
         $term = strtolower($term);
@@ -840,12 +769,12 @@ class UpdatePlugins
             );
 
             if (strpos($searchable_text, $term) !== false) {
-                //unrepress_debug('Found matching plugin: ' . $plugin['name']);
+                Debugger::log('Found matching plugin: ' . $plugin['name']);
                 $matching_plugins[] = $plugin['slug'];
             }
         }
 
-        //unrepress_debug('Found ' . count($matching_plugins) . ' matching plugins');
+        Debugger::log('Found ' . count($matching_plugins) . ' matching plugins');
 
         if (empty($matching_plugins)) {
             return [];
@@ -855,7 +784,7 @@ class UpdatePlugins
         $plugins_data = array_map([$this, 'getPluginData'], $matching_plugins);
         $filtered_plugins = array_filter($plugins_data);
 
-        //unrepress_debug('After processing: ' . count($filtered_plugins) . ' valid plugins');
+        Debugger::log('Search for ' . $term . ' processed: ' . count($matching_plugins) . ' initial matches, ' . count($filtered_plugins) . ' valid plugins returned.');
 
         return $filtered_plugins;
     }
