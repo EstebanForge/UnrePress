@@ -170,8 +170,19 @@ class UpdateThemes
             // Handle search - always return empty since search is not supported
             if (!empty($args->search)) {
                 $search_term = sanitize_text_field($args->search);
-                unrepress_debug('UpdateThemes::getInformation - Search term: ' . $search_term . ' - Search not supported, returning empty');
-                return $this->getEmptyThemesResponse();
+                unrepress_debug('UpdateThemes::getInformation - Search term: ' . $search_term . ' - Attempting search.');
+
+                $themes_data = $themesIndex->searchThemes($search_term, $page, $per_page);
+                unrepress_debug('UpdateThemes::getInformation - Search result from ThemesIndex: ' . print_r($themes_data, true));
+
+                if ($themes_data && isset($themes_data->themes) && !empty($themes_data->themes)) {
+                    $formatted_response = $this->formatThemesResponse($themes_data, $action);
+                    unrepress_debug('UpdateThemes::getInformation - Returning search response with ' . count($formatted_response->themes) . ' themes');
+                    return $formatted_response;
+                } else {
+                    unrepress_debug('UpdateThemes::getInformation - Search returned no data or empty themes array from ThemesIndex');
+                    return $this->getEmptyThemesResponse(); // Return an empty response if no themes found
+                }
             }
             // Handle browse categories
             elseif (!empty($args->browse)) {

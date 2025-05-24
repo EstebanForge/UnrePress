@@ -89,8 +89,84 @@ class ThemesIndex extends Index
      */
     public function searchThemes($search_term, $page = 1, $per_page = 24)
     {
-        unrepress_debug('ThemesIndex::searchThemes called - Search not supported, returning false');
-        return false;
+        unrepress_debug('ThemesIndex::searchThemes called with term: ' . $search_term . ', page: ' . $page . ', per_page: ' . $per_page);
+
+        $index_data = $this->getThemesIndex(); // Returns the full JSON object, e.g., {"schema_version": ..., "themes": [...]}
+
+        // Prepare a default empty response object
+        $empty_response = new \stdClass();
+        $empty_response->page = (int) $page;
+        $empty_response->pages = 0;
+        $empty_response->total = 0;
+        $empty_response->themes = [];
+
+        // Check if index_data is valid and contains the 'themes' array
+        if (empty($index_data) || !is_array($index_data) || !isset($index_data['themes']) || !is_array($index_data['themes'])) {
+            unrepress_debug('ThemesIndex::searchThemes - Invalid or empty themes index data, or "themes" array missing.');
+            return $empty_response;
+        }
+
+        $all_theme_items = $index_data['themes']; // Access the actual array of theme items
+        $search_term_lower = strtolower(sanitize_text_field($search_term));
+        $found_themes = [];
+
+        foreach ($all_theme_items as $theme_item) {
+            // json_decode(..., true) in getThemesIndex (assumed) makes $theme_item an associative array
+            if (!is_array($theme_item)) {
+                unrepress_debug('ThemesIndex::searchThemes - Skipping invalid theme entry: ' . print_r($theme_item, true));
+                continue;
+            }
+
+            $name = strtolower($theme_item['name'] ?? '');
+            $slug = strtolower($theme_item['slug'] ?? '');
+
+            // Description is a string as per your example
+            $description = strtolower($theme_item['description'] ?? '');
+
+            // Tags is an array of strings as per your example
+            $tags_raw = $theme_item['tags'] ?? [];
+            $tags_string = '';
+            if (is_array($tags_raw)) {
+                $tags_string = strtolower(implode(' ', $tags_raw));
+            }
+
+            // Search in name, slug, description, and tags
+            if (str_contains($name, $search_term_lower) ||
+                str_contains($slug, $search_term_lower) ||
+                str_contains($description, $search_term_lower) ||
+                str_contains($tags_string, $search_term_lower)) {
+                // Ensure the theme item itself is added, which should be an array
+                $found_themes[] = $theme_item;
+            }
+        }
+
+        unrepress_debug('ThemesIndex::searchThemes - Found ' . count($found_themes) . ' themes matching "' . $search_term . '" before pagination.');
+
+        // Apply pagination
+        $total_found = count($found_themes);
+
+        // Ensure $per_page is a positive integer for pagination calculation
+        $per_page_safe = ($per_page > 0) ? (int) $per_page : 24; // Default to 24 if invalid
+
+        $num_pages = ceil($total_found / $per_page_safe);
+        if ($total_found === 0) {
+            $num_pages = 0; // No pages if no themes found
+        }
+
+
+        $start_index = ((int) $page - 1) * $per_page_safe;
+        $paged_themes = array_slice($found_themes, $start_index, $per_page_safe);
+
+        // Build response object
+        $response_obj = new \stdClass();
+        $response_obj->page = (int) $page;
+        $response_obj->pages = (int) $num_pages;
+        $response_obj->total = $total_found;
+        $response_obj->themes = $paged_themes; // This is an array of theme arrays
+
+        unrepress_debug('ThemesIndex::searchThemes - Paginated response: ' . print_r($response_obj, true));
+
+        return $response_obj;
     }
 
     /**
