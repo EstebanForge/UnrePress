@@ -59,7 +59,7 @@ class SecurityMiddleware
     public function sendSecurityError(string $message = 'Security check failed'): void
     {
         wp_send_json_error([
-            'message' => __($message, 'unrepress'),
+            'message' => $message,
             'code' => 'security_check_failed'
         ]);
     }

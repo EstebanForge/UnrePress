@@ -31,17 +31,18 @@ class UpdaterPages
      */
     public function initCoreAjaxUpdate(): void
     {
-        // Check nonce
-        check_ajax_referer('unrepress_update_core');
-
-        // Check user capabilities
-        if (!current_user_can('manage_options')) {
-            wp_send_json_error(['message' => __('Insufficient permissions', 'unrepress')]);
-
+        // Use SecurityMiddleware for CSRF and capability validation
+        if (!$this->security->validateAjaxRequest('unrepress_update_core', 'manage_options')) {
             return;
         }
 
-        $type = isset($_POST['type']) ? sanitize_text_field($_POST['type']) : 'core';
+        $type = isset($_POST['type']) ? $this->security->sanitizeInput($_POST['type'], 'text') : 'core';
+
+        // Validate update type
+        if (!$this->security->validateUpdateType($type)) {
+            $this->security->sendSecurityError('Invalid update type specified.');
+            return;
+        }
 
         // Create updater instance
         $updateCore = new UpdateCore();
@@ -66,12 +67,8 @@ class UpdaterPages
      */
     public function getUpdateLog(): void
     {
-        // Check nonce
-        check_ajax_referer('unrepress_get_update_log');
-
-        // Check user capabilities
-        if (!current_user_can('manage_options')) {
-            wp_send_json_error(['message' => __('Insufficient permissions', 'unrepress')]);
+        // Use SecurityMiddleware for CSRF and capability validation
+        if (!$this->security->validateAjaxRequest('unrepress_get_update_log', 'manage_options')) {
             return;
         }
 
@@ -209,8 +206,8 @@ class UpdaterPages
     {
         // Updating
         if (isset($_GET['do_update']) && $_GET['do_update'] == 'core') {
-            // Validate nonce
-            if (!check_admin_referer('update-core')) {
+            // Use SecurityMiddleware for nonce validation
+            if (!$this->security->verifyAdminNonce('update-core', false)) {
                 wp_die(__('You are not allowed to perform this action.', 'unrepress'));
             }
 
@@ -221,15 +218,16 @@ class UpdaterPages
 
         // Force-check
         if (isset($_GET['force-check']) && $_GET['force-check'] == 1) {
-            // Force an update check when requested.
-            $force_check = !empty($_GET['force-check']);
-            wp_version_check([], $force_check);
+            // Validate force-check parameter
+            $force_check = $this->security->sanitizeInput($_GET['force-check'], 'text');
+            if ($force_check === '1') {
+                wp_version_check([], true);
+                wp_update_plugins();
+                wp_update_themes();
 
-            wp_update_plugins();
-            wp_update_themes();
-
-            // Clear transients
-            $this->helpers->clearUpdateTransients();
+                // Clear transients
+                $this->helpers->clearUpdateTransients();
+            }
         }
 
         $this->updaterIndex();
