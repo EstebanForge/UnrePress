@@ -1,10 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/9.5/phpunit.xsd"
-         bootstrap="tests/bootstrap-simple.php"
+         bootstrap="tests/bootstrap.php"
+         cacheResultFile=".phpunit.cache/test-results"
          executionOrder="depends,defects"
-         failOnRisky="false"
-         failOnWarning="false"
+         beStrictAboutCoversAnnotation="true"
+         beStrictAboutOutputDuringTests="true"
+         beStrictAboutTodoAnnotatedTests="true"
+         failOnRisky="true"
+         failOnWarning="true"
+         verbose="true"
          colors="true">
     <testsuites>
         <testsuite name="default">
@@ -12,7 +17,8 @@
         </testsuite>
     </testsuites>
 
-    <source>
+    <coverage cacheDirectory=".phpunit.cache/code-coverage"
+              processUncoveredFiles="true">
         <include>
             <directory suffix=".php">src</directory>
         </include>
@@ -20,5 +26,10 @@
             <directory>vendor</directory>
             <directory>vendor-dist</directory>
         </exclude>
-    </source>
+    </coverage>
+
+    <php>
+        <env name="WP_TESTS_DIR" value="/tmp/wordpress-tests-lib"/>
+        <env name="WP_CORE_DIR" value="/tmp/wordpress"/>
+    </php>
 </phpunit>

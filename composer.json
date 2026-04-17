@@ -14,9 +14,15 @@
         "php": ">=8.1"
     },
     "require-dev": {
-        "friendsofphp/php-cs-fixer": "^3.64"
+        "friendsofphp/php-cs-fixer": "^3.64",
+        "phpunit/phpunit": "^12.0",
+        "brain/monkey": "^2.7"
     },
     "scripts": {
+        "test": "phpunit",
+        "test:unit": "phpunit tests/Unit",
+        "test:integration": "phpunit tests/Integration",
+        "test:coverage": "phpunit --coverage-html coverage",
         "version-bump": [
             "php .ci/version-bump.php"
         ],
@@ -44,6 +50,11 @@
         "classmap": [
             "src/"
         ]
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "UnrePress\\Tests\\": "tests/"
+        }
     },
     "config": {
         "allow-plugins": {
