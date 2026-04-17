@@ -37,7 +37,7 @@ class EgoBlocker
         }
 
         $check = parse_url($uri);
-        if (! $check) {
+        if (! $check || ! isset($check['host'])) {
             return false;
         }
 

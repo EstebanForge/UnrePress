@@ -3,6 +3,7 @@
 namespace UnrePress\Admin;
 
 use UnrePress\Helpers;
+use UnrePress\Security\SecurityMiddleware;
 use UnrePress\Updater\UpdateCore;
 
 // No direct access
@@ -11,6 +12,7 @@ defined('ABSPATH') or die();
 class UpdaterPages
 {
     private $helpers;
+    private $security;
 
     public function __construct()
     {
@@ -19,6 +21,7 @@ class UpdaterPages
         add_action('wp_ajax_unrepress_update_core', [$this, 'initCoreAjaxUpdate']);
         add_filter('wp_get_update_data', [$this, 'add_updates_count']);
         $this->helpers = new Helpers();
+        $this->security = new SecurityMiddleware();
     }
 
     /**
