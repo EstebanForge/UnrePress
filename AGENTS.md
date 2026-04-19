@@ -36,13 +36,32 @@ UnrePress is a WordPress plugin that replaces WordPress.org updates with git pro
   - `PluginsIndex` - Plugin index operations
   - `ThemesIndex` - Theme index operations
 
-- **`Updater/`**: Update orchestration
-  - `UpdateCore` - WordPress core updates from GitHub
-  - `UpdatePlugins` - Plugin updates from git providers
-  - `UpdateThemes` - Theme updates from git providers
+- **`Updater/`**: Update orchestration with security integration
+  - `UpdateCore` - WordPress core updates from GitHub with security validation
+  - `UpdatePlugins` - Plugin updates from git providers with security validation
+  - `UpdateThemes` - Theme updates from git providers with security validation
   - `UpdateLock` - Update locking mechanism
 
-- **`UpdaterProvider/`**: Git provider implementations (GitHub, BitBucket, GitLab)
+- **`UpdaterProvider/`**: Modern Git provider implementations
+  - `GitHub` - GitHub provider using modern API client (knplabs/github-api)
+  - `GitLab` - GitLab provider using modern API client (m4tthumphrey/php-gitlab-api)
+  - `BitBucket` - Bitbucket provider using modern API client (bitbucket/client)
+  - `GitProviderWrapper` - Unified wrapper for all git providers with auto-detection
+
+- **`Security/`**: Security modules for input validation and capability checking
+  - `SecurityMiddleware` - Main security orchestration with CSRF/capability checks
+  - `CapabilityChecker` - WordPress capability verification (update_core, update_plugins, etc.)
+  - `InputValidator` - Input sanitization (slugs, URLs, versions, JSON, file extensions)
+  - `XssProtection` - XSS attack prevention
+  - `SqlInjectionProtection` - SQL injection prevention
+  - `PathTraversalProtection` - Directory traversal prevention
+
+- **`GitProviders/`**: Git provider API clients (modern replacements for manual wp_remote_* calls)
+  - `GitHubProvider` - GitHub API client implementation
+  - `GitLabProvider` - GitLab API client implementation
+  - `BitbucketProvider` - Bitbucket API client implementation
+  - `GitProviderFactory` - Factory pattern for provider instantiation
+  - `ProviderInterface` - Common interface for all git providers
 
 ## Development Commands
 
@@ -57,11 +76,14 @@ composer cs:fix
 
 ### Testing
 ```bash
-# Run all PHPUnit tests
-phpunit
+# Run all Pest tests (modern replacement for PHPUnit)
+vendor/bin/pest
 
 # Run specific test suite
-phpunit --testsuite <name>
+vendor/bin/pest --filter=<TestName>
+
+# Run tests in specific directory
+vendor/bin/pest tests/Unit/UpdaterProvider/
 ```
 
 ### Version Bumping
@@ -97,7 +119,32 @@ Define in `wp-config.php` or via environment to customize behavior:
 - **PHP**: 8.1+, strict types enabled, PSR-12 coding style
 - **Autoloading**: PSR-4 (`UnrePress\` namespace → `src/` directory)
 - **Formatting**: PHP CS Fixer (see `.php-cs-fixer.php`)
-- **Testing**: PHPUnit (see `phpunit.xml`)
+- **Testing**: Pest v4 (modern replacement for PHPUnit - see `phpunit.xml`)
+
+## Modern Architecture & Design Patterns
+
+### Provider Pattern
+- **GitProviderInterface**: Common interface for all git providers
+- **Factory Pattern**: `GitProviderFactory` for provider instantiation
+- **Wrapper Pattern**: `GitProviderWrapper` for unified API access
+- **Auto-detection**: Automatic provider detection from repository URLs
+
+### Security Architecture
+- **Defense in Depth**: Multiple layers of security validation
+- **Input Validation**: All user inputs validated via `InputValidator`
+- **Capability Checking**: WordPress capability verification via `CapabilityChecker`
+- **CSRF Protection**: Nonce verification for all state-changing operations
+- **XSS Prevention**: Output escaping and sanitization
+- **SQL Injection Prevention**: Prepared statements and input sanitization
+- **Path Traversal Prevention**: File path validation and sanitization
+
+### Performance Optimizations
+- **Modern API Clients**: Replaced manual `wp_remote_*` calls with dedicated API clients
+  - `knplabs/github-api` (v3.16.0) for GitHub
+  - `m4tthumphrey/php-gitlab-api` (v12.0.0) for GitLab
+  - `bitbucket/client` (v5.0.0) for Bitbucket
+- **Caching**: Transient caching for index data and version information
+- **Lazy Loading**: Providers instantiated only when needed
 - **No closing PHP tags** in files (PSR-12)
 - **Always declare strict types**: `declare(strict_types=1);`
 - **Use early returns** and **guard clauses**
@@ -121,6 +168,23 @@ Use `unrepress_debug()` helper function (controlled by WP_DEBUG).
 
 ### WordPress Filesystem API
 Always use WP Filesystem API for file operations (respecting filesystem credentials).
+
+### Security Best Practices
+- **Never Trust User Input**: Always validate and sanitize via `InputValidator`
+- **Capability Checks**: Always verify user capabilities before operations
+- **Nonce Verification**: Use nonces for all state-changing operations
+- **Prepared Statements**: Never use raw SQL - always use prepared statements
+- **Output Escaping**: Escape all output to prevent XSS attacks
+- **File Validation**: Validate file paths and extensions to prevent path traversal
+- **Error Handling**: Never expose internal errors to users
+
+### Git Provider Integration
+- **Auto-detection**: Providers automatically detected from repository URLs
+- **Factory Pattern**: Use `GitProviderFactory::createFromUrl()` for instantiation
+- **Unified Interface**: All providers implement `GitProviderInterface`
+- **Error Handling**: Graceful fallbacks for API failures
+- **Caching**: API responses cached to minimize requests
+- **Authentication**: Token support for private repositories
 
 ### Hook Integration
 - Plugin hooks into `wp_version_check` for core updates

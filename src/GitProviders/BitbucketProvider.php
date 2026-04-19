@@ -23,22 +23,22 @@ class BitbucketProvider implements GitProviderInterface
     public function getLatestRelease(string $owner, string $repo): ?string
     {
         try {
-            $refs = $this->client->repositories()->refs($owner, $repo)->list('tags');
-            $tags = $refs['values'] ?? [];
+            $tags = $this->client->repositories()->workspaces($owner)->refs($repo)->tags()->list();
+            $tagsData = $tags['values'] ?? [];
 
-            if (empty($tags)) {
+            if (empty($tagsData)) {
                 return null;
             }
 
             // Sort tags by date (descending)
-            usort($tags, function ($a, $b) {
+            usort($tagsData, function ($a, $b) {
                 $dateA = strtotime($a['date'] ?? 'now');
                 $dateB = strtotime($b['date'] ?? 'now');
 
                 return $dateB <=> $dateA;
             });
 
-            return $tags[0]['name'] ?? null;
+            return $tagsData[0]['name'] ?? null;
         } catch (ClientErrorException|ExceptionInterface $e) {
             return null;
         }
@@ -47,7 +47,7 @@ class BitbucketProvider implements GitProviderInterface
     public function getRepository(string $owner, string $repo): array
     {
         try {
-            $data = $this->client->repositories()->get($owner, $repo);
+            $data = $this->client->repositories()->workspaces($owner)->show($repo);
 
             return [
                 'name' => $data['name'] ?? '',
@@ -82,10 +82,10 @@ class BitbucketProvider implements GitProviderInterface
     public function getTags(string $owner, string $repo): array
     {
         try {
-            $refs = $this->client->repositories()->refs($owner, $repo)->list('tags');
-            $tags = $refs['values'] ?? [];
+            $tags = $this->client->repositories()->workspaces($owner)->refs($repo)->tags()->list();
+            $tagsData = $tags['values'] ?? [];
 
-            return array_map(fn ($tag) => $tag['name'], $tags);
+            return array_map(fn ($tag) => $tag['name'], $tagsData);
         } catch (ClientErrorException|ExceptionInterface $e) {
             return [];
         }

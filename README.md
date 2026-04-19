@@ -52,14 +52,16 @@ Without fear of retaliation or repression.
 - Updates WordPress core seamlessly from git providers, using WordPress Filesystem API.
 - Blocks all requests to the "official" .org, .net and .com WordPress domains.
 - Auto-update UnrePress itself from GitHub.
-- Plugin updates from git providers.
-- Theme updates from git providers.
+- **Plugin updates from git providers** - GitHub, GitLab, and BitBucket support.
+- **Theme updates from git providers** - GitHub, GitLab, and BitBucket support.
+- **Modern Git Provider API Clients** - Uses dedicated API clients instead of manual HTTP requests for better performance and reliability.
+- **Enhanced Security** - Input validation, capability checking, CSRF protection, and XSS prevention.
+- **Auto-detection** - Automatically detects git provider from repository URLs.
 - Community maintained index of plugins and themes, so UnrePress can update them. Somewhat like package managers do (dnf, brew, npm, etc.).
 
 ## Planned Features
 
 - Integrate the index into WordPress itself, so users can search and install plugins/themes from within the admin panel.
-- Add more git providers: BitBucket, GitLab, etc.
 - Add the ability to point UnrePress to a different index.
 - Configuration interface.
 - Expose the index vía web, for easy plugin/theme discoverability.
@@ -77,6 +79,53 @@ Consider that this proyect is still in active development and not stable. Don't 
 
 - PHP 8.1 or higher
 - WordPress 6.5 or higher
+
+## Developers
+
+### Modern Architecture
+
+UnrePress uses modern PHP development practices and design patterns:
+
+- **PSR-12 Coding Standards** with automated code style fixing
+- **PSR-4 Autoloading** for consistent class organization
+- **Dependency Injection** for better testability and flexibility
+- **Provider Pattern** for unified git provider integration
+- **Factory Pattern** for provider instantiation and auto-detection
+- **Security Middleware** with comprehensive input validation and capability checking
+- **288 Unit Tests** using Pest v4 (modern replacement for PHPUnit)
+
+### Git Provider Support
+
+UnrePress supports multiple git providers through dedicated API clients:
+
+- **GitHub**: `knplabs/github-api` (v3.16.0)
+- **GitLab**: `m4tthumphrey/php-gitlab-api` (v12.0.0)
+- **Bitbucket**: `bitbucket/client` (v5.0.0)
+
+### Security Features
+
+- **Input Validation**: All user inputs validated via `InputValidator`
+- **Capability Checking**: WordPress capability verification via `CapabilityChecker`
+- **CSRF Protection**: Nonce verification for all state-changing operations
+- **XSS Prevention**: Output escaping and sanitization
+- **SQL Injection Prevention**: Prepared statements and input sanitization
+- **Path Traversal Prevention**: File path validation and sanitization
+
+### Development Commands
+
+```bash
+# Run tests
+vendor/bin/pest
+
+# Code style check
+composer cs:check
+
+# Auto-fix code style
+composer cs:fix
+
+# Regenerate autoloader
+composer dump-autoload
+```
 
 ## Usage
 

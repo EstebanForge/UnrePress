@@ -23,15 +23,8 @@ class GitLabProvider implements GitProviderInterface
     public function getLatestRelease(string $owner, string $repo): ?string
     {
         try {
-            $projectId = sprintf('%s/%s', $owner, $repo);
-            $releases = $this->client->projects()->releases($projectId);
-
-            if (empty($releases)) {
-                // Fallback to tags if no releases
-                return $this->getLatestTag($owner, $repo);
-            }
-
-            return $releases[0]['tag_name'] ?? null;
+            // GitLab client doesn't have releases API, so we use tags
+            return $this->getLatestTag($owner, $repo);
         } catch (ErrorException|ExceptionInterface $e) {
             return null;
         }
