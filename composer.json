@@ -11,7 +11,11 @@
         }
     ],
     "require": {
-        "php": ">=8.1"
+        "php": ">=8.1",
+        "knplabs/github-api": "^3.0",
+        "m4tthumphrey/php-gitlab-api": "^12.0",
+        "bitbucket/client": "^5.0",
+        "guzzlehttp/guzzle": "^7.10"
     },
     "require-dev": {
         "friendsofphp/php-cs-fixer": "^3.64",
@@ -51,18 +55,8 @@
     "config": {
         "allow-plugins": {
             "pestphp/pest-plugin": true,
-            "composer/installers": true
-        }
-    },
-    "extra": {
-        "strauss": {
-            "target_directory": "vendor-dist",
-            "namespace_prefix": "EstebanForge\\UnrePress\\",
-            "classmap_prefix": "ESFR_",
-            "constant_prefix": "ESFR_",
-            "packages": [],
-            "override_autoload": [],
-            "delete_vendor_packages": true
+            "composer/installers": true,
+            "php-http/discovery": true
         }
     }
 }

@@ -29,9 +29,6 @@ access_log
 *.swp
 *.swo
 
-# Composer
-vendor/
-
 # Pest PHP
 wp/
 

@@ -1,0 +1,70 @@
+{
+    "name": "m4tthumphrey/php-gitlab-api",
+    "description": "GitLab API v4 client for PHP",
+    "keywords": ["gitlab", "api"],
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Fabien Bourigault",
+            "email": "bourigaultfabien@gmail.com",
+            "homepage": "https://github.com/fbourigault"
+        },
+        {
+            "name": "Graham Campbell",
+            "email": "hello@gjcampbell.co.uk",
+            "homepage": "https://github.com/GrahamCampbell"
+        },
+        {
+            "name": "Matt Humphrey",
+            "email": "matth@windsor-telecom.co.uk",
+            "homepage": "https://github.com/m4tthumphrey"
+        },
+        {
+            "name": "Miguel Piedrafita",
+            "email": "github@miguelpiedrafita.com",
+            "homepage": "https://github.com/m1guelpf"
+        }
+    ],
+    "require": {
+        "php": "^8.1",
+        "ext-json": "*",
+        "ext-xml": "*",
+        "php-http/cache-plugin": "^2.0.1",
+        "php-http/client-common": "^2.7.2",
+        "php-http/discovery": "^1.20.0",
+        "php-http/httplug": "^2.4.1",
+        "php-http/multipart-stream-builder": "^1.4.2",
+        "psr/cache": "^2.0 || ^3.0",
+        "psr/http-client-implementation": "^1.0",
+        "psr/http-factory-implementation": "^1.0",
+        "psr/http-message": "^1.1 || ^2.0",
+        "symfony/options-resolver": "^5.4 || ^6.0 || ^7.0"
+    },
+    "require-dev": {
+        "bamarni/composer-bin-plugin": "^1.8.2",
+        "guzzlehttp/guzzle": "^7.9.2"
+    },
+    "autoload": {
+        "psr-4": {
+            "Gitlab\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Gitlab\\Tests\\": "tests/"
+        }
+    },
+    "config": {
+        "preferred-install": "dist",
+        "allow-plugins": {
+            "bamarni/composer-bin-plugin": true,
+            "php-http/discovery": true
+        }
+    },
+    "extra": {
+        "bamarni-bin": {
+            "bin-links": true,
+            "forward-command": false
+        }
+    }
+}

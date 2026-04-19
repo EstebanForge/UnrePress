@@ -42,8 +42,8 @@ if (!defined('UNREPRESS_TRANSIENT_EXPIRATION')) {
 }
 
 // Composer autoloader
-if (file_exists(UNREPRESS_PLUGIN_PATH . 'vendor-dist/autoload.php')) {
-    require_once UNREPRESS_PLUGIN_PATH . 'vendor-dist/autoload.php';
+if (file_exists(UNREPRESS_PLUGIN_PATH . 'vendor/autoload.php')) {
+    require_once UNREPRESS_PLUGIN_PATH . 'vendor/autoload.php';
     // Helpers
     require_once UNREPRESS_PLUGIN_PATH . 'includes/helpers.php';
 } else {

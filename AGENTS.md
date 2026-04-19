@@ -13,7 +13,7 @@ UnrePress is a WordPress plugin that replaces WordPress.org updates with git pro
 ### Entry Point & Bootstrap
 - **`unrepress.php`**: Plugin bootstrap file
   - Defines constants (version, paths, blocked hosts, index URL)
-  - Loads Composer autoloader from `vendor-dist/autoload.php` (Strauss-prefixed dependencies)
+  - Loads Composer autoloader from `vendor/autoload.php`
   - Initializes `UnrePress\UnrePress::run()` on `plugins_loaded` hook
 
 ### Core Components (src/)
@@ -44,12 +44,6 @@ UnrePress is a WordPress plugin that replaces WordPress.org updates with git pro
 
 - **`UpdaterProvider/`**: Git provider implementations (GitHub, BitBucket, GitLab)
 
-### Dependency Management
-- Uses **Strauss** to namespace-prefix vendor dependencies
-- Dependencies are prefixed with `EstebanForge\UnrePress\` and classmap prefix `ESFR_`
-- Prefixed dependencies output to `vendor-dist/` (not `vendor/`)
-- Run `composer prefix-namespaces` after dependency changes
-
 ## Development Commands
 
 ### Code Style
@@ -68,15 +62,6 @@ phpunit
 
 # Run specific test suite
 phpunit --testsuite <name>
-```
-
-### Release Preparation
-```bash
-# Prepare for release: fix CS + prefix namespaces
-composer release
-
-# Manually run Strauss namespace prefixing
-composer prefix-namespaces
 ```
 
 ### Version Bumping
@@ -145,8 +130,6 @@ Always use WP Filesystem API for file operations (respecting filesystem credenti
 ## Build Process
 
 1. **Code style fixes**: `composer cs:fix`
-2. **Dependency prefixing**: Strauss prefixes all vendor dependencies
-3. **Autoloader optimization**: `composer dump-autoload --optimize --no-dev`
-4. **Version bump**: Update `unrepress.php` and `composer.json`
-
-The `vendor/` directory is for development only. The plugin loads from `vendor-dist/` in production.
+2. **Autoloader optimization**: `composer dump-autoload --optimize --no-dev`
+3. **Version bump**: Update `unrepress.php` and `composer.json`
+4. **Production build**: `composer production` (fixes CS, installs prod dependencies, optimizes autoloader)
