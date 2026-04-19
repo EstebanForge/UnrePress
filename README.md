@@ -114,8 +114,23 @@ UnrePress supports multiple git providers through dedicated API clients:
 ### Development Commands
 
 ```bash
-# Run tests
-vendor/bin/pest
+# Run tests (auto-installs dependencies if missing)
+composer test
+
+# Run unit tests only
+composer test:unit
+
+# Run integration tests only
+composer test:integration
+
+# Run tests with coverage
+composer test:coverage
+
+# Run tests in watch mode
+composer test:watch
+
+# Quick test run
+composer test:quick
 
 # Code style check
 composer cs:check
@@ -126,6 +141,9 @@ composer cs:fix
 # Regenerate autoloader
 composer dump-autoload
 ```
+
+### Smart Test Command
+The `composer test` command automatically detects if test dependencies are missing and installs them via `composer update` before running tests. This ensures tests run successfully even in fresh environments or after `composer install --no-dev`.
 
 ## Usage
 

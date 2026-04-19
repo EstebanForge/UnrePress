@@ -24,10 +24,12 @@
         "brain/monkey": "^2.7"
     },
     "scripts": {
-        "test": "pest",
-        "test:unit": "pest --testsuite=Unit",
-        "test:integration": "pest --testsuite=Integration",
-        "test:coverage": "pest --coverage",
+        "test": "php .ci/test-runner.php",
+        "test:unit": "php .ci/test-runner.php --filter=Unit",
+        "test:integration": "php .ci/test-runner.php --filter=Integration",
+        "test:coverage": "php .ci/test-runner.php --coverage",
+        "test:watch": "php .ci/test-runner.php --watch",
+        "test:quick": "pest --filter='.*'",
         "version-bump": [
             "php .ci/version-bump.php"
         ],
