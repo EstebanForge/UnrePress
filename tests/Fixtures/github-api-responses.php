@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /**
- * GitHub API Response Fixtures
+ * GitHub API Response Fixtures.
  *
  * Sample responses from GitHub API for testing
  */

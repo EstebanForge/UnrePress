@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace UnrePress\Security;
 
 /**
- * Input Validator
+ * Input Validator.
  *
  * Provides comprehensive input validation and sanitization to prevent:
  * - SQL injection attacks
@@ -59,7 +59,7 @@ class InputValidator
         $validHosts = [
             'github.com',
             'api.github.com',
-            'raw.githubusercontent.com'
+            'raw.githubusercontent.com',
         ];
 
         if (!in_array($parsed['host'], $validHosts, true)) {
@@ -126,7 +126,8 @@ class InputValidator
     public function validateJson(string $json): bool
     {
         json_decode($json);
-        return (json_last_error() === JSON_ERROR_NONE);
+
+        return json_last_error() === JSON_ERROR_NONE;
     }
 
     /**
@@ -235,6 +236,7 @@ class InputValidator
         }
 
         $ext = pathinfo($filename, PATHINFO_EXTENSION);
+
         return in_array(strtolower($ext), $allowed, true);
     }
 

@@ -37,7 +37,6 @@ class UpdateLock
         update_option(UNREPRESS_PREFIX . 'update_lock', true);
         $this->setLockTime();
 
-        return;
     }
 
     /**
@@ -55,7 +54,6 @@ class UpdateLock
         // Clear update log
         //$this->helpers->clearUpdateLog(); // We don't want to clear the update log here, or else the user won't see the update log when core update is done.
 
-        return;
     }
 
     /**
@@ -126,13 +124,13 @@ class UpdateLock
     }
 
     /**
-     * Set a schedule to clean up the update lock if it has expired
+     * Set a schedule to clean up the update lock if it has expired.
      *
      * @return void
      */
     public function scheduleCleanup(): void
     {
-        if (! wp_next_scheduled(UNREPRESS_PREFIX . 'cleanup_lock')) {
+        if (!wp_next_scheduled(UNREPRESS_PREFIX . 'cleanup_lock')) {
             wp_schedule_event(time(), 'hourly', UNREPRESS_PREFIX . 'cleanup_lock');
         }
 
@@ -140,7 +138,7 @@ class UpdateLock
     }
 
     /**
-     * Clean up the update lock if it has expired
+     * Clean up the update lock if it has expired.
      *
      * @return void
      */

@@ -4,7 +4,6 @@ namespace UnrePress;
 
 class UnrePress
 {
-
     /**
      * @var string
      */
@@ -48,8 +47,6 @@ class UnrePress
         add_action('wp_version_check', [$updaterCore, 'checkCoreUpdatesFromGitHub'], 5);
     }
 
-
-
     /**
      * Get our main index.json content. Cached.
      * Returns it as an array.
@@ -65,6 +62,7 @@ class UnrePress
 
         if (false !== $cachedIndex) {
             unrepress_debug('UnrePress::index() - Returning cached index: ' . print_r($cachedIndex, true));
+
             return $cachedIndex;
         }
 
@@ -78,6 +76,7 @@ class UnrePress
 
         if (is_wp_error($mainIndexResponse)) {
             unrepress_debug('UnrePress::index() - WP Error: ' . $mainIndexResponse->get_error_message());
+
             return false;
         }
 
@@ -86,6 +85,7 @@ class UnrePress
 
         if ($response_code !== 200) {
             unrepress_debug('UnrePress::index() - Invalid response code: ' . $response_code);
+
             return false;
         }
 
@@ -96,11 +96,13 @@ class UnrePress
 
         if (json_last_error() !== JSON_ERROR_NONE) {
             unrepress_debug('UnrePress::index() - JSON decode error: ' . json_last_error_msg());
+
             return false;
         }
 
         if (empty($mainIndex) || !is_array($mainIndex)) {
             unrepress_debug('UnrePress::index() - Empty or invalid main index');
+
             return false;
         }
 

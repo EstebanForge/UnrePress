@@ -85,7 +85,7 @@ class Hider
      * - Star ratings
      * - Number of ratings
      * - Active installs count
-     * - Popular tags
+     * - Popular tags.
      *
      * @param object|WP_Error $response Response object or WP_Error.
      * @param string $action The type of information being requested from the Plugin Installation API.

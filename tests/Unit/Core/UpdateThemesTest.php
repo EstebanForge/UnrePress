@@ -8,7 +8,7 @@ use UnrePress\Tests\Helpers\WordPressTestHelper;
 use UnrePress\Updater\UpdateThemes;
 
 /**
- * UpdateThemes Unit Tests
+ * UpdateThemes Unit Tests.
  */
 class UpdateThemesTest extends WordPressTestHelper
 {
@@ -79,8 +79,8 @@ class UpdateThemesTest extends WordPressTestHelper
         ]);
 
         \Brain\Monkey\Functions\when('is_wp_error')->justReturn(false);
-        \Brain\Monkey\Functions\when('wp_remote_retrieve_response_code')->alias(function($response) { return is_array($response) ? ($response["response"]["code"] ?? 200) : 200; });
-        \Brain\Monkey\Functions\when('wp_remote_retrieve_body')->alias(function($response) { return is_array($response) ? ($response["body"] ?? "") : $response; });
+        \Brain\Monkey\Functions\when('wp_remote_retrieve_response_code')->alias(function ($response) { return is_array($response) ? ($response['response']['code'] ?? 200) : 200; });
+        \Brain\Monkey\Functions\when('wp_remote_retrieve_body')->alias(function ($response) { return is_array($response) ? ($response['body'] ?? '') : $response; });
         \Brain\Monkey\Functions\when('get_transient')->justReturn(false);
         \Brain\Monkey\Functions\when('set_transient')->justReturn(true);
 
@@ -112,7 +112,7 @@ class UpdateThemesTest extends WordPressTestHelper
         ]);
 
         \Brain\Monkey\Functions\when('is_wp_error')->justReturn(false);
-        \Brain\Monkey\Functions\when('wp_remote_retrieve_response_code')->alias(function($response) { return is_array($response) ? ($response["response"]["code"] ?? 200) : 200; });
+        \Brain\Monkey\Functions\when('wp_remote_retrieve_response_code')->alias(function ($response) { return is_array($response) ? ($response['response']['code'] ?? 200) : 200; });
         \Brain\Monkey\Functions\when('get_transient')->justReturn(false);
 
         $result = $this->updateThemes->requestRemoteInfo('not-found-theme');
@@ -131,7 +131,7 @@ class UpdateThemesTest extends WordPressTestHelper
         ]);
 
         \Brain\Monkey\Functions\when('is_wp_error')->justReturn(false);
-        \Brain\Monkey\Functions\when('wp_remote_retrieve_response_code')->alias(function($response) { return is_array($response) ? ($response["response"]["code"] ?? 200) : 200; });
+        \Brain\Monkey\Functions\when('wp_remote_retrieve_response_code')->alias(function ($response) { return is_array($response) ? ($response['response']['code'] ?? 200) : 200; });
         \Brain\Monkey\Functions\when('wp_remote_retrieve_body')->justReturn($invalidJson);
         \Brain\Monkey\Functions\when('get_transient')->justReturn(false);
         \Brain\Monkey\Functions\when('set_transient')->justReturn(true);
@@ -154,7 +154,7 @@ class UpdateThemesTest extends WordPressTestHelper
         // Mock get_transient to return cached data
         \Brain\Monkey\Functions\when('get_transient')->justReturn($cachedData);
         // Mock wp_remote_retrieve_body to extract body from cached response
-        \Brain\Monkey\Functions\when('wp_remote_retrieve_body')->alias(function($response) { return is_object($response) ? json_encode($response) : $response; });
+        \Brain\Monkey\Functions\when('wp_remote_retrieve_body')->alias(function ($response) { return is_object($response) ? json_encode($response) : $response; });
 
         // Mock wp_remote_get - should not be called due to cache hit
         \Brain\Monkey\Functions\expect('wp_remote_get')->never();
@@ -211,8 +211,8 @@ class UpdateThemesTest extends WordPressTestHelper
         ]);
 
         \Brain\Monkey\Functions\when('is_wp_error')->justReturn(false);
-        \Brain\Monkey\Functions\when('wp_remote_retrieve_response_code')->alias(function($response) { return is_array($response) ? ($response["response"]["code"] ?? 200) : 200; });
-        \Brain\Monkey\Functions\when('wp_remote_retrieve_body')->alias(function($response) { return is_array($response) ? ($response["body"] ?? "") : $response; });
+        \Brain\Monkey\Functions\when('wp_remote_retrieve_response_code')->alias(function ($response) { return is_array($response) ? ($response['response']['code'] ?? 200) : 200; });
+        \Brain\Monkey\Functions\when('wp_remote_retrieve_body')->alias(function ($response) { return is_array($response) ? ($response['body'] ?? '') : $response; });
         \Brain\Monkey\Functions\when('get_transient')->justReturn(false);
         \Brain\Monkey\Functions\when('set_transient')->justReturn(true);
         \Brain\Monkey\Functions\when('unrepress_debug')->justReturn(null);
@@ -223,7 +223,7 @@ class UpdateThemesTest extends WordPressTestHelper
         $this->assertIsObject($result);
         $this->assertEquals('standard-theme', $result->slug);
         $this->assertNotEmpty($result->version);
-        \Brain\Monkey\Functions\when("unrepress_debug")->justReturn(null);
+        \Brain\Monkey\Functions\when('unrepress_debug')->justReturn(null);
         $this->assertObjectHasProperty('sections', $result);
     }
 
@@ -268,7 +268,7 @@ class UpdateThemesTest extends WordPressTestHelper
 
         // Mock wp_get_themes to return an array of themes
         \Brain\Monkey\Functions\when('wp_get_themes')->justReturn([
-            'standard-theme' => $mockTheme
+            'standard-theme' => $mockTheme,
         ]);
         // Mock wp_get_theme to return the mock theme object
         \Brain\Monkey\Functions\when('wp_get_theme')->justReturn($mockTheme);
@@ -279,8 +279,8 @@ class UpdateThemesTest extends WordPressTestHelper
             'response' => ['code' => 404],
         ]);
         \Brain\Monkey\Functions\when('is_wp_error')->justReturn(false);
-        \Brain\Monkey\Functions\when('wp_remote_retrieve_response_code')->alias(function($response) { return is_array($response) ? ($response["response"]["code"] ?? 200) : 200; });
-        \Brain\Monkey\Functions\when('wp_remote_retrieve_body')->alias(function($response) { return is_array($response) ? ($response["body"] ?? "") : $response; });
+        \Brain\Monkey\Functions\when('wp_remote_retrieve_response_code')->alias(function ($response) { return is_array($response) ? ($response['response']['code'] ?? 200) : 200; });
+        \Brain\Monkey\Functions\when('wp_remote_retrieve_body')->alias(function ($response) { return is_array($response) ? ($response['body'] ?? '') : $response; });
 
         $transient = new \stdClass();
         $transient->checked = [];
@@ -325,7 +325,7 @@ class UpdateThemesTest extends WordPressTestHelper
         $mockTheme = $this->createMockThemeObject('standard-theme', '1.0.0');
 
         \Brain\Monkey\Functions\when('wp_get_themes')->justReturn([
-            'standard-theme' => $mockTheme
+            'standard-theme' => $mockTheme,
         ]);
         \Brain\Monkey\Functions\when('wp_get_theme')->justReturn($mockTheme);
         \Brain\Monkey\Functions\when('get_transient')->justReturn(false);
@@ -334,8 +334,8 @@ class UpdateThemesTest extends WordPressTestHelper
             'response' => ['code' => 404],
         ]);
         \Brain\Monkey\Functions\when('is_wp_error')->justReturn(false);
-        \Brain\Monkey\Functions\when('wp_remote_retrieve_response_code')->alias(function($response) { return is_array($response) ? ($response["response"]["code"] ?? 200) : 200; });
-        \Brain\Monkey\Functions\when('wp_remote_retrieve_body')->alias(function($response) { return is_array($response) ? ($response["body"] ?? "") : $response; });
+        \Brain\Monkey\Functions\when('wp_remote_retrieve_response_code')->alias(function ($response) { return is_array($response) ? ($response['response']['code'] ?? 200) : 200; });
+        \Brain\Monkey\Functions\when('wp_remote_retrieve_body')->alias(function ($response) { return is_array($response) ? ($response['body'] ?? '') : $response; });
 
         $transient = null;
 
@@ -437,7 +437,7 @@ class UpdateThemesTest extends WordPressTestHelper
     }
 
     /**
-     * Create a mock WordPress theme object
+     * Create a mock WordPress theme object.
      */
     private function createMockThemeObject(string $slug = '', string $version = ''): object
     {

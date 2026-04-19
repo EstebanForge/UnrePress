@@ -2,8 +2,6 @@
 
 namespace UnrePress\UpdaterProvider;
 
-use UnrePress\UpdaterProvider\ProviderInterface;
-
 class GitHub implements ProviderInterface
 {
     /**
@@ -44,6 +42,7 @@ class GitHub implements ProviderInterface
 
         if (!$response) {
             unrepress_debug('GitHub::getLatestVersion() - No response received, returning null');
+
             return null;
         }
 
@@ -62,6 +61,7 @@ class GitHub implements ProviderInterface
 
         if (!is_array($tags) || empty($tags)) {
             unrepress_debug('GitHub::getLatestVersion() - Invalid or empty tags response, returning null');
+
             return null;
         }
 
@@ -94,6 +94,7 @@ class GitHub implements ProviderInterface
         $cached_response = get_transient($cache_key);
         if (false !== $cached_response) {
             unrepress_debug('GitHub::makeRequest() - Using cached response (length: ' . strlen($cached_response) . ')');
+
             return $cached_response;
         }
 
@@ -123,6 +124,7 @@ class GitHub implements ProviderInterface
 
         if (is_wp_error($response)) {
             unrepress_debug('GitHub::makeRequest() - wp_remote_get failed with WP_Error: ' . $response->get_error_message());
+
             return false;
         }
 
@@ -132,12 +134,14 @@ class GitHub implements ProviderInterface
         if ($response_code !== 200) {
             $error_body = wp_remote_retrieve_body($response);
             unrepress_debug('GitHub::makeRequest() - Non-200 response code, body: ' . substr($error_body, 0, 200));
+
             return false;
         }
 
         $response_body = wp_remote_retrieve_body($response);
         if (empty($response_body)) {
             unrepress_debug('GitHub::makeRequest() - Empty response body received');
+
             return false;
         }
 
@@ -148,6 +152,7 @@ class GitHub implements ProviderInterface
         if (json_last_error() !== JSON_ERROR_NONE) {
             unrepress_debug('GitHub::makeRequest() - Invalid JSON response: ' . json_last_error_msg());
             unrepress_debug('GitHub::makeRequest() - Response start: ' . substr($response_body, 0, 200));
+
             return false;
         }
 

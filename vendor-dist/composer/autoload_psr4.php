@@ -5,6 +5,6 @@
 $vendorDir = dirname(__DIR__);
 $baseDir = dirname($vendorDir);
 
-return array(
-    'UnrePress\\' => array($baseDir . '/src'),
-);
+return [
+    'UnrePress\\' => [$baseDir . '/src'],
+];

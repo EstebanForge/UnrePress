@@ -30,7 +30,7 @@ if (isset($_GET['force-check']) && $_GET['force-check'] == 1) {
 
     // Force GitHub core update check
     try {
-        $updateCore = new \UnrePress\Updater\UpdateCore();
+        $updateCore = new UnrePress\Updater\UpdateCore();
         unrepress_debug('Force-check - calling checkCoreUpdatesFromGitHub()');
         $updateCore->checkCoreUpdatesFromGitHub();
         unrepress_debug('Force-check - checkCoreUpdatesFromGitHub() completed');
@@ -81,16 +81,16 @@ if (isset($_GET['force-check']) && $_GET['force-check'] == 1) {
                             $wpLocalVersion,
                             $coreLatestVersion
                         );
-                        ?>
+            ?>
                     </p>
                     <p>
                         <?php
-                        printf(
-                            '<a href="%s" class="button button-primary">%s</a>',
-                            $updateCoreUrl,
-                            __('Update now', 'unrepress')
-                        );
-                        ?>
+            printf(
+                '<a href="%s" class="button button-primary">%s</a>',
+                $updateCoreUrl,
+                __('Update now', 'unrepress')
+            );
+            ?>
                     </p>
                 </li>
             </ul>

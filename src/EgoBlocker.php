@@ -32,12 +32,12 @@ class EgoBlocker
             return false;
         }
 
-        if (! defined('UNREPRESS_BLOCKED_HOSTS')) {
+        if (!defined('UNREPRESS_BLOCKED_HOSTS')) {
             return false;
         }
 
         $check = parse_url($uri);
-        if (! $check || ! isset($check['host'])) {
+        if (!$check || !isset($check['host'])) {
             return false;
         }
 
@@ -54,7 +54,7 @@ class EgoBlocker
             }
         }
 
-        if (! empty($wildcard_regex)) {
+        if (!empty($wildcard_regex)) {
             $results = preg_match($wildcard_regex, $check['host']);
             if ($results > 0) {
                 //Debugger::log(sprintf("Blocking %s://%s%s", $check['scheme'], $check['host'], $check['path']));

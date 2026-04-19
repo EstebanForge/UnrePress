@@ -18,14 +18,14 @@ class Debugger
         if (defined('WP_DEBUG') && WP_DEBUG) {
             if (count($args) === 1) {
                 $message = $args[0];
-                $formatted_message = is_array($message) ? print_r($message, true) :
-                                   (is_object($message) ? print_r($message, true) : $message);
+                $formatted_message = is_array($message) ? print_r($message, true)
+                                   : (is_object($message) ? print_r($message, true) : $message);
             } else {
                 // Format multiple arguments as a readable string
                 $formatted_parts = [];
                 foreach ($args as $arg) {
-                    $formatted_parts[] = is_array($arg) ? print_r($arg, true) :
-                                       (is_object($arg) ? print_r($arg, true) : $arg);
+                    $formatted_parts[] = is_array($arg) ? print_r($arg, true)
+                                       : (is_object($arg) ? print_r($arg, true) : $arg);
                 }
                 $formatted_message = implode(' ', $formatted_parts);
             }

@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /**
- * Update Object Fixtures
+ * Update Object Fixtures.
  *
  * Sample update objects that WordPress expects
  */

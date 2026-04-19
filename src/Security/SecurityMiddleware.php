@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace UnrePress\Security;
 
 /**
- * Security Middleware
+ * Security Middleware.
  *
  * Provides centralized security validation for AJAX requests and sensitive operations.
  */
@@ -60,7 +60,7 @@ class SecurityMiddleware
     {
         wp_send_json_error([
             'message' => $message,
-            'code' => 'security_check_failed'
+            'code' => 'security_check_failed',
         ]);
     }
 
@@ -80,6 +80,7 @@ class SecurityMiddleware
             if ($send_json_error) {
                 $this->sendSecurityError('Invalid security token. Please refresh and try again.');
             }
+
             return false;
         }
 
@@ -88,6 +89,7 @@ class SecurityMiddleware
             if ($send_json_error) {
                 $this->sendSecurityError('You do not have permission to perform this action.');
             }
+
             return false;
         }
 
@@ -135,6 +137,7 @@ class SecurityMiddleware
     public function validateUpdateType(string $type): bool
     {
         $valid_types = ['core', 'plugin', 'theme', 'translation'];
+
         return in_array($type, $valid_types, true);
     }
 

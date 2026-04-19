@@ -3,8 +3,8 @@
 namespace UnrePress\Index;
 
 use UnrePress\Helpers;
-use UnrePress\Updater\UpdateLock;
 use UnrePress\UnrePress;
+use UnrePress\Updater\UpdateLock;
 
 class ThemesIndex extends Index
 {
@@ -24,7 +24,7 @@ class ThemesIndex extends Index
     }
 
     /**
-     * Get a theme's JSON file from UnrePress index
+     * Get a theme's JSON file from UnrePress index.
      *
      * @var string
      *
@@ -47,6 +47,7 @@ class ThemesIndex extends Index
 
             if (is_wp_error($themeJson)) {
                 unrepress_debug('ThemesIndex::getThemeJson - WP Error: ' . $themeJson->get_error_message());
+
                 return false;
             }
 
@@ -55,6 +56,7 @@ class ThemesIndex extends Index
 
             if ($response_code !== 200) {
                 unrepress_debug('ThemesIndex::getThemeJson - Invalid response code: ' . $response_code);
+
                 return false;
             }
 
@@ -65,6 +67,7 @@ class ThemesIndex extends Index
 
             if (json_last_error() !== JSON_ERROR_NONE) {
                 unrepress_debug('ThemesIndex::getThemeJson - JSON decode error: ' . json_last_error_msg());
+
                 return false;
             }
 
@@ -80,7 +83,7 @@ class ThemesIndex extends Index
 
     /**
      * Search themes in the UnrePress index
-     * Since search is not available in the index, this method will return false
+     * Since search is not available in the index, this method will return false.
      *
      * @param string $search_term The search term
      * @param int $page Page number for pagination
@@ -103,6 +106,7 @@ class ThemesIndex extends Index
         // Check if index_data is valid and contains the 'themes' array
         if (empty($index_data) || !is_array($index_data) || !isset($index_data['themes']) || !is_array($index_data['themes'])) {
             unrepress_debug('ThemesIndex::searchThemes - Invalid or empty themes index data, or "themes" array missing.');
+
             return $empty_response;
         }
 
@@ -131,10 +135,10 @@ class ThemesIndex extends Index
             }
 
             // Search in name, slug, description, and tags
-            if (str_contains($name, $search_term_lower) ||
-                str_contains($slug, $search_term_lower) ||
-                str_contains($description, $search_term_lower) ||
-                str_contains($tags_string, $search_term_lower)) {
+            if (str_contains($name, $search_term_lower)
+                || str_contains($slug, $search_term_lower)
+                || str_contains($description, $search_term_lower)
+                || str_contains($tags_string, $search_term_lower)) {
                 // Ensure the theme item itself is added, which should be an array
                 $found_themes[] = $theme_item;
             }
@@ -153,7 +157,6 @@ class ThemesIndex extends Index
             $num_pages = 0; // No pages if no themes found
         }
 
-
         $start_index = ((int) $page - 1) * $per_page_safe;
         $paged_themes = array_slice($found_themes, $start_index, $per_page_safe);
 
@@ -170,7 +173,7 @@ class ThemesIndex extends Index
     }
 
     /**
-     * Get featured themes from UnrePress index
+     * Get featured themes from UnrePress index.
      *
      * @param int $page Page number for pagination
      * @param int $per_page Number of themes per page
@@ -188,6 +191,7 @@ class ThemesIndex extends Index
         // Check if featured themes URL exists and is not null
         if (!$main_index || !isset($main_index['themes']['featured']) || $main_index['themes']['featured'] === null) {
             unrepress_debug('ThemesIndex::getFeaturedThemes - No themes.featured URL in main index or it is null');
+
             return false;
         }
 
@@ -204,18 +208,20 @@ class ThemesIndex extends Index
             $response = wp_remote_get($featured_url, [
                 'timeout' => 15,
                 'headers' => [
-                    'Accept' => 'application/json'
-                ]
+                    'Accept' => 'application/json',
+                ],
             ]);
 
             if (is_wp_error($response)) {
                 unrepress_debug('ThemesIndex::getFeaturedThemes - WP Error fetching slugs: ' . $response->get_error_message());
+
                 return false;
             }
 
             $response_code = wp_remote_retrieve_response_code($response);
             if ($response_code !== 200) {
                 unrepress_debug('ThemesIndex::getFeaturedThemes - Invalid response code for slugs: ' . $response_code);
+
                 return false;
             }
 
@@ -224,11 +230,13 @@ class ThemesIndex extends Index
 
             if (json_last_error() !== JSON_ERROR_NONE) {
                 unrepress_debug('ThemesIndex::getFeaturedThemes - JSON decode error for slugs: ' . json_last_error_msg());
+
                 return false;
             }
 
             if (!isset($decoded_body['featured']) || !is_array($decoded_body['featured'])) {
                 unrepress_debug('ThemesIndex::getFeaturedThemes - No featured array in slugs response');
+
                 return false;
             }
             $featured_slugs_data = $decoded_body['featured'];
@@ -278,7 +286,7 @@ class ThemesIndex extends Index
     }
 
     /**
-     * Get the themes index containing all theme data
+     * Get the themes index containing all theme data.
      *
      * @return array|false Themes index data or false on error
      */
@@ -291,6 +299,7 @@ class ThemesIndex extends Index
 
         if (!$main_index || !isset($main_index['themes']['index'])) {
             unrepress_debug('ThemesIndex::getThemesIndex - No themes.index URL in main index');
+
             return false;
         }
 
@@ -302,18 +311,20 @@ class ThemesIndex extends Index
 
         if (false !== $cached_result) {
             unrepress_debug('ThemesIndex::getThemesIndex - Returning cached themes index');
+
             return $cached_result;
         }
 
         $response = wp_remote_get($index_url, [
             'timeout' => 15,
             'headers' => [
-                'Accept' => 'application/json'
-            ]
+                'Accept' => 'application/json',
+            ],
         ]);
 
         if (is_wp_error($response)) {
             unrepress_debug('ThemesIndex::getThemesIndex - WP Error: ' . $response->get_error_message());
+
             return false;
         }
 
@@ -322,6 +333,7 @@ class ThemesIndex extends Index
 
         if ($response_code !== 200) {
             unrepress_debug('ThemesIndex::getThemesIndex - Invalid response code: ' . $response_code);
+
             return false;
         }
 
@@ -332,6 +344,7 @@ class ThemesIndex extends Index
 
         if (json_last_error() !== JSON_ERROR_NONE) {
             unrepress_debug('ThemesIndex::getThemesIndex - JSON decode error: ' . json_last_error_msg());
+
             return false;
         }
 
@@ -344,7 +357,7 @@ class ThemesIndex extends Index
     }
 
     /**
-     * Find a specific theme in the themes index
+     * Find a specific theme in the themes index.
      *
      * @param array $themes_index The full themes index
      * @param string $slug The theme slug to find
@@ -356,23 +369,26 @@ class ThemesIndex extends Index
 
         if (!isset($themes_index['themes']) || !is_array($themes_index['themes'])) {
             unrepress_debug('ThemesIndex::findThemeInIndex - No themes array in index');
+
             return false;
         }
 
         foreach ($themes_index['themes'] as $theme) {
             if (isset($theme['slug']) && $theme['slug'] === $slug) {
                 unrepress_debug('ThemesIndex::findThemeInIndex - Found theme: ' . $slug);
+
                 return $theme;
             }
         }
 
         unrepress_debug('ThemesIndex::findThemeInIndex - Theme not found: ' . $slug);
+
         return false;
     }
 
     /**
      * Get popular themes from UnrePress index
-     * Since popular themes are null in the index, this will return false
+     * Since popular themes are null in the index, this will return false.
      *
      * @param int $page Page number for pagination
      * @param int $per_page Number of themes per page
@@ -381,12 +397,13 @@ class ThemesIndex extends Index
     public function getPopularThemes($page = 1, $per_page = 24)
     {
         unrepress_debug('ThemesIndex::getPopularThemes called - Popular themes not available (null in index), returning false');
+
         return false;
     }
 
     /**
      * Get latest/new themes from UnrePress index
-     * Since recent themes are null in the index, this will return false
+     * Since recent themes are null in the index, this will return false.
      *
      * @param int $page Page number for pagination
      * @param int $per_page Number of themes per page
@@ -395,11 +412,12 @@ class ThemesIndex extends Index
     public function getLatestThemes($page = 1, $per_page = 24)
     {
         unrepress_debug('ThemesIndex::getLatestThemes called - Recent themes not available (null in index), returning false');
+
         return false;
     }
 
     /**
-     * Get theme information by slug
+     * Get theme information by slug.
      *
      * @param string $theme_slug The theme slug
      * @return object|false Theme information object or false on error
@@ -414,6 +432,7 @@ class ThemesIndex extends Index
 
         if (false !== $cached_result) {
             unrepress_debug('ThemesIndex::getThemeInformation - Returning cached result for: ' . $theme_slug);
+
             return $cached_result;
         }
 
@@ -424,6 +443,7 @@ class ThemesIndex extends Index
 
         if (!$theme_data) {
             unrepress_debug('ThemesIndex::getThemeInformation - No theme data found for: ' . $theme_slug);
+
             return false;
         }
 

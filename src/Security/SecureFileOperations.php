@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace UnrePress\Security;
 
 /**
- * Secure File Operations
+ * Secure File Operations.
  *
  * Provides secure file system operations to prevent:
  * - Path traversal attacks
@@ -18,7 +18,7 @@ class SecureFileOperations
     private string $rootPath;
 
     /**
-     * Dangerous filenames that should never be allowed
+     * Dangerous filenames that should never be allowed.
      */
     private const DANGEROUS_FILENAMES = [
         '.htaccess',
@@ -32,7 +32,7 @@ class SecureFileOperations
     ];
 
     /**
-     * Windows reserved device names
+     * Windows reserved device names.
      */
     private const WINDOWS_RESERVED = [
         'con', 'prn', 'aux', 'nul',
@@ -41,7 +41,7 @@ class SecureFileOperations
     ];
 
     /**
-     * Allowed file extensions for uploads
+     * Allowed file extensions for uploads.
      */
     private const ALLOWED_EXTENSIONS = [
         'zip', 'tar', 'gz', 'tar.gz', 'rar',
@@ -52,7 +52,7 @@ class SecureFileOperations
     ];
 
     /**
-     * Dangerous extensions that should never be allowed
+     * Dangerous extensions that should never be allowed.
      */
     private const DANGEROUS_EXTENSIONS = [
         'php', 'php3', 'php4', 'php5', 'php7', 'php8', 'phtml', 'phps',

@@ -8,7 +8,7 @@ use UnrePress\Security\SecurityMiddleware;
 use UnrePress\Tests\Helpers\WordPressTestHelper;
 
 /**
- * SecurityMiddleware Unit Tests
+ * SecurityMiddleware Unit Tests.
  *
  * Tests for centralized security validation including CSRF protection,
  * capability checks, and input sanitization.

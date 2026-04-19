@@ -4,23 +4,21 @@
 
 namespace Composer\Autoload;
 
-class ComposerStaticInit55d0fb988d0e5a2d68f2be9233e46258
+class autoload_static
 {
-    public static $prefixLengthsPsr4 = array (
-        'U' => 
-        array (
+    public static $prefixLengthsPsr4 = [
+        'U' => [
             'UnrePress\\' => 10,
-        ),
-    );
+        ],
+    ];
 
-    public static $prefixDirsPsr4 = array (
-        'UnrePress\\' => 
-        array (
+    public static $prefixDirsPsr4 = [
+        'UnrePress\\' => [
             0 => __DIR__ . '/../..' . '/src',
-        ),
-    );
+        ],
+    ];
 
-    public static $classMap = array (
+    public static $classMap = [
         'Composer\\InstalledVersions' => __DIR__ . '/..' . '/composer/InstalledVersions.php',
         'UnrePress\\Admin\\Hider' => __DIR__ . '/../..' . '/src/Admin/Hider.php',
         'UnrePress\\Admin\\UpdaterPages' => __DIR__ . '/../..' . '/src/Admin/UpdaterPages.php',
@@ -37,7 +35,7 @@ class ComposerStaticInit55d0fb988d0e5a2d68f2be9233e46258
         'UnrePress\\Updater\\UpdateLock' => __DIR__ . '/../..' . '/src/Updater/UpdateLock.php',
         'UnrePress\\Updater\\UpdatePlugins' => __DIR__ . '/../..' . '/src/Updater/UpdatePlugins.php',
         'UnrePress\\Updater\\UpdateThemes' => __DIR__ . '/../..' . '/src/Updater/UpdateThemes.php',
-    );
+    ];
 
     public static function getInitializer(ClassLoader $loader)
     {

@@ -15,32 +15,24 @@
     },
     "require-dev": {
         "friendsofphp/php-cs-fixer": "^3.64",
-        "phpunit/phpunit": "^12.0",
+        "pestphp/pest": "^4.0",
+        "pestphp/pest-plugin-mutate": "^4.0",
         "brain/monkey": "^2.7"
     },
     "scripts": {
-        "test": "phpunit",
-        "test:unit": "phpunit tests/Unit",
-        "test:integration": "phpunit tests/Integration",
-        "test:coverage": "phpunit --coverage-html coverage",
+        "test": "pest",
+        "test:unit": "pest --testsuite=Unit",
+        "test:integration": "pest --testsuite=Integration",
+        "test:coverage": "pest --coverage",
         "version-bump": [
             "php .ci/version-bump.php"
         ],
         "cs:check": "php-cs-fixer fix --dry-run --diff",
         "cs:fix": "php-cs-fixer fix",
-        "release": "php-cs-fixer fix && composer prefix-namespaces",
-        "prefix-namespaces": [
-            "strauss",
-            "composer dump-autoload --optimize --no-dev"
-        ],
-        "post-install-cmd": [
-            "@prefix-namespaces"
-        ],
-        "post-update-cmd": [
-            "@prefix-namespaces"
-        ],
-        "post-autoload-dump": [
-            "strauss include-autoloader"
+        "production": [
+            "php-cs-fixer fix",
+            "composer install --no-dev",
+            "composer dump-autoload --optimize"
         ]
     },
     "autoload": {

@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /**
- * Pest WordPress Test Bootstrap
+ * Pest WordPress Test Bootstrap.
  *
  * This file sets up the WordPress testing environment for Pest tests.
  */
@@ -31,8 +31,8 @@ if (!defined('WP_CORE_DIR')) {
 // Check if WordPress test environment is set up
 if (!file_exists(WP_TESTS_DIR . '/includes/functions.php')) {
     die(
-        "WordPress test environment not set up.\n" .
-        "Run: bash bin/install-wp-tests.sh wordpress_test root localhost latest\n"
+        "WordPress test environment not set up.\n"
+        . "Run: bash bin/install-wp-tests.sh wordpress_test root localhost latest\n"
     );
 }
 
@@ -40,7 +40,8 @@ if (!file_exists(WP_TESTS_DIR . '/includes/functions.php')) {
 require_once WP_TESTS_DIR . '/includes/functions.php';
 
 // Manually load the plugin being tested
-function _manually_load_plugin() {
+function _manually_load_plugin()
+{
     // Define WordPress constants that would normally be defined by WP
     if (!defined('ABSPATH')) {
         define('ABSPATH', WP_CORE_DIR . '/');
@@ -67,7 +68,7 @@ require WP_TESTS_DIR . '/includes/bootstrap.php';
 // activate_plugin('unrepress/unrepress.php');
 
 echo "WordPress test environment loaded successfully.\n";
-echo "Project Root: " . PROJECT_ROOT . "\n";
-echo "Tests Directory: " . TESTS_DIR . "\n";
-echo "WordPress Core: " . WP_CORE_DIR . "\n";
-echo "WordPress Tests: " . WP_TESTS_DIR . "\n";
+echo 'Project Root: ' . PROJECT_ROOT . "\n";
+echo 'Tests Directory: ' . TESTS_DIR . "\n";
+echo 'WordPress Core: ' . WP_CORE_DIR . "\n";
+echo 'WordPress Tests: ' . WP_TESTS_DIR . "\n";

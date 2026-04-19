@@ -133,14 +133,13 @@ class UpdatePlugins
             $updateInfo->banners->high = (!empty($remoteData->banners->high) && is_string($remoteData->banners->high)) ? $remoteData->banners->high : $default_banner_high;
 
             $updateInfo->icons = new \stdClass(); // WordPress expects icons as an object in some contexts, array in others. API returns array.
-                                                // For site_transient_update_plugins, it's less critical but let's be consistent with $api_response in getInformation
+            // For site_transient_update_plugins, it's less critical but let's be consistent with $api_response in getInformation
             $updateInfo->icons->default = (!empty($remoteData->icons->default) && is_string($remoteData->icons->default)) ? $remoteData->icons->default : $default_icon;
             $updateInfo->icons->low = (!empty($remoteData->icons->low) && is_string($remoteData->icons->low)) ? $remoteData->icons->low : $default_icon;
             $updateInfo->icons->high = (!empty($remoteData->icons->high) && is_string($remoteData->icons->high)) ? $remoteData->icons->high : $default_icon;
             if (!empty($remoteData->icons->svg) && is_string($remoteData->icons->svg)) {
-                 $updateInfo->icons->svg = $remoteData->icons->svg;
+                $updateInfo->icons->svg = $remoteData->icons->svg;
             }
-
 
             $updateInfo->last_updated = !empty($remoteData->last_updated) ? date('Y-m-d H:i:s', is_numeric($remoteData->last_updated) ? $remoteData->last_updated : strtotime($remoteData->last_updated)) : date('Y-m-d H:i:s');
 
@@ -181,6 +180,7 @@ class UpdatePlugins
 
         if (is_wp_error($response)) {
             Debugger::log('Error getting remote info for ' . $slug . ': ' . $response->get_error_message());
+
             return false;
         }
 
@@ -188,6 +188,7 @@ class UpdatePlugins
 
         if ($responseCode !== 200) {
             Debugger::log('Invalid response code for ' . $slug . ': ' . $responseCode); // Keep response code here
+
             return false;
         }
 
@@ -199,6 +200,7 @@ class UpdatePlugins
         $data = json_decode($body);
         if (json_last_error() !== JSON_ERROR_NONE) {
             Debugger::log('JSON decode error for ' . $slug . ': ' . json_last_error_msg());
+
             return false;
         }
 
@@ -268,6 +270,7 @@ class UpdatePlugins
 
         if (!$remote) {
             Debugger::log('getInformation (Plugin): No remote data found for slug: ' . $args->slug);
+
             return $response; // Return original $response if UnrePress index doesn't have it
         }
 
@@ -304,6 +307,7 @@ class UpdatePlugins
             // Add other essential fields like sections->description if you want a richer fallback display
             $api_response->sections = new \stdClass();
             $api_response->sections->description = $remote->sections->description ?? 'Description not available.';
+
             return $api_response;
         }
 
@@ -351,7 +355,7 @@ class UpdatePlugins
             'low'     => (!empty($remote->icons->low) && is_string($remote->icons->low)) ? $remote->icons->low : $default_icon,
             'high'    => (!empty($remote->icons->high) && is_string($remote->icons->high)) ? $remote->icons->high : $default_icon,
         ];
-        if(!empty($remote->icons->svg) && is_string($remote->icons->svg)){
+        if (!empty($remote->icons->svg) && is_string($remote->icons->svg)) {
             $api_response->icons['svg'] = $remote->icons->svg;
         }
 
@@ -366,7 +370,9 @@ class UpdatePlugins
         $api_response->active_installs = $remote->active_installs ?? 0;
         $api_response->downloaded = $remote->downloaded ?? 0;
         $api_response->tags = $remote->tags ?? [];
-        if (is_object($api_response->tags)) { $api_response->tags = (array) $api_response->tags; }
+        if (is_object($api_response->tags)) {
+            $api_response->tags = (array) $api_response->tags;
+        }
 
         // WordPress compatibility section
         $wp_version_global = defined('get_bloginfo') ? get_bloginfo('version') : '0.0';
@@ -386,6 +392,7 @@ class UpdatePlugins
     {
         if (!is_object($plugin_data) || !isset($plugin_data->slug)) {
             Debugger::log('getLatestVersion (Plugin): Invalid plugin_data object or slug missing.');
+
             return false;
         }
 
@@ -395,14 +402,15 @@ class UpdatePlugins
 
         if ($cached_tag_object !== false) {
             Debugger::log('getLatestVersion (Plugin): Using cached tag object for ' . $plugin_data->slug);
+
             return $cached_tag_object;
         }
 
         // Ensure unrepress_meta and necessary sub-properties exist
         if (
-            !isset($plugin_data->unrepress_meta) || !is_object($plugin_data->unrepress_meta) ||
-            empty($plugin_data->unrepress_meta->tags) || !is_string($plugin_data->unrepress_meta->tags) || // Must be a string URL
-            !isset($plugin_data->unrepress_meta->update_from) // update_from is checked by calling logic normally
+            !isset($plugin_data->unrepress_meta) || !is_object($plugin_data->unrepress_meta)
+            || empty($plugin_data->unrepress_meta->tags) || !is_string($plugin_data->unrepress_meta->tags) // Must be a string URL
+            || !isset($plugin_data->unrepress_meta->update_from) // update_from is checked by calling logic normally
         ) {
             Debugger::log('getLatestVersion (Plugin): unrepress_meta structure invalid, or tags URL missing for plugin: ' . ($plugin_data->slug ?? 'unknown'));
             // Fallback if only version is present in main plugin_data
@@ -411,8 +419,10 @@ class UpdatePlugins
                 $mock_tag->name = $plugin_data->version;
                 Debugger::log('getLatestVersion (Plugin): Falling back to version from plugin JSON: ' . $plugin_data->version);
                 set_transient($transient_key, $mock_tag, 3 * HOUR_IN_SECONDS); // Cache mock tag too
+
                 return $mock_tag;
             }
+
             return false;
         }
 
@@ -430,12 +440,14 @@ class UpdatePlugins
 
         if (is_wp_error($response) || 200 !== wp_remote_retrieve_response_code($response)) {
             Debugger::log('getLatestVersion (Plugin): Error fetching tags for plugin: ' . $plugin_data->slug . ' Error: ' . (is_wp_error($response) ? $response->get_error_message() : wp_remote_retrieve_response_code($response)));
+
             return false;
         }
 
         $tags_body = json_decode(wp_remote_retrieve_body($response));
         if (json_last_error() !== JSON_ERROR_NONE || !is_array($tags_body) || empty($tags_body)) {
             Debugger::log('getLatestVersion (Plugin): JSON decode error or empty tags array for plugin: ' . $plugin_data->slug . ' Error: ' . json_last_error_msg());
+
             return false;
         }
 
@@ -443,11 +455,13 @@ class UpdatePlugins
 
         if (!$latestTagObject || empty($latestTagObject->name)) {
             Debugger::log('getLatestVersion (Plugin): Could not determine newest tag for plugin: ' . $plugin_data->slug);
+
             return false;
         }
 
         Debugger::log('getLatestVersion (Plugin): Determined latest tag: ' . ($latestTagObject->name ?? 'N/A') . ' for plugin: ' . $plugin_data->slug);
         set_transient($transient_key, $latestTagObject, 3 * HOUR_IN_SECONDS); // Cache the full tag object
+
         return $latestTagObject;
     }
 
@@ -455,6 +469,7 @@ class UpdatePlugins
     {
         if (empty($original_tag_name) || !is_object($plugin_data) || !isset($plugin_data->unrepress_meta) || !is_object($plugin_data->unrepress_meta)) {
             Debugger::log('getDownloadUrl (Plugin): Missing original_tag_name or invalid plugin_data/unrepress_meta for plugin: ' . ($plugin_data->slug ?? 'unknown'));
+
             return false;
         }
 
@@ -465,11 +480,12 @@ class UpdatePlugins
 
         if (empty($repo_url) || !is_string($repo_url)) {
             Debugger::log('getDownloadUrl (Plugin): Repository URL missing or not a string in unrepress_meta for plugin: ' . ($plugin_data->slug ?? 'unknown'));
+
             return false;
         }
 
         if ($update_from === 'release') {
-            if (!empty($meta->release_asset) && is_string($meta->release_asset)){
+            if (!empty($meta->release_asset) && is_string($meta->release_asset)) {
                 // The $original_tag_name is the release tag (e.g., "v1.2.3" or "1.2.3")
                 $normalized_version_for_asset = ltrim($original_tag_name, 'v');
                 $asset_name = str_replace('{version}', $normalized_version_for_asset, $meta->release_asset);
@@ -480,10 +496,12 @@ class UpdatePlugins
                     Debugger::log('getDownloadUrl (Plugin): Constructed GitHub release asset URL: ' . $download_url);
                 } else {
                     Debugger::log('getDownloadUrl (Plugin): Release asset downloads for non-GitHub providers not fully implemented. Repo: ' . $repo_url);
+
                     return !empty($meta->download_url) && is_string($meta->download_url) ? $meta->download_url : false;
                 }
             } else {
                 Debugger::log('getDownloadUrl (Plugin): update_from is \'release\' but release_asset is missing or invalid in unrepress_meta for plugin: ' . ($plugin_data->slug ?? 'unknown'));
+
                 return false;
             }
         } elseif ($update_from === 'tags') {
@@ -499,8 +517,10 @@ class UpdatePlugins
             // Fallback: if a direct download_url is in unrepress_meta, use it.
             if (!empty($meta->download_url) && is_string($meta->download_url)) {
                 Debugger::log('getDownloadUrl (Plugin): Falling back to direct download_url from unrepress_meta: ' . $meta->download_url);
+
                 return $meta->download_url;
             }
+
             return false;
         }
 
@@ -572,7 +592,7 @@ class UpdatePlugins
 
     /**
      * Capture the plugin slug from the AJAX request or URL parameters
-     * This runs before the download starts
+     * This runs before the download starts.
      */
     public function capturePluginSlug($response, $package, $upgrader)
     {
@@ -624,6 +644,7 @@ class UpdatePlugins
 
         if (!$plugin_data) {
             Debugger::log('Invalid plugin data for ' . $plugin_slug . ' in getPluginData'); // Added context
+
             return [];
         }
 
@@ -691,11 +712,11 @@ class UpdatePlugins
                 get_bloginfo('version') => [
                     'compatible' => true,
                     'requires_php' => $plugin_data->requires_php ?? '7.4',
-                ]
+                ],
             ],
             'contributors' => [],
             'screenshots' => [],
-            'external' => true
+            'external' => true,
         ];
 
         Debugger::log('Processed plugin data for ' . $plugin_slug . ':');
@@ -726,6 +747,7 @@ class UpdatePlugins
 
             if (!$main_index || !isset($main_index['plugins']['index'])) {
                 Debugger::log('Main index is empty or missing plugins index URL for search term: ' . $term);
+
                 return [];
             }
 
@@ -736,6 +758,7 @@ class UpdatePlugins
 
             if (is_wp_error($response)) {
                 Debugger::log('Failed to fetch plugins index for search: ' . $response->get_error_message());
+
                 return [];
             }
 
@@ -744,12 +767,14 @@ class UpdatePlugins
 
             if ($response_code !== 200) {
                 Debugger::log('Invalid response code from plugins index for search: ' . $response_code);
+
                 return [];
             }
 
             $plugins_index = json_decode($response_body, true);
             if (!$plugins_index || !isset($plugins_index['plugins'])) {
                 Debugger::log('Invalid plugins index format for search');
+
                 return [];
             }
 
@@ -763,9 +788,9 @@ class UpdatePlugins
         foreach ($plugins_index['plugins'] as $plugin) {
             // Search in name, description, and tags
             $searchable_text = strtolower(
-                $plugin['name'] . ' ' .
-                $plugin['description'] . ' ' .
-                implode(' ', $plugin['tags'])
+                $plugin['name'] . ' '
+                . $plugin['description'] . ' '
+                . implode(' ', $plugin['tags'])
             );
 
             if (strpos($searchable_text, $term) !== false) {

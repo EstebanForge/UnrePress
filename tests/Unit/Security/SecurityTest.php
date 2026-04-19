@@ -7,7 +7,7 @@ namespace UnrePress\Tests\Unit\Security;
 use UnrePress\Tests\Helpers\WordPressTestHelper;
 
 /**
- * Security Unit Tests
+ * Security Unit Tests.
  *
  * Tests for existing security vulnerabilities and patterns
  * These tests document current security behavior before Phase 1 improvements

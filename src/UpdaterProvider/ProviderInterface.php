@@ -32,7 +32,7 @@ interface ProviderInterface
     public function makeRequest(string $url): string|false;
 
     /**
-     * Complete WordPress plugin/theme popup
+     * Complete WordPress plugin/theme popup.
      *
      * @param array|false|object $result The result object or array. Default false.
      * @param string             $action The type of information being requested from the Plugin Installation API.

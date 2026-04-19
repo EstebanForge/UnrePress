@@ -8,7 +8,7 @@ use UnrePress\Tests\Helpers\WordPressTestHelper;
 use UnrePress\Updater\UpdatePlugins;
 
 /**
- * UpdatePlugins Unit Tests
+ * UpdatePlugins Unit Tests.
  */
 class UpdatePluginsTest extends WordPressTestHelper
 {
@@ -78,9 +78,8 @@ class UpdatePluginsTest extends WordPressTestHelper
             'response' => ['code' => 200],
         ]);
 
-        
-        \Brain\Monkey\Functions\when("wp_remote_retrieve_response_code")->alias(function($response) { return is_array($response) ? ($response["response"]["code"] ?? 200) : 200; });
-        \Brain\Monkey\Functions\when("wp_remote_retrieve_body")->alias(function($response) { return is_array($response) ? ($response["body"] ?? "") : $response; });
+        \Brain\Monkey\Functions\when('wp_remote_retrieve_response_code')->alias(function ($response) { return is_array($response) ? ($response['response']['code'] ?? 200) : 200; });
+        \Brain\Monkey\Functions\when('wp_remote_retrieve_body')->alias(function ($response) { return is_array($response) ? ($response['body'] ?? '') : $response; });
 
         $result = $this->updatePlugins->requestRemoteInfo('standard-plugin');
 
@@ -108,8 +107,7 @@ class UpdatePluginsTest extends WordPressTestHelper
             'response' => ['code' => 404],
         ]);
 
-        
-        \Brain\Monkey\Functions\when("wp_remote_retrieve_response_code")->alias(function($response) { return is_array($response) ? ($response["response"]["code"] ?? 200) : 200; });
+        \Brain\Monkey\Functions\when('wp_remote_retrieve_response_code')->alias(function ($response) { return is_array($response) ? ($response['response']['code'] ?? 200) : 200; });
 
         $result = $this->updatePlugins->requestRemoteInfo('not-found-plugin');
 
@@ -124,9 +122,8 @@ class UpdatePluginsTest extends WordPressTestHelper
             'response' => ['code' => 200],
         ]);
 
-        
-        \Brain\Monkey\Functions\when("wp_remote_retrieve_response_code")->alias(function($response) { return is_array($response) ? ($response["response"]["code"] ?? 200) : 200; });
-        \Brain\Monkey\Functions\when("wp_remote_retrieve_body")->alias(function($response) { return is_array($response) ? ($response["body"] ?? "") : $response; });
+        \Brain\Monkey\Functions\when('wp_remote_retrieve_response_code')->alias(function ($response) { return is_array($response) ? ($response['response']['code'] ?? 200) : 200; });
+        \Brain\Monkey\Functions\when('wp_remote_retrieve_body')->alias(function ($response) { return is_array($response) ? ($response['body'] ?? '') : $response; });
 
         $result = $this->updatePlugins->requestRemoteInfo('bad-json-plugin');
 
@@ -141,9 +138,8 @@ class UpdatePluginsTest extends WordPressTestHelper
             'response' => ['code' => 200],
         ]);
 
-        
-        \Brain\Monkey\Functions\when("wp_remote_retrieve_response_code")->alias(function($response) { return is_array($response) ? ($response["response"]["code"] ?? 200) : 200; });
-        \Brain\Monkey\Functions\when("wp_remote_retrieve_body")->alias(function($response) { return is_array($response) ? ($response["body"] ?? "") : $response; });
+        \Brain\Monkey\Functions\when('wp_remote_retrieve_response_code')->alias(function ($response) { return is_array($response) ? ($response['response']['code'] ?? 200) : 200; });
+        \Brain\Monkey\Functions\when('wp_remote_retrieve_body')->alias(function ($response) { return is_array($response) ? ($response['body'] ?? '') : $response; });
 
         $result = $this->updatePlugins->requestRemoteInfo('test-plugin');
 
@@ -178,8 +174,8 @@ class UpdatePluginsTest extends WordPressTestHelper
         ]);
 
         \Brain\Monkey\Functions\when('is_wp_error')->justReturn(false);
-        \Brain\Monkey\Functions\when("wp_remote_retrieve_response_code")->alias(function($response) { return is_array($response) ? ($response["response"]["code"] ?? 200) : 200; });
-        \Brain\Monkey\Functions\when("wp_remote_retrieve_body")->alias(function($response) { return is_array($response) ? ($response["body"] ?? "") : $response; });
+        \Brain\Monkey\Functions\when('wp_remote_retrieve_response_code')->alias(function ($response) { return is_array($response) ? ($response['response']['code'] ?? 200) : 200; });
+        \Brain\Monkey\Functions\when('wp_remote_retrieve_body')->alias(function ($response) { return is_array($response) ? ($response['body'] ?? '') : $response; });
 
         // Mock WordPress functions
         \Brain\Monkey\Functions\when('esc_url')->returnArg(1);
@@ -247,8 +243,8 @@ class UpdatePluginsTest extends WordPressTestHelper
             'response' => ['code' => 404], // Return 404 to simulate no update available
         ]);
         \Brain\Monkey\Functions\when('is_wp_error')->justReturn(false);
-        \Brain\Monkey\Functions\when('wp_remote_retrieve_body')->alias(function($response) { return is_array($response) ? ($response["body"] ?? "") : $response; });
-        \Brain\Monkey\Functions\when('wp_remote_retrieve_response_code')->alias(function($response) { return is_array($response) ? ($response["response"]["code"] ?? 200) : 200; });
+        \Brain\Monkey\Functions\when('wp_remote_retrieve_body')->alias(function ($response) { return is_array($response) ? ($response['body'] ?? '') : $response; });
+        \Brain\Monkey\Functions\when('wp_remote_retrieve_response_code')->alias(function ($response) { return is_array($response) ? ($response['response']['code'] ?? 200) : 200; });
 
         $transient = new \stdClass();
         $transient->checked = [];
@@ -313,8 +309,8 @@ class UpdatePluginsTest extends WordPressTestHelper
             'response' => ['code' => 404],
         ]);
         \Brain\Monkey\Functions\when('is_wp_error')->justReturn(false);
-        \Brain\Monkey\Functions\when('wp_remote_retrieve_body')->alias(function($response) { return is_array($response) ? ($response["body"] ?? "") : $response; });
-        \Brain\Monkey\Functions\when('wp_remote_retrieve_response_code')->alias(function($response) { return is_array($response) ? ($response["response"]["code"] ?? 200) : 200; });
+        \Brain\Monkey\Functions\when('wp_remote_retrieve_body')->alias(function ($response) { return is_array($response) ? ($response['body'] ?? '') : $response; });
+        \Brain\Monkey\Functions\when('wp_remote_retrieve_response_code')->alias(function ($response) { return is_array($response) ? ($response['response']['code'] ?? 200) : 200; });
 
         $transient = null;
 

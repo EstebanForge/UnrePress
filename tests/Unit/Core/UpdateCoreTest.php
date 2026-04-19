@@ -7,7 +7,7 @@ namespace UnrePress\Tests\Unit\Core;
 use PHPUnit\Framework\TestCase;
 
 /**
- * UpdateCore Unit Tests
+ * UpdateCore Unit Tests.
  *
  * Tests the core WordPress update functionality from GitHub.
  * These tests can run without WordPress test environment for basic functionality.
@@ -15,7 +15,7 @@ use PHPUnit\Framework\TestCase;
 class UpdateCoreTest extends TestCase
 {
     /**
-     * Test that test environment is working
+     * Test that test environment is working.
      */
     public function test_phpunit_environment_is_working(): void
     {
@@ -24,7 +24,7 @@ class UpdateCoreTest extends TestCase
     }
 
     /**
-     * Test that required constants can be defined for testing
+     * Test that required constants can be defined for testing.
      */
     public function test_required_constants_can_be_defined(): void
     {
@@ -47,7 +47,7 @@ class UpdateCoreTest extends TestCase
     }
 
     /**
-     * Test basic string operations used in URL construction
+     * Test basic string operations used in URL construction.
      */
     public function test_github_url_construction(): void
     {
@@ -63,7 +63,7 @@ class UpdateCoreTest extends TestCase
     }
 
     /**
-     * Test version string normalization
+     * Test version string normalization.
      */
     public function test_version_string_normalization(): void
     {
@@ -76,7 +76,7 @@ class UpdateCoreTest extends TestCase
     }
 
     /**
-     * Test GitHub URL slug extraction
+     * Test GitHub URL slug extraction.
      */
     public function test_extract_github_repository_slug(): void
     {
@@ -94,7 +94,7 @@ class UpdateCoreTest extends TestCase
     }
 
     /**
-     * Test GitHub URL slug extraction with .git extension
+     * Test GitHub URL slug extraction with .git extension.
      */
     public function test_extract_github_repository_slug_with_git_extension(): void
     {
@@ -116,7 +116,7 @@ class UpdateCoreTest extends TestCase
     }
 
     /**
-     * Test download URL construction for different version formats
+     * Test download URL construction for different version formats.
      */
     public function test_download_url_construction(): void
     {
@@ -137,7 +137,7 @@ class UpdateCoreTest extends TestCase
     }
 
     /**
-     * Test timeout values are reasonable
+     * Test timeout values are reasonable.
      */
     public function test_timeout_values_are_reasonable(): void
     {
@@ -151,7 +151,7 @@ class UpdateCoreTest extends TestCase
     }
 
     /**
-     * Test transient key generation
+     * Test transient key generation.
      */
     public function test_transient_key_generation(): void
     {

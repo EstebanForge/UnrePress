@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /**
- * PHPUnit Bootstrap for UnrePress Tests
+ * PHPUnit Bootstrap for UnrePress Tests.
  *
  * This bootstrap allows running unit tests with or without BrainMonkey
  * for WordPress function mocking.
@@ -28,7 +28,7 @@ try {
         require_once $brainMonkeyApi;
         $brainMonkeyLoaded = true;
     }
-} catch (\Throwable $e) {
+} catch (Throwable $e) {
     // BrainMonkey not available, continue without it
     $brainMonkeyLoaded = false;
 }
@@ -95,86 +95,99 @@ if (!class_exists('WP_Error')) {
 // Basic WordPress function stubs (used when BrainMonkey is not active)
 if (!$brainMonkeyLoaded) {
     if (!function_exists('__')) {
-        function __($text, $domain = 'default') {
+        function __($text, $domain = 'default')
+        {
             return $text;
         }
     }
 
     if (!function_exists('_e')) {
-        function _e($text, $domain = 'default') {
+        function _e($text, $domain = 'default')
+        {
             echo $text;
         }
     }
 
     if (!function_exists('_x')) {
-        function _x($text, $context, $domain = 'default') {
+        function _x($text, $context, $domain = 'default')
+        {
             return $text;
         }
     }
 
     if (!function_exists('esc_html__')) {
-        function esc_html__($text, $domain = 'default') {
+        function esc_html__($text, $domain = 'default')
+        {
             return htmlspecialchars($text);
         }
     }
 
     if (!function_exists('esc_attr')) {
-        function esc_attr($text) {
+        function esc_attr($text)
+        {
             return htmlspecialchars($text, ENT_QUOTES);
         }
     }
 
     if (!function_exists('esc_html')) {
-        function esc_html($text) {
+        function esc_html($text)
+        {
             return htmlspecialchars($text);
         }
     }
 
     if (!function_exists('esc_url')) {
-        function esc_url($url) {
+        function esc_url($url)
+        {
             return filter_var($url, FILTER_SANITIZE_URL);
         }
     }
 
     if (!function_exists('sanitize_text_field')) {
-        function sanitize_text_field($str) {
+        function sanitize_text_field($str)
+        {
             return htmlspecialchars(strip_tags($str));
         }
     }
 
     if (!function_exists('wp_sprintf')) {
-        function wp_sprintf($pattern, ...$args) {
+        function wp_sprintf($pattern, ...$args)
+        {
             return vsprintf($pattern, $args);
         }
     }
 
     if (!function_exists('is_wp_error')) {
-        function is_wp_error($thing) {
+        function is_wp_error($thing)
+        {
             return false;
         }
     }
 
     if (!function_exists('wp_remote_get')) {
-        function wp_remote_get($url, $args = []) {
+        function wp_remote_get($url, $args = [])
+        {
             return ['body' => '', 'response' => ['code' => 200]];
         }
     }
 
     if (!function_exists('wp_remote_retrieve_body')) {
-        function wp_remote_retrieve_body($response) {
+        function wp_remote_retrieve_body($response)
+        {
             return is_array($response) ? ($response['body'] ?? '') : '';
         }
     }
 
     if (!function_exists('wp_remote_retrieve_response_code')) {
-        function wp_remote_retrieve_response_code($response) {
+        function wp_remote_retrieve_response_code($response)
+        {
             return is_array($response) ? ($response['response']['code'] ?? 200) : 200;
         }
     }
 }
 
 $statusMessage = "UnrePress test environment loaded successfully.\n";
-$statusMessage .= "PHPUnit 12.5.22 ";
+$statusMessage .= 'PHPUnit 12.5.22 ';
 $statusMessage .= $brainMonkeyLoaded ? "with BrainMonkey 2.7.0 for WordPress mocking.\n" : "(without BrainMonkey - basic stubs only).\n";
 $statusMessage .= "Full WordPress integration: Use your Docker environment.\n";
 

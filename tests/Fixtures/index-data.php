@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /**
- * Index Fixtures
+ * Index Fixtures.
  *
  * Sample index data for plugins and themes
  */

@@ -20,7 +20,7 @@ class PluginsIndex extends Index
     }
 
     /**
-     * Get a plugin's JSON file from UnrePress index
+     * Get a plugin's JSON file from UnrePress index.
      *
      * @var string
      *

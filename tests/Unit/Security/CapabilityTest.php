@@ -8,7 +8,7 @@ use UnrePress\Security\CapabilityChecker;
 use UnrePress\Tests\Helpers\WordPressTestHelper;
 
 /**
- * CapabilityChecker Unit Tests
+ * CapabilityChecker Unit Tests.
  *
  * Tests for user capability validation to ensure proper authorization
  * for sensitive operations like updates, settings changes, and file operations.
@@ -194,8 +194,9 @@ class CapabilityTest extends WordPressTestHelper
     public function test_user_has_any_capability_returns_true_if_one_matches(): void
     {
         $callCount = 0;
-        \Brain\Monkey\Functions\when('current_user_can')->alias(function($cap) use (&$callCount) {
+        \Brain\Monkey\Functions\when('current_user_can')->alias(function ($cap) use (&$callCount) {
             $callCount++;
+
             return $cap === 'update_plugins';
         });
 
@@ -209,8 +210,9 @@ class CapabilityTest extends WordPressTestHelper
     public function test_user_has_all_capabilities_returns_false_if_one_missing(): void
     {
         $callCount = 0;
-        \Brain\Monkey\Functions\when('current_user_can')->alias(function($cap) use (&$callCount) {
+        \Brain\Monkey\Functions\when('current_user_can')->alias(function ($cap) use (&$callCount) {
             $callCount++;
+
             return $cap !== 'delete_plugins';
         });
 

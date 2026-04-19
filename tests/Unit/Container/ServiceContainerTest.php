@@ -8,7 +8,7 @@ use UnrePress\Container\ServiceContainer;
 use UnrePress\Tests\Helpers\WordPressTestHelper;
 
 /**
- * ServiceContainer Unit Tests
+ * ServiceContainer Unit Tests.
  *
  * Tests for dependency injection container to manage service lifecycle
  * and dependencies between components.
@@ -34,7 +34,7 @@ class ServiceContainerTest extends WordPressTestHelper
 
     public function test_can_register_simple_service(): void
     {
-        $this->container->register('test.service', function() {
+        $this->container->register('test.service', function () {
             return new \stdClass();
         });
 
@@ -45,9 +45,10 @@ class ServiceContainerTest extends WordPressTestHelper
 
     public function test_can_retrieve_registered_service(): void
     {
-        $this->container->register('test.service', function() {
+        $this->container->register('test.service', function () {
             $obj = new \stdClass();
             $obj->value = 'test';
+
             return $obj;
         });
 
@@ -60,10 +61,11 @@ class ServiceContainerTest extends WordPressTestHelper
     public function test_returns_same_instance_for_singleton(): void
     {
         $counter = 0;
-        $this->container->register('test.singleton', function() use (&$counter) {
+        $this->container->register('test.singleton', function () use (&$counter) {
             $counter++;
             $obj = new \stdClass();
             $obj->count = $counter;
+
             return $obj;
         }, true);
 
@@ -78,10 +80,11 @@ class ServiceContainerTest extends WordPressTestHelper
     public function test_returns_different_instance_for_transient(): void
     {
         $counter = 0;
-        $this->container->register('test.transient', function() use (&$counter) {
+        $this->container->register('test.transient', function () use (&$counter) {
             $counter++;
             $obj = new \stdClass();
             $obj->count = $counter;
+
             return $obj;
         }, false);
 
@@ -111,16 +114,18 @@ class ServiceContainerTest extends WordPressTestHelper
     public function test_can_resolve_dependencies(): void
     {
         // Register dependency
-        $this->container->register('dependency', function() {
+        $this->container->register('dependency', function () {
             $obj = new \stdClass();
             $obj->name = 'dependency';
+
             return $obj;
         });
 
         // Register service that uses dependency
-        $this->container->register('service.with.dependency', function($c) {
+        $this->container->register('service.with.dependency', function ($c) {
             $service = new \stdClass();
             $service->dep = $c->get('dependency');
+
             return $service;
         });
 
@@ -133,13 +138,13 @@ class ServiceContainerTest extends WordPressTestHelper
 
     public function test_can_register_multiple_services(): void
     {
-        $this->container->register('service1', function() {
+        $this->container->register('service1', function () {
             return new \stdClass();
         });
-        $this->container->register('service2', function() {
+        $this->container->register('service2', function () {
             return new \ArrayObject();
         });
-        $this->container->register('service3', function() {
+        $this->container->register('service3', function () {
             return new \Exception();
         });
 
@@ -151,8 +156,9 @@ class ServiceContainerTest extends WordPressTestHelper
     public function test_singleton_services_are_cached(): void
     {
         $callCount = 0;
-        $this->container->register('cached.service', function() use (&$callCount) {
+        $this->container->register('cached.service', function () use (&$callCount) {
             $callCount++;
+
             return new \stdClass();
         }, true);
 
@@ -168,8 +174,9 @@ class ServiceContainerTest extends WordPressTestHelper
     public function test_transient_services_are_not_cached(): void
     {
         $callCount = 0;
-        $this->container->register('uncached.service', function() use (&$callCount) {
+        $this->container->register('uncached.service', function () use (&$callCount) {
             $callCount++;
+
             return new \stdClass();
         }, false);
 
@@ -209,10 +216,11 @@ class ServiceContainerTest extends WordPressTestHelper
 
     public function test_can_register_factory_with_parameters(): void
     {
-        $this->container->register('factory.with.params', function($c, $param1, $param2) {
+        $this->container->register('factory.with.params', function ($c, $param1, $param2) {
             $obj = new \stdClass();
             $obj->param1 = $param1;
             $obj->param2 = $param2;
+
             return $obj;
         });
 
@@ -225,8 +233,9 @@ class ServiceContainerTest extends WordPressTestHelper
     public function test_make_creates_new_instance_even_for_singleton(): void
     {
         $counter = 0;
-        $this->container->register('make.test', function() use (&$counter) {
+        $this->container->register('make.test', function () use (&$counter) {
             $counter++;
+
             return $counter;
         }, true);
 
@@ -240,7 +249,7 @@ class ServiceContainerTest extends WordPressTestHelper
 
     public function test_can_check_if_service_registered(): void
     {
-        $this->container->register('registered.service', function() {
+        $this->container->register('registered.service', function () {
             return new \stdClass();
         });
 
@@ -250,7 +259,7 @@ class ServiceContainerTest extends WordPressTestHelper
 
     public function test_can_remove_registered_service(): void
     {
-        $this->container->register('removable.service', function() {
+        $this->container->register('removable.service', function () {
             return new \stdClass();
         });
 
@@ -264,8 +273,9 @@ class ServiceContainerTest extends WordPressTestHelper
     public function test_remove_clears_singleton_cache(): void
     {
         $counter = 0;
-        $this->container->register('cached.service', function() use (&$counter) {
+        $this->container->register('cached.service', function () use (&$counter) {
             $counter++;
+
             return $counter;
         }, true);
 
@@ -275,8 +285,9 @@ class ServiceContainerTest extends WordPressTestHelper
         $this->container->remove('cached.service');
 
         // Re-register and get again
-        $this->container->register('cached.service', function() use (&$counter) {
+        $this->container->register('cached.service', function () use (&$counter) {
             $counter++;
+
             return $counter;
         }, true);
         $this->container->get('cached.service');
@@ -288,7 +299,7 @@ class ServiceContainerTest extends WordPressTestHelper
     {
         $this->expectException(\InvalidArgumentException::class);
 
-        $this->container->register('', function() {
+        $this->container->register('', function () {
             return new \stdClass();
         });
     }
@@ -302,7 +313,7 @@ class ServiceContainerTest extends WordPressTestHelper
 
     public function test_supports_array_access_interface(): void
     {
-        $this->container['array.access'] = function() {
+        $this->container['array.access'] = function () {
             return 'array access test';
         };
 
@@ -312,7 +323,7 @@ class ServiceContainerTest extends WordPressTestHelper
 
     public function test_can_unset_via_array_access(): void
     {
-        $this->container['unset.test'] = function() {
+        $this->container['unset.test'] = function () {
             return new \stdClass();
         };
 
@@ -326,15 +337,15 @@ class ServiceContainerTest extends WordPressTestHelper
     public function test_dependency_chain_is_resolved_correctly(): void
     {
         // Register chain: A -> B -> C
-        $this->container->register('service.c', function() {
+        $this->container->register('service.c', function () {
             return 'C';
         });
 
-        $this->container->register('service.b', function($c) {
+        $this->container->register('service.b', function ($c) {
             return 'B-' . $c->get('service.c');
         });
 
-        $this->container->register('service.a', function($c) {
+        $this->container->register('service.a', function ($c) {
             return 'A-' . $c->get('service.b');
         });
 
@@ -349,11 +360,12 @@ class ServiceContainerTest extends WordPressTestHelper
         $depth = 0;
 
         // Register service that keeps calling itself
-        $this->container->register('deep.chain', function($c) use (&$depth, $maxDepth) {
+        $this->container->register('deep.chain', function ($c) use (&$depth, $maxDepth) {
             $depth++;
             if ($depth > $maxDepth) {
                 throw new \Exception('Max depth reached');
             }
+
             return $c->get('deep.chain');
         });
 

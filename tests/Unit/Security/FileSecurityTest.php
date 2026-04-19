@@ -8,7 +8,7 @@ use UnrePress\Security\SecureFileOperations;
 use UnrePress\Tests\Helpers\WordPressTestHelper;
 
 /**
- * SecureFileOperations Unit Tests
+ * SecureFileOperations Unit Tests.
  *
  * Tests for secure file system operations to prevent path traversal,
  * unauthorized file access, and directory escape attempts.
@@ -130,7 +130,7 @@ class FileSecurityTest extends WordPressTestHelper
         $filename = '/tmp/test-world-writable.txt';
 
         // Test with permission check
-        $result = $this->fileOps->validateFilePermissions($filename, 0666);
+        $result = $this->fileOps->validateFilePermissions($filename, 0o666);
 
         // World-writable files should be rejected
         $this->assertFalse($result);
@@ -141,7 +141,7 @@ class FileSecurityTest extends WordPressTestHelper
         $filename = '/tmp/test-secure.txt';
 
         // Test with secure permission (644)
-        $result = $this->fileOps->validateFilePermissions($filename, 0644);
+        $result = $this->fileOps->validateFilePermissions($filename, 0o644);
 
         // Secure files should be accepted
         $this->assertTrue($result);

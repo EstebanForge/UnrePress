@@ -35,12 +35,14 @@ if (!function_exists('unrepress_get_github_token')) {
         $env_token = getenv('UNREPRESS_GITHUB_TOKEN');
         if (!empty($env_token)) {
             unrepress_debug('GitHub token found in environment variable');
+
             return $env_token;
         }
 
         // 2. Check if defined in wp-config.php and not empty
         if (defined('UNREPRESS_TOKEN_GITHUB') && !empty(UNREPRESS_TOKEN_GITHUB)) {
             unrepress_debug('GitHub token found in UNREPRESS_TOKEN_GITHUB constant:', 'Length: ' . strlen(UNREPRESS_TOKEN_GITHUB));
+
             return UNREPRESS_TOKEN_GITHUB;
         }
 
@@ -48,6 +50,7 @@ if (!function_exists('unrepress_get_github_token')) {
         $filtered_token = apply_filters('unrepress_github_token', '');
         if (!empty($filtered_token)) {
             unrepress_debug('GitHub token found via filter');
+
             return $filtered_token;
         }
 
@@ -55,10 +58,12 @@ if (!function_exists('unrepress_get_github_token')) {
         $option_token = get_option('unrepress_github_token', '');
         if (!empty($option_token)) {
             unrepress_debug('GitHub token found in WordPress option');
+
             return $option_token;
         }
 
         unrepress_debug('No GitHub token found in any source');
+
         return '';
     }
 }

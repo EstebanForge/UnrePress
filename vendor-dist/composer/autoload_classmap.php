@@ -5,7 +5,7 @@
 $vendorDir = dirname(__DIR__);
 $baseDir = dirname($vendorDir);
 
-return array(
+return [
     'Composer\\InstalledVersions' => $vendorDir . '/composer/InstalledVersions.php',
     'UnrePress\\Admin\\Hider' => $baseDir . '/src/Admin/Hider.php',
     'UnrePress\\Admin\\UpdaterPages' => $baseDir . '/src/Admin/UpdaterPages.php',
@@ -22,4 +22,4 @@ return array(
     'UnrePress\\Updater\\UpdateLock' => $baseDir . '/src/Updater/UpdateLock.php',
     'UnrePress\\Updater\\UpdatePlugins' => $baseDir . '/src/Updater/UpdatePlugins.php',
     'UnrePress\\Updater\\UpdateThemes' => $baseDir . '/src/Updater/UpdateThemes.php',
-);
+];

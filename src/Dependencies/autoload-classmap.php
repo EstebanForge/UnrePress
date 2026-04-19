@@ -4,5 +4,5 @@
 
 $strauss_src = dirname(__FILE__);
 
-return array(
-);
+return [
+];

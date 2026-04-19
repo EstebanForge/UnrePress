@@ -2,7 +2,6 @@
 
 namespace UnrePress;
 
-/** @package UnrePress */
 class Helpers
 {
     private $updateLogFile = 'unrepress_update_log.txt';
@@ -92,8 +91,9 @@ class Helpers
 
         // Create directory if it doesn't exist
         if (!$wp_filesystem->exists($updateLogDir)) {
-            if (!$wp_filesystem->mkdir($updateLogDir, 0755)) {
+            if (!$wp_filesystem->mkdir($updateLogDir, 0o755)) {
                 Debugger::log('Unable to create directory at ' . $updateLogDir);
+
                 return;
             }
         }
@@ -102,6 +102,7 @@ class Helpers
         if (!$wp_filesystem->exists($updateLogFile)) {
             if (!$wp_filesystem->touch($updateLogFile)) {
                 Debugger::log('Unable to create log file at ' . $updateLogFile);
+
                 return;
             }
         }
@@ -135,8 +136,9 @@ class Helpers
 
         // Create directory if it doesn't exist
         if (!$wp_filesystem->exists($updateLogDir)) {
-            if (!$wp_filesystem->mkdir($updateLogDir, 0755)) {
+            if (!$wp_filesystem->mkdir($updateLogDir, 0o755)) {
                 Debugger::log('Unable to create directory at ' . $updateLogDir);
+
                 return;
             }
         }
@@ -190,6 +192,7 @@ class Helpers
         // Case 1: $url_to_process is already a full GitHub API tags URL
         if (strpos($url_to_process, 'api.github.com/repos/') !== false && strpos($url_to_process, '/tags') !== false) {
             Debugger::log('normalizeTagUrl: Already a full API tags URL: ' . $url_to_process);
+
             return rtrim($url_to_process, '/'); // Ensure no trailing slash for consistency
         }
 
@@ -197,6 +200,7 @@ class Helpers
         if (strpos($url_to_process, 'github.com/') !== false && strpos($url_to_process, '/tags') !== false) {
             $api_url = preg_replace('~github\.com/([^/]+)/([^/]+)(/tags)?~i', 'api.github.com/repos/$1/$2/tags', $url_to_process);
             Debugger::log('normalizeTagUrl: Converted browser tags URL to API URL: ' . $api_url);
+
             return rtrim($api_url, '/');
         }
 
@@ -215,12 +219,13 @@ class Helpers
                     // This handles cases where $segment might be a specific ref like "refs/tags" but shouldn't usually be needed if meta->tags is the tags API endpoint itself.
                     $final_tags_path = strpos($segment, '/') === 0 ? $segment : '/' . $segment;
                 } elseif (empty($segment)) {
-                     // If segment is empty, we assume the base repo URL needs /tags appended for the API.
+                    // If segment is empty, we assume the base repo URL needs /tags appended for the API.
                 }
                 // if $segment is exactly '/tags', it's already handled by $final_tags_path default
 
                 $full_api_url = $base_api_url . rtrim($final_tags_path, '/');
                 Debugger::log('normalizeTagUrl: Constructed API URL from base repo: ' . $full_api_url);
+
                 return $full_api_url;
             }
         }
@@ -229,16 +234,18 @@ class Helpers
         // It might be a direct API endpoint for GitLab, Bitbucket, etc.
         // Or, $url_to_process is a partial path like "/tags" and $segment contains the base repo URL (less common)
         if (!empty($segment) && filter_var($segment, FILTER_VALIDATE_URL) && strpos($url_to_process, '/') === 0) {
-             // This is a less common scenario: $url_to_process is a path, $segment is the base URL.
-             // Example: $url_to_process = "/tags", $segment = "https://api.somegit.com/repos/foo/bar"
-             $combined_url = rtrim($segment, '/') . $url_to_process;
-             Debugger::log('normalizeTagUrl: Combined base URL from segment with path: ' . $combined_url);
-             return $combined_url;
+            // This is a less common scenario: $url_to_process is a path, $segment is the base URL.
+            // Example: $url_to_process = "/tags", $segment = "https://api.somegit.com/repos/foo/bar"
+            $combined_url = rtrim($segment, '/') . $url_to_process;
+            Debugger::log('normalizeTagUrl: Combined base URL from segment with path: ' . $combined_url);
+
+            return $combined_url;
         }
 
         // Default: Return the original URL if no specific GitHub transformation applies
         // It might be a pre-formed API URL for another service or already correct.
         Debugger::log('normalizeTagUrl: No specific GitHub normalization applied, returning: ' . $url_to_process);
+
         return rtrim($url_to_process, '/');
     }
 
@@ -253,6 +260,7 @@ class Helpers
     {
         if (empty($tags) || !is_array($tags)) {
             Debugger::log('getNewestVersionFromTags: No tags provided or not an array.');
+
             return null;
         }
 
@@ -277,7 +285,6 @@ class Helpers
             // but preserve the original $tag_name for download URL construction.
             $comparable_version = preg_replace('/[^0-9.]/', '', $normalized_version);
 
-
             if (strpos($tag_name, 'v') === 0 && preg_match('/^[0-9.]+$/', $comparable_version)) {
                 $tag_type = 'v_prefixed';
             } elseif (preg_match('/^[0-9.]+$/', $comparable_version)) {
@@ -292,17 +299,17 @@ class Helpers
             if ($tag_type === 'v_prefixed') {
                 $v_tags[] = [
                     'tag' => $tag, // Store the original tag object
-                    'normalized' => $comparable_version
+                    'normalized' => $comparable_version,
                 ];
             } elseif ($tag_type === 'numeric') {
                 $numeric_tags[] = [
                     'tag' => $tag,
-                    'normalized' => $comparable_version
+                    'normalized' => $comparable_version,
                 ];
             } else {
                 $other_tags[] = [
                     'tag' => $tag,
-                    'normalized' => $comparable_version // May not be truly comparable, but store it
+                    'normalized' => $comparable_version, // May not be truly comparable, but store it
                 ];
             }
         }
@@ -321,20 +328,24 @@ class Helpers
         if (!empty($v_tags)) {
             usort($v_tags, $version_compare);
             Debugger::log('Latest v_tag selected: ' . ($v_tags[0]['tag']->name ?? 'Error'));
+
             return $v_tags[0]['tag']; // Return the full tag object
         } elseif (!empty($numeric_tags)) {
             usort($numeric_tags, $version_compare);
             Debugger::log('Latest numeric_tag selected: ' . ($numeric_tags[0]['tag']->name ?? 'Error'));
+
             return $numeric_tags[0]['tag'];
         }
 
         // If only other tags exist, return the first one (no reliable sorting here, but it's a fallback)
         if (!empty($other_tags)) {
             Debugger::log('Latest other_tag selected (fallback): ' . ($other_tags[0]['tag']->name ?? 'Error'));
+
             return $other_tags[0]['tag'];
         }
 
         Debugger::log('No suitable latest tag found after processing all tags.');
+
         return null;
     }
 
@@ -351,6 +362,7 @@ class Helpers
     {
         if (empty($repo_url) || empty($tag_name)) {
             Debugger::log('getDownloadUrlForProviderTag: Missing repo_url or tag_name.');
+
             return false;
         }
 
@@ -368,10 +380,12 @@ class Helpers
 
             } else {
                 Debugger::log('getDownloadUrlForProviderTag: Repo URL does not seem to be a GitHub URL: ' . $repo_url);
+
                 return false;
             }
         } else {
             Debugger::log('getDownloadUrlForProviderTag: Provider ' . $provider . ' not yet supported.');
+
             return false;
         }
 
@@ -403,7 +417,7 @@ class Helpers
             return $source;
         }
 
-        if(is_array($slug) && isset($slug['slug'])) {
+        if (is_array($slug) && isset($slug['slug'])) {
             $slug = $slug['slug'];
         }
 

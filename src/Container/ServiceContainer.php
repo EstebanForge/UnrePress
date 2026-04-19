@@ -8,7 +8,7 @@ use ArrayAccess;
 use InvalidArgumentException;
 
 /**
- * Service Container
+ * Service Container.
  *
  * Simple dependency injection container for managing service lifecycle
  * and dependencies. Supports singleton and transient services.
@@ -67,7 +67,7 @@ class ServiceContainer implements ArrayAccess
      */
     public function instance(string $id, $instance): void
     {
-        $this->factories[$id] = function() use ($instance) {
+        $this->factories[$id] = function () use ($instance) {
             return $instance;
         };
         $this->instances[$id] = $instance;

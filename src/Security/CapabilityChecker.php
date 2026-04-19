@@ -7,7 +7,7 @@ namespace UnrePress\Security;
 use Exception;
 
 /**
- * Capability Checker
+ * Capability Checker.
  *
  * Provides centralized capability validation to ensure proper authorization
  * for sensitive operations. All capability checks should go through this class

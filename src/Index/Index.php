@@ -4,12 +4,10 @@ namespace UnrePress\Index;
 
 class Index
 {
-    public function __construct()
-    {
-    }
+    public function __construct() {}
 
     /**
-     * Retrieve the main index json from GitHub
+     * Retrieve the main index json from GitHub.
      */
     public function getRootIndex()
     {
@@ -31,7 +29,7 @@ class Index
     }
 
     /**
-     * Generate the URL for the given slug and type
+     * Generate the URL for the given slug and type.
      *
      * @param string $slug The slug of the plugin or theme
      * @param string $type The type of index, either 'plugin' or 'theme'
@@ -56,7 +54,7 @@ class Index
     }
 
     /**
-     * Normalize a slug to a valid filename
+     * Normalize a slug to a valid filename.
      *
      * @param string $slug The slug to normalize
      *

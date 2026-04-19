@@ -8,7 +8,7 @@ use UnrePress\Helpers;
 use UnrePress\Tests\Helpers\WordPressTestHelper;
 
 /**
- * Helpers Unit Tests
+ * Helpers Unit Tests.
  */
 class HelpersTest extends WordPressTestHelper
 {
@@ -29,7 +29,7 @@ class HelpersTest extends WordPressTestHelper
             define('UNREPRESS_TEMP_PATH', '/tmp/unrepress-temp/');
         }
         if (!defined('FS_CHMOD_FILE')) {
-            define('FS_CHMOD_FILE', 0644);
+            define('FS_CHMOD_FILE', 0o644);
         }
         if (!defined('UNREPRESS_PREFIX')) {
             define('UNREPRESS_PREFIX', 'unrepress_');
@@ -46,7 +46,6 @@ class HelpersTest extends WordPressTestHelper
 
         $this->helpers = new Helpers();
     }
-
 
     public function test_normalize_tag_url_with_full_github_api_url(): void
     {
@@ -212,5 +211,4 @@ class HelpersTest extends WordPressTestHelper
 
         $this->assertFalse($result);
     }
-
 }

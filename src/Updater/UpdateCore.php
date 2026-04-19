@@ -53,6 +53,7 @@ class UpdateCore
 
             if (!defined('UNREPRESS_BLOCK_WPORG') || !UNREPRESS_BLOCK_WPORG) {
                 $this->helpers->writeUpdateLog(__('Falling back to wp.org repository for the update...', 'unrepress'));
+
                 return $this->fallbackToWordPressUpdate($type);
             }
 
@@ -88,10 +89,12 @@ class UpdateCore
             if (!defined('UNREPRESS_BLOCK_WPORG') || !UNREPRESS_BLOCK_WPORG) {
                 $this->helpers->writeUpdateLog(__('Falling back to wp.org repository for the update...', 'unrepress'));
                 $this->updateLock->unlock();
+
                 return $this->fallbackToWordPressUpdate($type);
             }
 
             $this->updateLock->unlock();
+
             return false;
         }
 
@@ -109,10 +112,12 @@ class UpdateCore
             if (!defined('UNREPRESS_BLOCK_WPORG') || !UNREPRESS_BLOCK_WPORG) {
                 $this->helpers->writeUpdateLog(__('Falling back to wp.org repository for the update...', 'unrepress'));
                 $this->updateLock->unlock();
+
                 return $this->fallbackToWordPressUpdate($type);
             }
 
             $this->updateLock->unlock();
+
             return false;
         }
 
@@ -125,10 +130,12 @@ class UpdateCore
             if (!defined('UNREPRESS_BLOCK_WPORG') || !UNREPRESS_BLOCK_WPORG) {
                 $this->helpers->writeUpdateLog(__('Falling back to wp.org repository for the update...', 'unrepress'));
                 $this->updateLock->unlock();
+
                 return $this->fallbackToWordPressUpdate($type);
             }
 
             $this->updateLock->unlock();
+
             return false;
         }
 
@@ -142,10 +149,12 @@ class UpdateCore
             if (!defined('UNREPRESS_BLOCK_WPORG') || !UNREPRESS_BLOCK_WPORG) {
                 $this->helpers->writeUpdateLog(__('Falling back to wp.org repository for the update...', 'unrepress'));
                 $this->updateLock->unlock();
+
                 return $this->fallbackToWordPressUpdate($type);
             }
 
             $this->updateLock->unlock();
+
             return false;
         }
 
@@ -166,10 +175,12 @@ class UpdateCore
             if (!defined('UNREPRESS_BLOCK_WPORG') || !UNREPRESS_BLOCK_WPORG) {
                 $this->helpers->writeUpdateLog(__('Falling back to wp.org repository for the update...', 'unrepress'));
                 $this->updateLock->unlock();
+
                 return $this->fallbackToWordPressUpdate($type);
             }
 
             $this->updateLock->unlock();
+
             return false;
         }
 
@@ -191,10 +202,12 @@ class UpdateCore
             if (!defined('UNREPRESS_BLOCK_WPORG') || !UNREPRESS_BLOCK_WPORG) {
                 $this->helpers->writeUpdateLog(__('Falling back to wp.org repository for the update...', 'unrepress'));
                 $this->updateLock->unlock();
+
                 return $this->fallbackToWordPressUpdate($type);
             }
 
             $this->updateLock->unlock();
+
             return false;
         }
 
@@ -231,7 +244,7 @@ class UpdateCore
     }
 
     /**
-     * Fallback to WordPress native update mechanism
+     * Fallback to WordPress native update mechanism.
      *
      * @param string $type The type of update to perform
      * @return bool Whether the update was successful
@@ -239,10 +252,10 @@ class UpdateCore
     protected function fallbackToWordPressUpdate(string $type): bool
     {
         try {
-            require_once(ABSPATH . 'wp-admin/includes/class-wp-upgrader.php');
-            require_once(ABSPATH . 'wp-admin/includes/update.php');
-            require_once(ABSPATH . 'wp-admin/includes/class-wp-filesystem-base.php');
-            require_once(ABSPATH . 'wp-admin/includes/class-wp-filesystem-direct.php');
+            require_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
+            require_once ABSPATH . 'wp-admin/includes/update.php';
+            require_once ABSPATH . 'wp-admin/includes/class-wp-filesystem-base.php';
+            require_once ABSPATH . 'wp-admin/includes/class-wp-filesystem-direct.php';
 
             // Validate WordPress update availability
             wp_version_check();
@@ -250,12 +263,14 @@ class UpdateCore
 
             if (empty($updates)) {
                 $this->helpers->writeUpdateLog(__('No WordPress updates available.', 'unrepress'));
+
                 return false;
             }
 
             // Check if filesystem access is available
             if (!$this->validateFileSystemAccess()) {
                 $this->helpers->writeUpdateLog(__('WordPress filesystem access not available.', 'unrepress'));
+
                 return false;
             }
 
@@ -278,28 +293,32 @@ class UpdateCore
                     __('WordPress core update failed: %s', 'unrepress'),
                     $result->get_error_message()
                 ));
+
                 return false;
             }
 
             if ($result === false) {
                 $this->helpers->writeUpdateLog(__('WordPress core update failed with unknown error.', 'unrepress'));
+
                 return false;
             }
 
             $this->helpers->writeUpdateLog(__('Core update completed.', 'unrepress'));
             $this->helpers->writeUpdateLog(':)');
+
             return true;
         } catch (\Exception $e) {
             $this->helpers->writeUpdateLog(sprintf(
                 __('Update exception: %s', 'unrepress'),
                 $e->getMessage()
             ));
+
             return false;
         }
     }
 
     /**
-     * Validates WordPress filesystem access
+     * Validates WordPress filesystem access.
      *
      * @return bool
      */
@@ -338,6 +357,7 @@ class UpdateCore
         // Test: Simulate failure in getting latest version
         if ($this->testMode && $this->testScenario === 'version_fail') {
             unrepress_debug('UpdateCore::getLatestCoreVersion() - Test mode: simulating version failure');
+
             return null;
         }
 
@@ -345,6 +365,7 @@ class UpdateCore
         $cachedVersion = get_transient(self::TRANSIENT_NAME);
         if ($cachedVersion !== false) {
             unrepress_debug('UpdateCore::getLatestCoreVersion() - Using cached version: ' . $cachedVersion);
+
             return $cachedVersion;
         }
 
@@ -358,6 +379,7 @@ class UpdateCore
             if (!$coreInfo || !isset($coreInfo['tags'])) {
                 unrepress_debug('UpdateCore::getLatestCoreVersion() - No core info found in index or missing tags URL');
                 error_log('UnrePress: No core info found in index or missing tags URL');
+
                 return null;
             }
 
@@ -396,12 +418,13 @@ class UpdateCore
         } catch (\Exception $e) {
             unrepress_debug('UpdateCore::getLatestCoreVersion() - Exception caught: ' . $e->getMessage());
             error_log('UnrePress: Error getting core version from index: ' . $e->getMessage());
+
             return null;
         }
     }
 
     /**
-     * Get WordPress core information from the UnrePress index system
+     * Get WordPress core information from the UnrePress index system.
      *
      * @return array|null Core information array or null on error
      */
@@ -416,6 +439,7 @@ class UpdateCore
 
         if (!$mainIndex || !isset($mainIndex['wordpress']['url'])) {
             unrepress_debug('UpdateCore::getCoreInfoFromIndex() - Main index is null or missing wordpress.url');
+
             return null;
         }
 
@@ -427,6 +451,7 @@ class UpdateCore
 
         if (is_wp_error($coreIndexResponse)) {
             unrepress_debug('UpdateCore::getCoreInfoFromIndex() - wp_remote_get error: ' . $coreIndexResponse->get_error_message());
+
             return null;
         }
 
@@ -440,15 +465,17 @@ class UpdateCore
         if (!is_array($coreInfo)) {
             unrepress_debug('UpdateCore::getCoreInfoFromIndex() - JSON decode failed or not an array');
             unrepress_debug('UpdateCore::getCoreInfoFromIndex() - JSON last error: ' . json_last_error_msg());
+
             return null;
         }
 
         unrepress_debug('UpdateCore::getCoreInfoFromIndex() - Successfully decoded core info with keys: ' . implode(', ', array_keys($coreInfo)));
+
         return $coreInfo;
     }
 
     /**
-     * Extract repository slug (owner/repo) from GitHub URL
+     * Extract repository slug (owner/repo) from GitHub URL.
      *
      * @param string $url GitHub repository URL
      * @return string Repository slug in format "owner/repo"
@@ -468,10 +495,12 @@ class UpdateCore
         // Extract owner/repo from GitHub URL
         if (preg_match('#github\.com/([^/]+/[^/]+)#', $cleanUrl, $matches)) {
             unrepress_debug('UpdateCore::extractRepositorySlugFromUrl() - Regex matched: ' . $matches[1]);
+
             return $matches[1];
         }
 
         unrepress_debug('UpdateCore::extractRepositorySlugFromUrl() - No regex match, using default: ' . $defaultSlug);
+
         return $defaultSlug;
     }
 
@@ -503,6 +532,7 @@ class UpdateCore
             if ($this->provider == 'github') {
                 $updaterProvider = new GitHub();
             }
+
             return $updaterProvider->getDownloadUrl('WordPress/WordPress', $version);
         }
     }
@@ -532,7 +562,7 @@ class UpdateCore
     }
 
     /**
-     * Enable test mode with a specific scenario
+     * Enable test mode with a specific scenario.
      *
      * @param string $scenario The test scenario to run:
      *                        'version_fail' - Simulate failure in getting latest version
@@ -547,7 +577,7 @@ class UpdateCore
     }
 
     /**
-     * Disable test mode
+     * Disable test mode.
      *
      * @return void
      */
@@ -576,7 +606,7 @@ class UpdateCore
 
     /**
      * Hook into WordPress native wp_version_check to provide GitHub-based updates
-     * This leverages WordPress' existing cron system and bypasses WP 6.8 limitations
+     * This leverages WordPress' existing cron system and bypasses WP 6.8 limitations.
      *
      * @return void
      */

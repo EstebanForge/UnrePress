@@ -41,6 +41,7 @@ class UpdaterPages
         // Validate update type
         if (!$this->security->validateUpdateType($type)) {
             $this->security->sendSecurityError('Invalid update type specified.');
+
             return;
         }
 
@@ -76,6 +77,7 @@ class UpdaterPages
 
         if (!file_exists($logFile)) {
             wp_send_json_error(['message' => __('No update log found', 'unrepress')]);
+
             return;
         }
 
@@ -155,6 +157,7 @@ class UpdaterPages
         $cached_count = get_transient('unrepress_updates_count');
         if ($cached_count !== false) {
             unrepress_debug('UpdaterPages::getUpdateCount() - Using cached count: ' . $cached_count);
+
             return (int) $cached_count;
         }
 

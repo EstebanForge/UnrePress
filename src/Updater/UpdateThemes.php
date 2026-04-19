@@ -149,6 +149,7 @@ class UpdateThemes
 
         if ($action !== 'theme_information' && $action !== 'query_themes') {
             unrepress_debug('UpdateThemes::getInformation - Action not supported: ' . $action);
+
             return $response;
         }
 
@@ -167,13 +168,14 @@ class UpdateThemes
                 if ($themes_data && isset($themes_data->themes) && !empty($themes_data->themes)) {
                     $formatted_response = $this->formatThemesResponse($themes_data, $action);
                     unrepress_debug('UpdateThemes::getInformation - Returning search response with ' . count($formatted_response->themes) . ' themes');
+
                     return $formatted_response;
                 } else {
                     unrepress_debug('UpdateThemes::getInformation - Search returned no data or empty themes array from ThemesIndex');
+
                     return $this->getEmptyThemesResponse();
                 }
-            }
-            elseif (!empty($args->browse)) {
+            } elseif (!empty($args->browse)) {
                 $browse_type = sanitize_text_field($args->browse);
                 unrepress_debug('UpdateThemes::getInformation - Browse type: ' . $browse_type);
 
@@ -185,6 +187,7 @@ class UpdateThemes
                     case 'new':
                     case 'latest':
                         unrepress_debug('UpdateThemes::getInformation - Latest/new themes not available, returning empty');
+
                         return $this->getEmptyThemesResponse();
                     default:
                         $themes_data = $themesIndex->getFeaturedThemes($page, $per_page);
@@ -196,12 +199,12 @@ class UpdateThemes
                 if ($themes_data) {
                     $formatted_response = $this->formatThemesResponse($themes_data, $action);
                     unrepress_debug('UpdateThemes::getInformation - Returning browse response with ' . count($formatted_response->themes) . ' themes');
+
                     return $formatted_response;
                 } else {
                     unrepress_debug('UpdateThemes::getInformation - Browse returned no data');
                 }
-            }
-            else {
+            } else {
                 unrepress_debug('UpdateThemes::getInformation - No search or browse specified, defaulting to featured');
                 $themes_data = $themesIndex->getFeaturedThemes($page, $per_page);
                 unrepress_debug('UpdateThemes::getInformation - Default featured result count: ' . count($themes_data->themes ?? []));
@@ -209,6 +212,7 @@ class UpdateThemes
                 if ($themes_data) {
                     $formatted_response = $this->formatThemesResponse($themes_data, $action);
                     unrepress_debug('UpdateThemes::getInformation - Returning default response with ' . count($formatted_response->themes) . ' themes');
+
                     return $formatted_response;
                 } else {
                     unrepress_debug('UpdateThemes::getInformation - Default featured returned no data');
@@ -216,11 +220,13 @@ class UpdateThemes
             }
 
             unrepress_debug('UpdateThemes::getInformation - Returning empty response for query_themes');
+
             return $this->getEmptyThemesResponse();
         }
 
         if (empty($args->slug)) {
             unrepress_debug('UpdateThemes::getInformation - No slug provided for theme_information');
+
             return $response;
         }
 
@@ -232,6 +238,7 @@ class UpdateThemes
 
         if (!$theme_data_from_index) {
             unrepress_debug('UpdateThemes::getInformation - Could not fetch remote theme data for slug: ' . $args->slug);
+
             return $response; // Return original $response if our index doesn't have it
         }
 
@@ -253,7 +260,10 @@ class UpdateThemes
             // For now, we strictly follow the dynamic approach.
             // return $response; // Or, if ThemesIndex::getThemeInformation is more suitable for display data:
             $theme_display_info = (new \UnrePress\Index\ThemesIndex())->getThemeInformation($args->slug);
-            if ($theme_display_info) return $theme_display_info; // Return rich display data if download link is missing
+            if ($theme_display_info) {
+                return $theme_display_info;
+            } // Return rich display data if download link is missing
+
             return $response;
         }
 
@@ -304,7 +314,7 @@ class UpdateThemes
     }
 
     /**
-     * Format themes data response for query_themes action
+     * Format themes data response for query_themes action.
      *
      * @param object $themes_data Raw themes data from index
      * @param string $action The API action
@@ -377,7 +387,7 @@ class UpdateThemes
     }
 
     /**
-     * Get empty themes response for when no themes are found
+     * Get empty themes response for when no themes are found.
      *
      * @return object Empty response
      */
@@ -413,8 +423,8 @@ class UpdateThemes
                 $currentVersion = $transient->checked[$slug];
 
                 if (
-                    !empty($currentVersion) && !empty($updateInfo->version) &&
-                    version_compare($currentVersion, $updateInfo->version, '<')
+                    !empty($currentVersion) && !empty($updateInfo->version)
+                    && version_compare($currentVersion, $updateInfo->version, '<')
                 ) {
                     if (!isset($transient->response)) {
                         $transient->response = [];
@@ -447,7 +457,7 @@ class UpdateThemes
 
     /**
      * Capture the theme slug from the AJAX request or URL parameters
-     * This runs before the download starts
+     * This runs before the download starts.
      */
     public function captureThemeSlug($response, $package, $upgrader)
     {
@@ -494,14 +504,16 @@ class UpdateThemes
     {
         // Ensure $theme_data itself is an object and has unrepress_meta property
         if (!is_object($theme_data) || !isset($theme_data->unrepress_meta) || !is_object($theme_data->unrepress_meta)) {
-            unrepress_debug('getLatestVersionFromMeta: Basic theme_data structure invalid or unrepress_meta missing/not an object for theme: ' . (isset($theme_data->slug) ? $theme_data->slug : 'unknown'));
+            unrepress_debug('getLatestVersionFromMeta: Basic theme_data structure invalid or unrepress_meta missing/not an object for theme: ' . ($theme_data->slug ?? 'unknown'));
             // Fallback logic as before
             if (is_object($theme_data) && !empty($theme_data->version)) {
-                 $mock_tag = new \stdClass();
-                 $mock_tag->name = $theme_data->version;
-                 unrepress_debug('getLatestVersionFromMeta: Falling back to version from theme JSON (structure issue): ' . $theme_data->version);
-                 return $mock_tag;
+                $mock_tag = new \stdClass();
+                $mock_tag->name = $theme_data->version;
+                unrepress_debug('getLatestVersionFromMeta: Falling back to version from theme JSON (structure issue): ' . $theme_data->version);
+
+                return $mock_tag;
             }
+
             return false;
         }
 
@@ -509,19 +521,21 @@ class UpdateThemes
         // Check required properties within unrepress_meta
         $meta = $theme_data->unrepress_meta; // Use a shorter variable for clarity
         if (
-            empty($meta->tags) || // Check for non-empty string for tags URL
-            !isset($meta->update_from) ||
-            $meta->update_from !== 'tags' ||
-            !is_string($meta->tags) // Ensure tags is a string before passing to normalizeTagUrl
+            empty($meta->tags) // Check for non-empty string for tags URL
+            || !isset($meta->update_from)
+            || $meta->update_from !== 'tags'
+            || !is_string($meta->tags) // Ensure tags is a string before passing to normalizeTagUrl
         ) {
             unrepress_debug('getLatestVersionFromMeta: unrepress_meta missing critical string properties (tags, update_from), or update_from not set to "tags" for theme: ' . ($theme_data->slug ?? 'unknown'));
             // Fallback logic as before
             if (!empty($theme_data->version)) {
-                 $mock_tag = new \stdClass();
-                 $mock_tag->name = $theme_data->version;
-                 unrepress_debug('getLatestVersionFromMeta: Falling back to version from theme JSON (meta content issue): ' . $theme_data->version);
-                 return $mock_tag;
+                $mock_tag = new \stdClass();
+                $mock_tag->name = $theme_data->version;
+                unrepress_debug('getLatestVersionFromMeta: Falling back to version from theme JSON (meta content issue): ' . $theme_data->version);
+
+                return $mock_tag;
             }
+
             return false;
         }
 
@@ -539,22 +553,26 @@ class UpdateThemes
 
         if (is_wp_error($response) || 200 !== wp_remote_retrieve_response_code($response)) {
             unrepress_debug('getLatestVersionFromMeta: Error fetching tags or bad response code for theme: ' . ($theme_data->slug ?? 'unknown') . ' Error: ' . (is_wp_error($response) ? $response->get_error_message() : wp_remote_retrieve_response_code($response)));
+
             return false;
         }
 
         $tags_body = json_decode(wp_remote_retrieve_body($response));
         if (json_last_error() !== JSON_ERROR_NONE || !is_array($tags_body) || empty($tags_body)) {
             unrepress_debug('getLatestVersionFromMeta: JSON decode error or empty/invalid tags array for theme: ' . ($theme_data->slug ?? 'unknown') . ' Error: ' . json_last_error_msg());
+
             return false;
         }
 
         $latest_tag = $this->helpers->getNewestVersionFromTags($tags_body);
         if (!$latest_tag || empty($latest_tag->name)) {
             unrepress_debug('getLatestVersionFromMeta: Could not determine newest tag from body for theme: ' . ($theme_data->slug ?? 'unknown'));
+
             return false;
         }
 
         unrepress_debug('getLatestVersionFromMeta: Determined latest tag: ' . ($latest_tag->name ?? 'N/A') . ' for theme: ' . ($theme_data->slug ?? 'unknown'));
+
         return $latest_tag; // Return the whole tag object
     }
 
@@ -569,6 +587,7 @@ class UpdateThemes
     {
         if (empty($tag_name) || empty($theme_data->unrepress_meta->repository)) {
             unrepress_debug('getDownloadUrlFromMeta: Missing tag_name or repository URL for theme: ' . ($theme_data->slug ?? 'unknown'));
+
             return false;
         }
 
@@ -610,12 +629,14 @@ class UpdateThemes
             unrepress_debug('getDownloadUrlFromMeta: Non-GitHub repositories not yet fully supported for dynamic URL generation. Repo: ' . $repo_url);
             // Fallback to a direct download_url if present in unrepress_meta or theme_data itself, as a last resort.
             if (!empty($theme_data->download_url)) {
-                 return $theme_data->download_url;
+                return $theme_data->download_url;
             }
+
             return false;
         }
 
         unrepress_debug('getDownloadUrlFromMeta: Constructed download URL: ' . $download_url . ' for theme: ' . ($theme_data->slug ?? 'unknown'));
+
         return $download_url;
     }
 }

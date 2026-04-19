@@ -8,7 +8,7 @@ use UnrePress\EgoBlocker;
 use UnrePress\Tests\Helpers\WordPressTestHelper;
 
 /**
- * EgoBlocker Unit Tests
+ * EgoBlocker Unit Tests.
  */
 class EgoBlockerTest extends WordPressTestHelper
 {
@@ -32,7 +32,7 @@ class EgoBlockerTest extends WordPressTestHelper
         // Mock add_action and add_filter properly to avoid warnings
         \Brain\Monkey\Functions\when('add_action')->justReturn(true);
         \Brain\Monkey\Functions\when('add_filter')->justReturn(true);
-        \Brain\Monkey\Functions\when('__return_false')->alias(function() { return false; });
+        \Brain\Monkey\Functions\when('__return_false')->alias(function () { return false; });
 
         $this->egoBlocker = new EgoBlocker();
     }

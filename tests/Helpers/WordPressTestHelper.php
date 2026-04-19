@@ -7,7 +7,7 @@ namespace UnrePress\Tests\Helpers;
 use PHPUnit\Framework\TestCase;
 
 /**
- * WordPress Test Helper
+ * WordPress Test Helper.
  *
  * Provides helper methods for testing WordPress-related functionality
  * using BrainMonkey for mocking WordPress functions.
@@ -15,7 +15,7 @@ use PHPUnit\Framework\TestCase;
 abstract class WordPressTestHelper extends TestCase
 {
     /**
-     * Set up BrainMonkey before each test
+     * Set up BrainMonkey before each test.
      */
     protected function setUp(): void
     {
@@ -24,7 +24,7 @@ abstract class WordPressTestHelper extends TestCase
     }
 
     /**
-     * Tear down BrainMonkey after each test
+     * Tear down BrainMonkey after each test.
      */
     protected function tearDown(): void
     {
@@ -33,7 +33,7 @@ abstract class WordPressTestHelper extends TestCase
     }
 
     /**
-     * Mock WordPress function with expected parameters and return value
+     * Mock WordPress function with expected parameters and return value.
      */
     protected function mockWpFunction(string $function, $returnValue = null, array $expectedArgs = []): void
     {
@@ -41,7 +41,7 @@ abstract class WordPressTestHelper extends TestCase
     }
 
     /**
-     * Mock WordPress transient functions
+     * Mock WordPress transient functions.
      */
     protected function mockTransients(): void
     {
@@ -51,7 +51,7 @@ abstract class WordPressTestHelper extends TestCase
     }
 
     /**
-     * Mock WordPress HTTP functions
+     * Mock WordPress HTTP functions.
      */
     protected function mockHttpFunctions(array $responseData = []): void
     {
@@ -72,7 +72,7 @@ abstract class WordPressTestHelper extends TestCase
     }
 
     /**
-     * Mock WordPress filesystem functions
+     * Mock WordPress filesystem functions.
      */
     protected function mockFilesystem(): void
     {
@@ -82,7 +82,7 @@ abstract class WordPressTestHelper extends TestCase
     }
 
     /**
-     * Mock WordPress plugin functions
+     * Mock WordPress plugin functions.
      */
     protected function mockPluginFunctions(array $plugins = []): void
     {
@@ -99,7 +99,7 @@ abstract class WordPressTestHelper extends TestCase
     }
 
     /**
-     * Mock WordPress update functions
+     * Mock WordPress update functions.
      */
     protected function mockUpdateFunctions(): void
     {
@@ -111,7 +111,7 @@ abstract class WordPressTestHelper extends TestCase
     }
 
     /**
-     * Create a mock WordPress post object
+     * Create a mock WordPress post object.
      */
     protected function createMockPost(array $data = []): object
     {
@@ -127,7 +127,7 @@ abstract class WordPressTestHelper extends TestCase
     }
 
     /**
-     * Create a mock WordPress term object
+     * Create a mock WordPress term object.
      */
     protected function createMockTerm(array $data = []): object
     {
@@ -142,7 +142,7 @@ abstract class WordPressTestHelper extends TestCase
     }
 
     /**
-     * Assert that a WordPress function was called with expected arguments
+     * Assert that a WordPress function was called with expected arguments.
      */
     protected function assertWpFunctionCalled(string $function, array $expectedArgs = []): void
     {
@@ -150,7 +150,7 @@ abstract class WordPressTestHelper extends TestCase
     }
 
     /**
-     * Assert that a WordPress function was never called
+     * Assert that a WordPress function was never called.
      */
     protected function assertWpFunctionNotCalled(string $function): void
     {
@@ -158,7 +158,7 @@ abstract class WordPressTestHelper extends TestCase
     }
 
     /**
-     * Get the current WordPress version for testing
+     * Get the current WordPress version for testing.
      */
     protected function getWpVersion(): string
     {
@@ -166,7 +166,7 @@ abstract class WordPressTestHelper extends TestCase
     }
 
     /**
-     * Create a mock plugin update object
+     * Create a mock plugin update object.
      */
     protected function createMockPluginUpdate(string $pluginSlug, string $newVersion): object
     {
@@ -179,7 +179,7 @@ abstract class WordPressTestHelper extends TestCase
     }
 
     /**
-     * Create a mock theme update object
+     * Create a mock theme update object.
      */
     protected function createMockThemeUpdate(string $themeSlug, string $newVersion): object
     {

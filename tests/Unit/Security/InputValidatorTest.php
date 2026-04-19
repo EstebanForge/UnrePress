@@ -8,7 +8,7 @@ use UnrePress\Security\InputValidator;
 use UnrePress\Tests\Helpers\WordPressTestHelper;
 
 /**
- * InputValidator Unit Tests
+ * InputValidator Unit Tests.
  *
  * Tests for input validation to prevent SQL injection, XSS attacks,
  * path traversal, and other security vulnerabilities.
@@ -30,7 +30,7 @@ class InputValidatorTest extends WordPressTestHelper
         }
 
         // Mock WordPress validation functions
-        \Brain\Monkey\Functions\when('sanitize_key')->alias(function($input) {
+        \Brain\Monkey\Functions\when('sanitize_key')->alias(function ($input) {
             return strtolower(preg_replace('/[^a-z0-9_\-]/', '', $input));
         });
         \Brain\Monkey\Functions\when('sanitize_text_field')->returnArg();
@@ -197,7 +197,7 @@ class InputValidatorTest extends WordPressTestHelper
             'description' => 'Test plugin',
         ];
 
-        \Brain\Monkey\Functions\when('sanitize_text_field')->alias(function($input) {
+        \Brain\Monkey\Functions\when('sanitize_text_field')->alias(function ($input) {
             return strip_tags($input);
         });
 
@@ -219,7 +219,7 @@ class InputValidatorTest extends WordPressTestHelper
             ],
         ];
 
-        \Brain\Monkey\Functions\when('sanitize_text_field')->alias(function($input) {
+        \Brain\Monkey\Functions\when('sanitize_text_field')->alias(function ($input) {
             return strip_tags($input);
         });
 
@@ -321,10 +321,10 @@ class InputValidatorTest extends WordPressTestHelper
     {
         $sqlInjection = [
             "1' OR '1'='1",
-            "1; DROP TABLE users;",
+            '1; DROP TABLE users;',
             "admin' --",
             "admin' OR '1'='1' #",
-            " UNION SELECT * FROM",
+            ' UNION SELECT * FROM',
             "' OR 1=1--",
         ];
 

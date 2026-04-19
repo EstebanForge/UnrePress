@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /**
- * Plugin and Theme Fixtures
+ * Plugin and Theme Fixtures.
  *
  * Sample plugin and theme metadata for testing
  */
