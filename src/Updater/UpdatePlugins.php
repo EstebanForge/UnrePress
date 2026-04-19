@@ -5,6 +5,7 @@ namespace UnrePress\Updater;
 use UnrePress\Debugger;
 use UnrePress\Helpers;
 use UnrePress\UnrePress;
+use UnrePress\UpdaterProvider\GitProviderWrapper;
 
 class UpdatePlugins
 {
@@ -409,10 +410,9 @@ class UpdatePlugins
         // Ensure unrepress_meta and necessary sub-properties exist
         if (
             !isset($plugin_data->unrepress_meta) || !is_object($plugin_data->unrepress_meta)
-            || empty($plugin_data->unrepress_meta->tags) || !is_string($plugin_data->unrepress_meta->tags) // Must be a string URL
-            || !isset($plugin_data->unrepress_meta->update_from) // update_from is checked by calling logic normally
+            || empty($plugin_data->unrepress_meta->repository) || !is_string($plugin_data->unrepress_meta->repository) // Must be a string URL
         ) {
-            Debugger::log('getLatestVersion (Plugin): unrepress_meta structure invalid, or tags URL missing for plugin: ' . ($plugin_data->slug ?? 'unknown'));
+            Debugger::log('getLatestVersion (Plugin): unrepress_meta structure invalid, or repository URL missing for plugin: ' . ($plugin_data->slug ?? 'unknown'));
             // Fallback if only version is present in main plugin_data
             if (!empty($plugin_data->version) && is_string($plugin_data->version)) {
                 $mock_tag = new \stdClass();
@@ -426,43 +426,34 @@ class UpdatePlugins
             return false;
         }
 
-        // Only proceed if update_from is 'tags', otherwise version is determined by release typically
-        // However, this function's job is to get the latest from tags API if tags URL is present.
-        // The calling function can decide if this version is used based on update_from strategy.
+        // Use GitProviderWrapper instead of manual HTTP calls
+        $repository_url = $plugin_data->unrepress_meta->repository;
+        Debugger::log('getLatestVersion (Plugin): Fetching latest version from: ' . $repository_url . ' for plugin: ' . $plugin_data->slug);
 
-        $tags_url = $this->helpers->normalizeTagUrl($plugin_data->unrepress_meta->tags, $plugin_data->unrepress_meta->repository ?? '');
-        Debugger::log('getLatestVersion (Plugin): Fetching tags from: ' . $tags_url . ' for plugin: ' . $plugin_data->slug);
+        try {
+            $wrapper = new GitProviderWrapper();
+            $latest_version = $wrapper->getLatestVersion($repository_url);
 
-        $response = wp_remote_get($tags_url, [
-            'timeout' => 10,
-            'headers' => ['Accept' => 'application/json'],
-        ]);
+            if (!$latest_version) {
+                Debugger::log('getLatestVersion (Plugin): GitProviderWrapper returned no version for plugin: ' . $plugin_data->slug);
 
-        if (is_wp_error($response) || 200 !== wp_remote_retrieve_response_code($response)) {
-            Debugger::log('getLatestVersion (Plugin): Error fetching tags for plugin: ' . $plugin_data->slug . ' Error: ' . (is_wp_error($response) ? $response->get_error_message() : wp_remote_retrieve_response_code($response)));
+                return false;
+            }
 
-            return false;
-        }
+            // Create a mock tag object to maintain compatibility with existing code
+            $latest_tag_object = new \stdClass();
+            $latest_tag_object->name = $latest_version;
 
-        $tags_body = json_decode(wp_remote_retrieve_body($response));
-        if (json_last_error() !== JSON_ERROR_NONE || !is_array($tags_body) || empty($tags_body)) {
-            Debugger::log('getLatestVersion (Plugin): JSON decode error or empty tags array for plugin: ' . $plugin_data->slug . ' Error: ' . json_last_error_msg());
+            Debugger::log('getLatestVersion (Plugin): Determined latest tag: ' . $latest_tag_object->name . ' for plugin: ' . $plugin_data->slug);
+            set_transient($transient_key, $latest_tag_object, 3 * HOUR_IN_SECONDS); // Cache the full tag object
 
-            return false;
-        }
+            return $latest_tag_object;
 
-        $latestTagObject = $this->helpers->getNewestVersionFromTags($tags_body);
-
-        if (!$latestTagObject || empty($latestTagObject->name)) {
-            Debugger::log('getLatestVersion (Plugin): Could not determine newest tag for plugin: ' . $plugin_data->slug);
+        } catch (\Exception $e) {
+            Debugger::log('getLatestVersion (Plugin): Exception fetching version: ' . $e->getMessage() . ' for plugin: ' . $plugin_data->slug);
 
             return false;
         }
-
-        Debugger::log('getLatestVersion (Plugin): Determined latest tag: ' . ($latestTagObject->name ?? 'N/A') . ' for plugin: ' . $plugin_data->slug);
-        set_transient($transient_key, $latestTagObject, 3 * HOUR_IN_SECONDS); // Cache the full tag object
-
-        return $latestTagObject;
     }
 
     private function getDownloadUrl($plugin_data, $original_tag_name)
@@ -476,7 +467,6 @@ class UpdatePlugins
         $meta = $plugin_data->unrepress_meta;
         $repo_url = $meta->repository ?? '';
         $update_from = $meta->update_from ?? 'tags'; // Default to tags
-        $download_url = false;
 
         if (empty($repo_url) || !is_string($repo_url)) {
             Debugger::log('getDownloadUrl (Plugin): Repository URL missing or not a string in unrepress_meta for plugin: ' . ($plugin_data->slug ?? 'unknown'));
@@ -484,6 +474,7 @@ class UpdatePlugins
             return false;
         }
 
+        // For release assets, we need special handling as they have different URL structures
         if ($update_from === 'release') {
             if (!empty($meta->release_asset) && is_string($meta->release_asset)) {
                 // The $original_tag_name is the release tag (e.g., "v1.2.3" or "1.2.3")
@@ -494,6 +485,8 @@ class UpdatePlugins
                 if (strpos($repo_url, 'github.com') !== false) {
                     $download_url = rtrim($repo_url, '/') . '/releases/download/' . $original_tag_name . '/' . $asset_name;
                     Debugger::log('getDownloadUrl (Plugin): Constructed GitHub release asset URL: ' . $download_url);
+
+                    return $download_url;
                 } else {
                     Debugger::log('getDownloadUrl (Plugin): Release asset downloads for non-GitHub providers not fully implemented. Repo: ' . $repo_url);
 
@@ -504,16 +497,33 @@ class UpdatePlugins
 
                 return false;
             }
-        } elseif ($update_from === 'tags') {
-            $provider = 'other';
-            if (strpos($repo_url, 'github.com') !== false) {
-                $provider = 'github';
-            } // Add elif for gitlab, bitbucket etc. if needed
+        }
 
-            $download_url = $this->helpers->getDownloadUrlForProviderTag($repo_url, $original_tag_name, $plugin_data->slug, $provider);
-            Debugger::log('getDownloadUrl (Plugin): URL from getDownloadUrlForProviderTag (tags strategy): ' . $download_url);
-        } else {
-            Debugger::log('getDownloadUrl (Plugin): Unknown update_from strategy: [' . $update_from . '] or missing required unrepress_meta for plugin: ' . ($plugin_data->slug ?? 'unknown'));
+        // For tags (and other strategies), use GitProviderWrapper
+        try {
+            $wrapper = new GitProviderWrapper();
+            $download_url = $wrapper->getDownloadUrl($repo_url, $original_tag_name);
+
+            if (!$download_url) {
+                Debugger::log('getDownloadUrl (Plugin): GitProviderWrapper returned no download URL for plugin: ' . ($plugin_data->slug ?? 'unknown'));
+
+                // Fallback: if a direct download_url is in unrepress_meta, use it.
+                if (!empty($meta->download_url) && is_string($meta->download_url)) {
+                    Debugger::log('getDownloadUrl (Plugin): Falling back to direct download_url from unrepress_meta: ' . $meta->download_url);
+
+                    return $meta->download_url;
+                }
+
+                return false;
+            }
+
+            Debugger::log('getDownloadUrl (Plugin): Got download URL from wrapper: ' . $download_url . ' for plugin: ' . ($plugin_data->slug ?? 'unknown'));
+
+            return $download_url;
+
+        } catch (\Exception $e) {
+            Debugger::log('getDownloadUrl (Plugin): Exception getting download URL: ' . $e->getMessage() . ' for plugin: ' . ($plugin_data->slug ?? 'unknown'));
+
             // Fallback: if a direct download_url is in unrepress_meta, use it.
             if (!empty($meta->download_url) && is_string($meta->download_url)) {
                 Debugger::log('getDownloadUrl (Plugin): Falling back to direct download_url from unrepress_meta: ' . $meta->download_url);
@@ -523,11 +533,6 @@ class UpdatePlugins
 
             return false;
         }
-
-        // Optional: $this->helpers->validate_download_url($download_url);
-        // For now, assume constructed URL is usable if logic passed.
-
-        return $download_url;
     }
 
     public function hasUpdate($transient)

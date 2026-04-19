@@ -3,6 +3,7 @@
 namespace UnrePress\Updater;
 
 use UnrePress\Helpers;
+use UnrePress\UpdaterProvider\GitProviderWrapper;
 
 class UpdateThemes
 {
@@ -495,7 +496,7 @@ class UpdateThemes
     }
 
     /**
-     * Get the latest version from unrepress_meta->tags URL.
+     * Get the latest version from unrepress_meta->repository using GitProviderWrapper.
      *
      * @param object $theme_data Theme data object from the UnrePress index JSON file.
      * @return string|false Version string or false on failure.
@@ -521,12 +522,10 @@ class UpdateThemes
         // Check required properties within unrepress_meta
         $meta = $theme_data->unrepress_meta; // Use a shorter variable for clarity
         if (
-            empty($meta->tags) // Check for non-empty string for tags URL
-            || !isset($meta->update_from)
-            || $meta->update_from !== 'tags'
-            || !is_string($meta->tags) // Ensure tags is a string before passing to normalizeTagUrl
+            empty($meta->repository) // Check for repository URL
+            || !is_string($meta->repository) // Ensure repository is a string
         ) {
-            unrepress_debug('getLatestVersionFromMeta: unrepress_meta missing critical string properties (tags, update_from), or update_from not set to "tags" for theme: ' . ($theme_data->slug ?? 'unknown'));
+            unrepress_debug('getLatestVersionFromMeta: unrepress_meta missing repository URL for theme: ' . ($theme_data->slug ?? 'unknown'));
             // Fallback logic as before
             if (!empty($theme_data->version)) {
                 $mock_tag = new \stdClass();
@@ -539,45 +538,37 @@ class UpdateThemes
             return false;
         }
 
-        // Proceed with valid meta
-        $repository_url = (isset($meta->repository) && is_string($meta->repository)) ? $meta->repository : '';
-        $tags_url = $this->helpers->normalizeTagUrl($meta->tags, $repository_url);
-        unrepress_debug('getLatestVersionFromMeta: Fetching tags from: ' . $tags_url . ' for theme: ' . ($theme_data->slug ?? 'unknown'));
+        // Proceed with valid meta - use GitProviderWrapper instead of manual HTTP calls
+        $repository_url = $meta->repository;
+        unrepress_debug('getLatestVersionFromMeta: Fetching latest version from: ' . $repository_url . ' for theme: ' . ($theme_data->slug ?? 'unknown'));
 
-        $response = wp_remote_get($tags_url, [
-            'timeout' => 10,
-            'headers' => [
-                'Accept' => 'application/json', // GitHub and GitLab usually provide JSON for /tags API
-            ],
-        ]);
+        try {
+            $wrapper = new GitProviderWrapper();
+            $latest_version = $wrapper->getLatestVersion($repository_url);
 
-        if (is_wp_error($response) || 200 !== wp_remote_retrieve_response_code($response)) {
-            unrepress_debug('getLatestVersionFromMeta: Error fetching tags or bad response code for theme: ' . ($theme_data->slug ?? 'unknown') . ' Error: ' . (is_wp_error($response) ? $response->get_error_message() : wp_remote_retrieve_response_code($response)));
+            if (!$latest_version) {
+                unrepress_debug('getLatestVersionFromMeta: GitProviderWrapper returned no version for theme: ' . ($theme_data->slug ?? 'unknown'));
 
-            return false;
-        }
+                return false;
+            }
 
-        $tags_body = json_decode(wp_remote_retrieve_body($response));
-        if (json_last_error() !== JSON_ERROR_NONE || !is_array($tags_body) || empty($tags_body)) {
-            unrepress_debug('getLatestVersionFromMeta: JSON decode error or empty/invalid tags array for theme: ' . ($theme_data->slug ?? 'unknown') . ' Error: ' . json_last_error_msg());
+            // Create a mock tag object to maintain compatibility with existing code
+            $latest_tag = new \stdClass();
+            $latest_tag->name = $latest_version;
 
-            return false;
-        }
+            unrepress_debug('getLatestVersionFromMeta: Determined latest tag: ' . $latest_tag->name . ' for theme: ' . ($theme_data->slug ?? 'unknown'));
 
-        $latest_tag = $this->helpers->getNewestVersionFromTags($tags_body);
-        if (!$latest_tag || empty($latest_tag->name)) {
-            unrepress_debug('getLatestVersionFromMeta: Could not determine newest tag from body for theme: ' . ($theme_data->slug ?? 'unknown'));
+            return $latest_tag;
+
+        } catch (\Exception $e) {
+            unrepress_debug('getLatestVersionFromMeta: Exception fetching version: ' . $e->getMessage() . ' for theme: ' . ($theme_data->slug ?? 'unknown'));
 
             return false;
         }
-
-        unrepress_debug('getLatestVersionFromMeta: Determined latest tag: ' . ($latest_tag->name ?? 'N/A') . ' for theme: ' . ($theme_data->slug ?? 'unknown'));
-
-        return $latest_tag; // Return the whole tag object
     }
 
     /**
-     * Construct the download URL for the theme based on the version and unrepress_meta.
+     * Get the download URL for the theme using GitProviderWrapper.
      *
      * @param object $theme_data Theme data object from the UnrePress index JSON file.
      * @param string|null $tag_name The specific tag name (e.g., "v1.2.3" or "1.2.3") to download. Null if not found.
@@ -592,41 +583,29 @@ class UpdateThemes
         }
 
         $repo_url = $theme_data->unrepress_meta->repository;
-        // Basic GitHub URL construction: REPO_URL/archive/refs/tags/vTAG.zip or REPO_URL/archive/refs/tags/TAG.zip
-        // Some use REPO_URL/releases/download/TAG/archive_name.zip
-        // This needs to be robust or configurable based on provider or `update_from` strategy if it varies.
-        // For now, assume GitHub tag archive structure.
 
-        $download_url = '';
-        // Check if the repository is GitHub
-        if (strpos($repo_url, 'github.com') !== false) {
-            // Attempt with common GitHub tag archive formats
-            $tag_prefixed_v = 'v' . $tag_name;
-            $tag_bare = $tag_name;
+        try {
+            $wrapper = new GitProviderWrapper();
+            $download_url = $wrapper->getDownloadUrl($repo_url, $tag_name);
 
-            // Format 1: /archive/refs/tags/vX.Y.Z.zip
-            $url1 = rtrim($repo_url, '/') . '/archive/refs/tags/' . $tag_prefixed_v . '.zip';
-            // Format 2: /archive/refs/tags/X.Y.Z.zip
-            $url2 = rtrim($repo_url, '/') . '/archive/refs/tags/' . $tag_bare . '.zip';
-            // Format 3: /releases/download/vX.Y.Z/theme-slug.zip (less common for general tags, more for releases)
-            // Format 4: /releases/download/X.Y.Z/theme-slug.zip
-            // We would typically need to know the asset name for release downloads.
-            // For simplicity with tags, we prioritize the /archive/refs/tags/ structure.
+            if (!$download_url) {
+                unrepress_debug('getDownloadUrlFromMeta: GitProviderWrapper returned no download URL for theme: ' . ($theme_data->slug ?? 'unknown'));
 
-            // To be robust, UnrePress could HEAD check these URLs or have a more deterministic way from unrepress_meta.
-            // For now, let's prefer a common one. Helpers.php might have a more advanced getDownloadUrlForTag.
-            // Let's assume a helper function `getGithubDownloadUrlForTag` exists or is added to `Helpers.php`
+                // Fallback to a direct download_url if present in unrepress_meta or theme_data itself, as a last resort.
+                if (!empty($theme_data->download_url)) {
+                    return $theme_data->download_url;
+                }
 
-            $download_url = $this->helpers->getDownloadUrlForProviderTag(
-                $repo_url,
-                $tag_name,
-                $theme_data->slug ?? 'theme', // asset name hint
-                'github' // provider hint
-            );
+                return false;
+            }
 
-        } else {
-            // Add logic for other providers (GitLab, Bitbucket) if needed
-            unrepress_debug('getDownloadUrlFromMeta: Non-GitHub repositories not yet fully supported for dynamic URL generation. Repo: ' . $repo_url);
+            unrepress_debug('getDownloadUrlFromMeta: Got download URL: ' . $download_url . ' for theme: ' . ($theme_data->slug ?? 'unknown'));
+
+            return $download_url;
+
+        } catch (\Exception $e) {
+            unrepress_debug('getDownloadUrlFromMeta: Exception getting download URL: ' . $e->getMessage() . ' for theme: ' . ($theme_data->slug ?? 'unknown'));
+
             // Fallback to a direct download_url if present in unrepress_meta or theme_data itself, as a last resort.
             if (!empty($theme_data->download_url)) {
                 return $theme_data->download_url;
@@ -634,9 +613,5 @@ class UpdateThemes
 
             return false;
         }
-
-        unrepress_debug('getDownloadUrlFromMeta: Constructed download URL: ' . $download_url . ' for theme: ' . ($theme_data->slug ?? 'unknown'));
-
-        return $download_url;
     }
 }

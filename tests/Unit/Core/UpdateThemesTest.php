@@ -42,6 +42,11 @@ class UpdateThemesTest extends WordPressTestHelper
         \Brain\Monkey\Functions\when('wp_get_themes')->justReturn([]);
         \Brain\Monkey\Functions\when('add_filter')->justReturn(true);
         \Brain\Monkey\Functions\when('add_action')->justReturn(true);
+        \Brain\Monkey\Functions\when('wp_next_scheduled')->justReturn(false);
+        \Brain\Monkey\Functions\when('wp_schedule_event')->justReturn(true);
+        \Brain\Monkey\Functions\when('update_option')->justReturn(true);
+        \Brain\Monkey\Functions\when('sanitize_text_field')->returnArg();
+        \Brain\Monkey\Functions\when('sanitize_title')->returnArg();
         // Mock unrepress_debug function
         \Brain\Monkey\Functions\when('unrepress_debug')->justReturn(null);
 
