@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use UnrePress\UpdaterProvider\GitProviderWrapper;
-use UnrePress\Tests\WordPressTestHelper;
 
 beforeEach(function () {
     // Mock unrepress_debug function
@@ -67,7 +66,7 @@ test('wrapper implements ProviderInterface', function () {
     $wrapper = new GitProviderWrapper();
 
     // Check that wrapper implements the required interface
-    expect($wrapper)->toBeInstanceOf(\UnrePress\UpdaterProvider\ProviderInterface::class);
+    expect($wrapper)->toBeInstanceOf(UnrePress\UpdaterProvider\ProviderInterface::class);
 });
 
 test('wrapper has getDownloadUrl method', function () {

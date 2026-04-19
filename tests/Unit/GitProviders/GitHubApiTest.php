@@ -2,8 +2,6 @@
 
 declare(strict_types=1);
 
-use UnrePress\Tests\WordPressTestHelper;
-
 test('GitHub API client is available', function () {
     // Verify the class exists
     expect(class_exists('Github\Client'))->toBeTrue();

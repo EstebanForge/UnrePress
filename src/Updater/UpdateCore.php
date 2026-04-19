@@ -1,8 +1,9 @@
 <?php
 
-namespace UnrePress\Updater;
-
 use UnrePress\Helpers;
+use UnrePress\Security\CapabilityChecker;
+use UnrePress\Security\InputValidator;
+use UnrePress\Security\SecurityMiddleware;
 use UnrePress\UpdaterProvider\GitHub;
 
 class UpdateCore
@@ -10,6 +11,12 @@ class UpdateCore
     private $updateLock;
 
     private $helpers;
+
+    private $security;
+
+    private $capabilityChecker;
+
+    private $inputValidator;
 
     protected $updateType = 'core';
 
@@ -29,6 +36,9 @@ class UpdateCore
     {
         $this->updateLock = new UpdateLock();
         $this->helpers = new Helpers();
+        $this->security = new SecurityMiddleware();
+        $this->capabilityChecker = new CapabilityChecker();
+        $this->inputValidator = new InputValidator();
 
         // Enable timeout test mode
         //$this->enableTestMode('timeout');
@@ -43,6 +53,14 @@ class UpdateCore
      */
     public function update(string $type): bool
     {
+        // Security: Check user capabilities before performing update
+        if (!$this->capabilityChecker->canUserUpdateCore()) {
+            $this->helpers->writeUpdateLog(__('Unauthorized: Insufficient permissions to update WordPress core.', 'unrepress'));
+            $this->helpers->writeUpdateLog(':(');
+
+            return false;
+        }
+
         $this->helpers->clearUpdateLog();
 
         $this->helpers->writeUpdateLog(wp_sprintf('Starting %s update...', $type));
@@ -280,7 +298,7 @@ class UpdateCore
             @set_time_limit(300);
 
             // Initialize the upgrader with our custom skin
-            $upgrader = new \Core_Upgrader(new \WP_Ajax_Upgrader_Skin());
+            $upgrader = new Core_Upgrader(new WP_Ajax_Upgrader_Skin());
 
             // Perform the upgrade
             $result = $upgrader->upgrade($updates[0], [
@@ -307,7 +325,7 @@ class UpdateCore
             $this->helpers->writeUpdateLog(':)');
 
             return true;
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $this->helpers->writeUpdateLog(sprintf(
                 __('Update exception: %s', 'unrepress'),
                 $e->getMessage()
@@ -415,7 +433,7 @@ class UpdateCore
 
             return $latestVersion;
 
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             unrepress_debug('UpdateCore::getLatestCoreVersion() - Exception caught: ' . $e->getMessage());
             error_log('UnrePress: Error getting core version from index: ' . $e->getMessage());
 
@@ -433,7 +451,7 @@ class UpdateCore
         unrepress_debug('UpdateCore::getCoreInfoFromIndex() - Starting to get core info from index');
 
         // Get main index
-        $unrepress = new \UnrePress\UnrePress();
+        $unrepress = new UnrePress\UnrePress();
         $mainIndex = $unrepress->index();
         unrepress_debug('UpdateCore::getCoreInfoFromIndex() - Main index loaded:', $mainIndex);
 
@@ -512,11 +530,37 @@ class UpdateCore
         }
 
         try {
+            // Security: Validate input parameters
+            $validatedVersion = InputValidator::validateVersion($version);
+            if (!$validatedVersion) {
+                error_log('UnrePress: Invalid version provided to getDownloadUrl: ' . $version);
+
+                // Fallback to default with error
+                if ($this->provider == 'github') {
+                    $updaterProvider = new GitHub();
+                }
+
+                return $updaterProvider->getDownloadUrl('WordPress/WordPress', '6.7.0');
+            }
+
+            // Security: Validate repository format
+            $validatedRepo = InputValidator::validateRepository($repo);
+            if (!$validatedRepo) {
+                error_log('UnrePress: Invalid repository format provided to getDownloadUrl: ' . $repo);
+
+                // Fallback to default
+                if ($this->provider == 'github') {
+                    $updaterProvider = new GitHub();
+                }
+
+                return $updaterProvider->getDownloadUrl('WordPress/WordPress', $validatedVersion);
+            }
+
             // Get repository slug from index if not provided in correct format
             if ($repo === 'WordPress/WordPress' || empty($repo)) {
                 $coreInfo = $this->getCoreInfoFromIndex();
                 if ($coreInfo && isset($coreInfo['repository'])) {
-                    $repo = $this->extractRepositorySlugFromUrl($coreInfo['repository']);
+                    $validatedRepo = $this->extractRepositorySlugFromUrl($coreInfo['repository']);
                 }
             }
 
@@ -524,16 +568,30 @@ class UpdateCore
                 $updaterProvider = new GitHub();
             }
 
-            return $updaterProvider->getDownloadUrl($repo, $version);
+            $downloadUrl = $updaterProvider->getDownloadUrl($validatedRepo, $validatedVersion);
 
-        } catch (\Exception $e) {
+            // Security: Validate the returned URL
+            if (!filter_var($downloadUrl, FILTER_VALIDATE_URL)) {
+                error_log('UnrePress: Invalid download URL returned: ' . $downloadUrl);
+
+                // Fallback to default
+                if ($this->provider == 'github') {
+                    $updaterProvider = new GitHub();
+                }
+
+                return $updaterProvider->getDownloadUrl('WordPress/WordPress', $validatedVersion);
+            }
+
+            return $downloadUrl;
+
+        } catch (Exception $e) {
             error_log('UnrePress: Error getting download URL: ' . $e->getMessage());
             // Fallback to default
             if ($this->provider == 'github') {
                 $updaterProvider = new GitHub();
             }
 
-            return $updaterProvider->getDownloadUrl('WordPress/WordPress', $version);
+            return $updaterProvider->getDownloadUrl('WordPress/WordPress', '6.7.0');
         }
     }
 
@@ -549,12 +607,61 @@ class UpdateCore
      */
     public function downloadUpdate(string $downloadUrl): mixed
     {
+        // Security: Validate download URL before proceeding
+        if (!filter_var($downloadUrl, FILTER_VALIDATE_URL) || !InputValidator::validateGithubUrl($downloadUrl)) {
+            error_log('UnrePress: Invalid download URL provided to downloadUpdate: ' . $downloadUrl);
+
+            return false;
+        }
+
+        // Security: Ensure URL is from expected source (GitHub for core updates)
+        $host = parse_url($downloadUrl, PHP_URL_HOST);
+        if ($host !== 'github.com' && $host !== 'codeload.github.com') {
+            error_log('UnrePress: Unexpected download source: ' . $host);
+
+            return false;
+        }
+
         $downloadPath = UNREPRESS_TEMP_PATH . 'wordpress_core_' . uniqid() . '.zip';
+
+        // Security: Validate temp path is within allowed directory
+        if (!InputValidator::validatePath($downloadPath)) {
+            error_log('UnrePress: Invalid download path: ' . $downloadPath);
+
+            return false;
+        }
 
         // Download the update
         $downloadResult = wp_remote_get($downloadUrl, ['filename' => $downloadPath, 'stream' => true, 'timeout' => 300]);
 
         if (is_wp_error($downloadResult)) {
+            return false;
+        }
+
+        // Security: Validate downloaded file exists and is safe
+        if (!file_exists($downloadPath)) {
+            error_log('UnrePress: Download failed - file not created: ' . $downloadPath);
+
+            return false;
+        }
+
+        // Security: Basic file validation (check size and extension)
+        $fileSize = filesize($downloadPath);
+        if ($fileSize === false || $fileSize > 100 * 1024 * 1024) { // Max 100MB
+            error_log('UnrePress: Download file size invalid or too large: ' . ($fileSize ?: 'unknown'));
+
+            wp_delete_file($downloadPath);
+
+            return false;
+        }
+
+        // Security: Validate file extension
+        $fileExtension = strtolower(pathinfo($downloadPath, PATHINFO_EXTENSION));
+        if ($fileExtension !== 'zip') {
+            error_log('UnrePress: Unexpected file extension: ' . $fileExtension);
+
+            wp_delete_file($downloadPath);
+
             return false;
         }
 
@@ -630,17 +737,17 @@ class UpdateCore
             // Get or create the update_core transient
             $current = get_site_transient('update_core');
             if (!is_object($current)) {
-                $current = new \stdClass();
+                $current = new stdClass();
                 $current->updates = [];
                 $current->version_checked = $wp_version;
             }
 
             // Create update object matching WordPress core format
-            $update = new \stdClass();
+            $update = new stdClass();
             $update->response = 'upgrade';
             $update->download = $this->getDownloadUrl('WordPress/WordPress', $latestVersion);
             $update->locale = get_locale();
-            $update->packages = new \stdClass();
+            $update->packages = new stdClass();
             $update->packages->full = $update->download;
             $update->packages->no_content = '';
             $update->packages->new_bundled = '';
@@ -664,7 +771,7 @@ class UpdateCore
             // Log success for debugging
             error_log("UnrePress: Core update detected - WordPress {$latestVersion} available from GitHub");
 
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Log error but don't break the update process
             error_log('UnrePress Core Update Check Error: ' . $e->getMessage());
         }

@@ -5,52 +5,52 @@ declare(strict_types=1);
 namespace UnrePress\UpdaterProvider;
 
 /**
- * GitHub provider using modern Git provider clients.
+ * BitBucket provider using modern Git provider clients.
  *
- * This class now acts as a facade that uses the GitProviderWrapper
- * to leverage modern API clients instead of manual wp_remote_* calls.
+ * This class acts as a facade that uses the GitProviderWrapper
+ * to leverage modern API clients for BitBucket repositories.
  */
-class GitHub implements ProviderInterface
+class BitBucket implements ProviderInterface
 {
     private GitProviderWrapper $wrapper;
 
     public function __construct(?GitProviderWrapper $wrapper = null)
     {
         $this->wrapper = $wrapper ?? new GitProviderWrapper();
-        $this->wrapper->setProviderType('github');
+        $this->wrapper->setProviderType('bitbucket');
     }
 
     /**
-     * Return the download URL for a given GitHub repository and version.
+     * Return the download URL for a given BitBucket repository and version.
      *
-     * @param string $repo The GitHub repository slug
+     * @param string $repo The BitBucket repository slug
      * @param string $version The version to download (e.g. a tag name)
      *
      * @return string The download URL
      */
     public function getDownloadUrl(string $repo, string $version): string
     {
-        unrepress_debug('GitHub::getDownloadUrl() - Called with repo: ' . $repo . ', version: ' . $version);
+        unrepress_debug('BitBucket::getDownloadUrl() - Called with repo: ' . $repo . ', version: ' . $version);
 
         $downloadUrl = $this->wrapper->getDownloadUrl($repo, $version);
-        unrepress_debug('GitHub::getDownloadUrl() - Result: ' . $downloadUrl);
+        unrepress_debug('BitBucket::getDownloadUrl() - Result: ' . $downloadUrl);
 
         return $downloadUrl;
     }
 
     /**
-     * Return the latest version of a GitHub repository.
+     * Return the latest version of a BitBucket repository.
      *
-     * @param string $repo The GitHub repository slug
+     * @param string $repo The BitBucket repository slug
      *
      * @return string|null The latest version, or null on error
      */
     public function getLatestVersion(string $repo): ?string
     {
-        unrepress_debug('GitHub::getLatestVersion() - Called with repo: ' . $repo);
+        unrepress_debug('BitBucket::getLatestVersion() - Called with repo: ' . $repo);
 
         $latestVersion = $this->wrapper->getLatestVersion($repo);
-        unrepress_debug('GitHub::getLatestVersion() - Result: ' . ($latestVersion ?? 'null'));
+        unrepress_debug('BitBucket::getLatestVersion() - Result: ' . ($latestVersion ?? 'null'));
 
         return $latestVersion;
     }
@@ -64,10 +64,10 @@ class GitHub implements ProviderInterface
      */
     public function makeRequest(string $url): string|false
     {
-        unrepress_debug('GitHub::makeRequest() - Called for URL: ' . $url);
+        unrepress_debug('BitBucket::makeRequest() - Called for URL: ' . $url);
 
         $response = $this->wrapper->makeRequest($url);
-        unrepress_debug('GitHub::makeRequest() - Response received: ' . ($response ? 'YES' : 'NO'));
+        unrepress_debug('BitBucket::makeRequest() - Response received: ' . ($response ? 'YES' : 'NO'));
 
         return $response;
     }

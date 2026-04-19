@@ -26,6 +26,7 @@ class GitProviderFactory
     public static function createFromUrl(string $url, ?string $token = null): GitProviderInterface
     {
         $provider = self::detectProviderFromUrl($url);
+
         return self::create($provider, $token);
     }
 
@@ -53,6 +54,7 @@ class GitProviderFactory
         if ($token !== null) {
             $provider->authenticate($token);
         }
+
         return $provider;
     }
 
@@ -62,6 +64,7 @@ class GitProviderFactory
         if ($token !== null) {
             $provider->authenticate($token);
         }
+
         return $provider;
     }
 
@@ -71,6 +74,7 @@ class GitProviderFactory
         if ($token !== null) {
             $provider->authenticate($token);
         }
+
         return $provider;
     }
 

@@ -13,7 +13,7 @@ test('github provider uses wrapper by default', function () {
     $provider = new GitHub();
 
     // Check that it implements the interface
-    expect($provider)->toBeInstanceOf(\UnrePress\UpdaterProvider\ProviderInterface::class);
+    expect($provider)->toBeInstanceOf(UnrePress\UpdaterProvider\ProviderInterface::class);
 });
 
 test('github provider has required methods', function () {
@@ -27,7 +27,7 @@ test('github provider has required methods', function () {
 });
 
 test('github provider accepts custom wrapper', function () {
-    $customWrapper = new \UnrePress\UpdaterProvider\GitProviderWrapper();
+    $customWrapper = new UnrePress\UpdaterProvider\GitProviderWrapper();
     $provider = new GitHub($customWrapper);
 
     // Check that it was created successfully

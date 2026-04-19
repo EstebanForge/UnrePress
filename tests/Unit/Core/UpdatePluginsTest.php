@@ -45,6 +45,14 @@ class UpdatePluginsTest extends WordPressTestHelper
         \Brain\Monkey\Functions\when('get_plugins')->justReturn([]);
         \Brain\Monkey\Functions\when('add_filter')->justReturn(true);
         \Brain\Monkey\Functions\when('add_action')->justReturn(true);
+        \Brain\Monkey\Functions\when('sanitize_key')->returnArg();
+        \Brain\Monkey\Functions\when('sanitize_text_field')->returnArg();
+        \Brain\Monkey\Functions\when('esc_url')->returnArg();
+        \Brain\Monkey\Functions\when('esc_html')->returnArg();
+        \Brain\Monkey\Functions\when('get_bloginfo')->justReturn('6.7');
+        \Brain\Monkey\Functions\when('get_transient')->justReturn(false);
+        \Brain\Monkey\Functions\when('set_transient')->justReturn(true);
+        \Brain\Monkey\Functions\when('unrepress_debug')->justReturn(null);
 
         $this->updatePlugins = new UpdatePlugins();
     }

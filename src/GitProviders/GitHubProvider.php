@@ -24,8 +24,9 @@ class GitHubProvider implements GitProviderInterface
     {
         try {
             $release = $this->client->api('repo')->releases()->latest($owner, $repo);
+
             return $release['tag_name'] ?? null;
-        } catch (ErrorException | RuntimeException $e) {
+        } catch (ErrorException|RuntimeException $e) {
             return null;
         }
     }
@@ -34,6 +35,7 @@ class GitHubProvider implements GitProviderInterface
     {
         try {
             $data = $this->client->api('repo')->show($owner, $repo);
+
             return [
                 'name' => $data['name'] ?? '',
                 'description' => $data['description'] ?? '',
@@ -49,7 +51,7 @@ class GitHubProvider implements GitProviderInterface
                 'forks_count' => $data['forks_count'] ?? 0,
                 'open_issues_count' => $data['open_issues_count'] ?? 0,
             ];
-        } catch (ErrorException | RuntimeException $e) {
+        } catch (ErrorException|RuntimeException $e) {
             return [];
         }
     }
@@ -68,8 +70,9 @@ class GitHubProvider implements GitProviderInterface
     {
         try {
             $tags = $this->client->api('repo')->tags($owner, $repo);
-            return array_map(fn($tag) => $tag['name'], $tags);
-        } catch (ErrorException | RuntimeException $e) {
+
+            return array_map(fn ($tag) => $tag['name'], $tags);
+        } catch (ErrorException|RuntimeException $e) {
             return [];
         }
     }

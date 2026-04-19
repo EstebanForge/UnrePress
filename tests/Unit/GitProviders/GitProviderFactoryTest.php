@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-use UnrePress\GitProviders\GitProviderFactory;
+use UnrePress\GitProviders\BitbucketProvider;
 use UnrePress\GitProviders\GitHubProvider;
 use UnrePress\GitProviders\GitLabProvider;
-use UnrePress\GitProviders\BitbucketProvider;
+use UnrePress\GitProviders\GitProviderFactory;
 
 test('factory creates GitHub provider', function () {
     $provider = GitProviderFactory::create('github');
@@ -23,7 +23,7 @@ test('factory creates Bitbucket provider', function () {
 });
 
 test('factory throws for unknown provider', function () {
-    expect(fn() => GitProviderFactory::create('unknown'))
+    expect(fn () => GitProviderFactory::create('unknown'))
         ->toThrow(InvalidArgumentException::class);
 });
 
@@ -43,12 +43,12 @@ test('factory detects Bitbucket from URL', function () {
 });
 
 test('factory throws for invalid URL', function () {
-    expect(fn() => GitProviderFactory::createFromUrl('not-a-url'))
+    expect(fn () => GitProviderFactory::createFromUrl('not-a-url'))
         ->toThrow(InvalidArgumentException::class);
 });
 
 test('factory throws for unknown provider in URL', function () {
-    expect(fn() => GitProviderFactory::createFromUrl('https://unknown.com/owner/repo'))
+    expect(fn () => GitProviderFactory::createFromUrl('https://unknown.com/owner/repo'))
         ->toThrow(InvalidArgumentException::class);
 });
 
@@ -77,7 +77,7 @@ test('parse repository with nested path', function () {
 });
 
 test('parse repository throws for invalid URL', function () {
-    expect(fn() => GitProviderFactory::parseRepositoryFromUrl('not-a-url'))
+    expect(fn () => GitProviderFactory::parseRepositoryFromUrl('not-a-url'))
         ->toThrow(InvalidArgumentException::class);
 });
 

@@ -4,12 +4,17 @@ namespace UnrePress\Updater;
 
 use UnrePress\Debugger;
 use UnrePress\Helpers;
+use UnrePress\Security\CapabilityChecker;
+use UnrePress\Security\InputValidator;
+use UnrePress\Security\SecurityMiddleware;
 use UnrePress\UnrePress;
 use UnrePress\UpdaterProvider\GitProviderWrapper;
 
 class UpdatePlugins
 {
     private $helpers;
+
+    private $security;
 
     private $provider = 'github';
 
@@ -23,10 +28,17 @@ class UpdatePlugins
 
     private UnrePress $unrepress;
 
+    private CapabilityChecker $capabilityChecker;
+
+    private InputValidator $inputValidator;
+
     public function __construct()
     {
         $this->helpers = new Helpers();
+        $this->security = new SecurityMiddleware();
         $this->unrepress = new UnrePress();
+        $this->capabilityChecker = new CapabilityChecker();
+        $this->inputValidator = new InputValidator();
         $this->version = '';
         $this->cache_key = UNREPRESS_PREFIX . 'updates_plugin_';
         $this->cache_results = true;
@@ -397,12 +409,20 @@ class UpdatePlugins
             return false;
         }
 
+        // Security: Validate plugin slug
+        $validatedSlug = $this->inputValidator->validateSlug($plugin_data->slug);
+        if (!$validatedSlug) {
+            Debugger::log('getLatestVersion (Plugin): Invalid plugin slug: ' . ($plugin_data->slug ?? 'unknown'));
+
+            return false;
+        }
+
         // Check if we have a cached version first
-        $transient_key = $this->cache_key . 'latest_tag_object_' . $plugin_data->slug; // Changed transient name for clarity
+        $transient_key = $this->cache_key . 'latest_tag_object_' . $validatedSlug;
         $cached_tag_object = get_transient($transient_key);
 
         if ($cached_tag_object !== false) {
-            Debugger::log('getLatestVersion (Plugin): Using cached tag object for ' . $plugin_data->slug);
+            Debugger::log('getLatestVersion (Plugin): Using cached tag object for ' . $validatedSlug);
 
             return $cached_tag_object;
         }
@@ -412,12 +432,20 @@ class UpdatePlugins
             !isset($plugin_data->unrepress_meta) || !is_object($plugin_data->unrepress_meta)
             || empty($plugin_data->unrepress_meta->repository) || !is_string($plugin_data->unrepress_meta->repository) // Must be a string URL
         ) {
-            Debugger::log('getLatestVersion (Plugin): unrepress_meta structure invalid, or repository URL missing for plugin: ' . ($plugin_data->slug ?? 'unknown'));
+            Debugger::log('getLatestVersion (Plugin): unrepress_meta structure invalid, or repository URL missing for plugin: ' . $validatedSlug);
             // Fallback if only version is present in main plugin_data
             if (!empty($plugin_data->version) && is_string($plugin_data->version)) {
+                // Security: Validate version format
+                $validatedVersion = $this->inputValidator->validateVersion($plugin_data->version);
+                if (!$validatedVersion) {
+                    Debugger::log('getLatestVersion (Plugin): Invalid version format in plugin JSON');
+
+                    return false;
+                }
+
                 $mock_tag = new \stdClass();
-                $mock_tag->name = $plugin_data->version;
-                Debugger::log('getLatestVersion (Plugin): Falling back to version from plugin JSON: ' . $plugin_data->version);
+                $mock_tag->name = $validatedVersion;
+                Debugger::log('getLatestVersion (Plugin): Falling back to version from plugin JSON: ' . $validatedVersion);
                 set_transient($transient_key, $mock_tag, 3 * HOUR_IN_SECONDS); // Cache mock tag too
 
                 return $mock_tag;
@@ -426,31 +454,45 @@ class UpdatePlugins
             return false;
         }
 
-        // Use GitProviderWrapper instead of manual HTTP calls
+        // Security: Validate repository URL
         $repository_url = $plugin_data->unrepress_meta->repository;
-        Debugger::log('getLatestVersion (Plugin): Fetching latest version from: ' . $repository_url . ' for plugin: ' . $plugin_data->slug);
+        if (!filter_var($repository_url, FILTER_VALIDATE_URL)) {
+            Debugger::log('getLatestVersion (Plugin): Invalid repository URL for plugin: ' . $validatedSlug);
+
+            return false;
+        }
+
+        Debugger::log('getLatestVersion (Plugin): Fetching latest version from: ' . $repository_url . ' for plugin: ' . $validatedSlug);
 
         try {
             $wrapper = new GitProviderWrapper();
             $latest_version = $wrapper->getLatestVersion($repository_url);
 
             if (!$latest_version) {
-                Debugger::log('getLatestVersion (Plugin): GitProviderWrapper returned no version for plugin: ' . $plugin_data->slug);
+                Debugger::log('getLatestVersion (Plugin): GitProviderWrapper returned no version for plugin: ' . $validatedSlug);
+
+                return false;
+            }
+
+            // Security: Validate returned version format
+            $validatedLatestVersion = $this->inputValidator->validateVersion($latest_version);
+            if (!$validatedLatestVersion) {
+                Debugger::log('getLatestVersion (Plugin): Invalid version format returned: ' . $latest_version);
 
                 return false;
             }
 
             // Create a mock tag object to maintain compatibility with existing code
             $latest_tag_object = new \stdClass();
-            $latest_tag_object->name = $latest_version;
+            $latest_tag_object->name = $validatedLatestVersion;
 
-            Debugger::log('getLatestVersion (Plugin): Determined latest tag: ' . $latest_tag_object->name . ' for plugin: ' . $plugin_data->slug);
+            Debugger::log('getLatestVersion (Plugin): Determined latest tag: ' . $latest_tag_object->name . ' for plugin: ' . $validatedSlug);
             set_transient($transient_key, $latest_tag_object, 3 * HOUR_IN_SECONDS); // Cache the full tag object
 
             return $latest_tag_object;
 
         } catch (\Exception $e) {
-            Debugger::log('getLatestVersion (Plugin): Exception fetching version: ' . $e->getMessage() . ' for plugin: ' . $plugin_data->slug);
+            Debugger::log('getLatestVersion (Plugin): Exception fetching version: ' . $e->getMessage() . ' for plugin: ' . $validatedSlug);
 
             return false;
         }
@@ -460,6 +502,14 @@ class UpdatePlugins
     {
         if (empty($original_tag_name) || !is_object($plugin_data) || !isset($plugin_data->unrepress_meta) || !is_object($plugin_data->unrepress_meta)) {
             Debugger::log('getDownloadUrl (Plugin): Missing original_tag_name or invalid plugin_data/unrepress_meta for plugin: ' . ($plugin_data->slug ?? 'unknown'));
+
+            return false;
+        }
+
+        // Security: Validate version format
+        $validatedVersion = $this->inputValidator->validateVersion($original_tag_name);
+        if (!$validatedVersion) {
+            Debugger::log('getDownloadUrl (Plugin): Invalid version format: ' . $original_tag_name);
 
             return false;
         }
@@ -474,16 +524,35 @@ class UpdatePlugins
             return false;
         }
 
+        // Security: Validate repository URL format
+        if (!filter_var($repo_url, FILTER_VALIDATE_URL)) {
+            Debugger::log('getDownloadUrl (Plugin): Invalid repository URL format for plugin: ' . ($plugin_data->slug ?? 'unknown'));
+
+            return false;
+        }
+
         // For release assets, we need special handling as they have different URL structures
         if ($update_from === 'release') {
             if (!empty($meta->release_asset) && is_string($meta->release_asset)) {
-                // The $original_tag_name is the release tag (e.g., "v1.2.3" or "1.2.3")
-                $normalized_version_for_asset = ltrim($original_tag_name, 'v');
-                $asset_name = str_replace('{version}', $normalized_version_for_asset, $meta->release_asset);
+                // Security: Sanitize asset name to prevent path traversal
+                $asset_name = $meta->release_asset;
+                $asset_name = sanitize_text_field($asset_name);
+                $asset_name = str_replace(['../', '..\\', './', '.\\'], '', $asset_name);
+
+                $normalized_version_for_asset = ltrim($validatedVersion, 'v');
+                $asset_name = str_replace('{version}', $normalized_version_for_asset, $asset_name);
                 $asset_name = str_replace('{slug}', $plugin_data->slug, $asset_name);
 
                 if (strpos($repo_url, 'github.com') !== false) {
-                    $download_url = rtrim($repo_url, '/') . '/releases/download/' . $original_tag_name . '/' . $asset_name;
+                    $download_url = rtrim($repo_url, '/') . '/releases/download/' . $validatedVersion . '/' . $asset_name;
+
+                    // Security: Validate constructed URL
+                    if (!filter_var($download_url, FILTER_VALIDATE_URL)) {
+                        Debugger::log('getDownloadUrl (Plugin): Invalid constructed release URL: ' . $download_url);
+
+                        return false;
+                    }
+
                     Debugger::log('getDownloadUrl (Plugin): Constructed GitHub release asset URL: ' . $download_url);
 
                     return $download_url;
@@ -502,17 +571,27 @@ class UpdatePlugins
         // For tags (and other strategies), use GitProviderWrapper
         try {
             $wrapper = new GitProviderWrapper();
-            $download_url = $wrapper->getDownloadUrl($repo_url, $original_tag_name);
+            $download_url = $wrapper->getDownloadUrl($repo_url, $validatedVersion);
 
             if (!$download_url) {
                 Debugger::log('getDownloadUrl (Plugin): GitProviderWrapper returned no download URL for plugin: ' . ($plugin_data->slug ?? 'unknown'));
 
                 // Fallback: if a direct download_url is in unrepress_meta, use it.
                 if (!empty($meta->download_url) && is_string($meta->download_url)) {
-                    Debugger::log('getDownloadUrl (Plugin): Falling back to direct download_url from unrepress_meta: ' . $meta->download_url);
+                    // Security: Validate fallback URL
+                    if (filter_var($meta->download_url, FILTER_VALIDATE_URL)) {
+                        Debugger::log('getDownloadUrl (Plugin): Falling back to direct download_url from unrepress_meta: ' . $meta->download_url);
 
-                    return $meta->download_url;
+                        return $meta->download_url;
+                    }
                 }
+
+                return false;
+            }
+
+            // Security: Validate returned URL
+            if (!filter_var($download_url, FILTER_VALIDATE_URL)) {
+                Debugger::log('getDownloadUrl (Plugin): Invalid download URL returned: ' . $download_url);
 
                 return false;
             }
@@ -526,9 +605,12 @@ class UpdatePlugins
 
             // Fallback: if a direct download_url is in unrepress_meta, use it.
             if (!empty($meta->download_url) && is_string($meta->download_url)) {
-                Debugger::log('getDownloadUrl (Plugin): Falling back to direct download_url from unrepress_meta: ' . $meta->download_url);
+                // Security: Validate fallback URL
+                if (filter_var($meta->download_url, FILTER_VALIDATE_URL)) {
+                    Debugger::log('getDownloadUrl (Plugin): Falling back to direct download_url from unrepress_meta: ' . $meta->download_url);
 
-                return $meta->download_url;
+                    return $meta->download_url;
+                }
             }
 
             return false;

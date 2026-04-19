@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace UnrePress\UpdaterProvider;
 
+use InvalidArgumentException;
 use UnrePress\GitProviders\GitProviderFactory;
 use UnrePress\GitProviders\GitProviderInterface;
-use InvalidArgumentException;
 
 /**
  * Unified wrapper for Git provider API clients.
@@ -68,14 +68,17 @@ class GitProviderWrapper implements ProviderInterface
             // Check if this is a tags/releases URL
             if (str_contains($url, '/tags') || str_contains($url, '/releases')) {
                 $tags = $provider->getTags($owner, $repo);
+
                 return json_encode($tags);
             }
 
             // Default to repository info
             $repoData = $provider->getRepository($owner, $repo);
+
             return json_encode($repoData);
         } catch (InvalidArgumentException $e) {
             unrepress_debug('GitProviderWrapper::makeRequest() - Error: ' . $e->getMessage());
+
             return false;
         }
     }
@@ -133,6 +136,7 @@ class GitProviderWrapper implements ProviderInterface
         // If it's a URL, detect provider from URL
         if (filter_var($repo, FILTER_VALIDATE_URL)) {
             $this->detectedProvider = $this->detectProviderFromUrl($repo);
+
             return $this->createProvider($this->detectedProvider);
         }
 

@@ -31,14 +31,15 @@ class BitbucketProvider implements GitProviderInterface
             }
 
             // Sort tags by date (descending)
-            usort($tags, function($a, $b) {
+            usort($tags, function ($a, $b) {
                 $dateA = strtotime($a['date'] ?? 'now');
                 $dateB = strtotime($b['date'] ?? 'now');
+
                 return $dateB <=> $dateA;
             });
 
             return $tags[0]['name'] ?? null;
-        } catch (ClientErrorException | ExceptionInterface $e) {
+        } catch (ClientErrorException|ExceptionInterface $e) {
             return null;
         }
     }
@@ -63,7 +64,7 @@ class BitbucketProvider implements GitProviderInterface
                 'forks_count' => 0,
                 'open_issues_count' => 0,
             ];
-        } catch (ClientErrorException | ExceptionInterface $e) {
+        } catch (ClientErrorException|ExceptionInterface $e) {
             return [];
         }
     }
@@ -83,8 +84,9 @@ class BitbucketProvider implements GitProviderInterface
         try {
             $refs = $this->client->repositories()->refs($owner, $repo)->list('tags');
             $tags = $refs['values'] ?? [];
-            return array_map(fn($tag) => $tag['name'], $tags);
-        } catch (ClientErrorException | ExceptionInterface $e) {
+
+            return array_map(fn ($tag) => $tag['name'], $tags);
+        } catch (ClientErrorException|ExceptionInterface $e) {
             return [];
         }
     }

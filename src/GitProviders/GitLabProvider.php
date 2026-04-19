@@ -32,7 +32,7 @@ class GitLabProvider implements GitProviderInterface
             }
 
             return $releases[0]['tag_name'] ?? null;
-        } catch (ErrorException | ExceptionInterface $e) {
+        } catch (ErrorException|ExceptionInterface $e) {
             return null;
         }
     }
@@ -58,7 +58,7 @@ class GitLabProvider implements GitProviderInterface
                 'forks_count' => $data['forks_count'] ?? 0,
                 'open_issues_count' => 0,
             ];
-        } catch (ErrorException | ExceptionInterface $e) {
+        } catch (ErrorException|ExceptionInterface $e) {
             return [];
         }
     }
@@ -78,8 +78,9 @@ class GitLabProvider implements GitProviderInterface
         try {
             $projectId = sprintf('%s/%s', $owner, $repo);
             $tags = $this->client->repositories()->tags($projectId);
-            return array_map(fn($tag) => $tag['name'], $tags);
-        } catch (ErrorException | ExceptionInterface $e) {
+
+            return array_map(fn ($tag) => $tag['name'], $tags);
+        } catch (ErrorException|ExceptionInterface $e) {
             return [];
         }
     }
@@ -98,7 +99,7 @@ class GitLabProvider implements GitProviderInterface
             }
 
             // Sort tags by version (descending)
-            usort($tags, function($a, $b) {
+            usort($tags, function ($a, $b) {
                 return version_compare(ltrim($b, 'v'), ltrim($a, 'v'));
             });
 

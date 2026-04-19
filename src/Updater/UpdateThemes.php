@@ -3,11 +3,16 @@
 namespace UnrePress\Updater;
 
 use UnrePress\Helpers;
+use UnrePress\Security\CapabilityChecker;
+use UnrePress\Security\InputValidator;
+use UnrePress\Security\SecurityMiddleware;
 use UnrePress\UpdaterProvider\GitProviderWrapper;
 
 class UpdateThemes
 {
     private $helpers;
+
+    private $security;
 
     private $provider = 'github';
 
@@ -19,9 +24,16 @@ class UpdateThemes
 
     private $updateInfo = [];
 
+    private CapabilityChecker $capabilityChecker;
+
+    private InputValidator $inputValidator;
+
     public function __construct()
     {
         $this->helpers = new Helpers();
+        $this->security = new SecurityMiddleware();
+        $this->capabilityChecker = new CapabilityChecker();
+        $this->inputValidator = new InputValidator();
         $this->version = '';
         $this->cache_key = UNREPRESS_PREFIX . 'updates_theme_';
         $this->cache_results = true;
@@ -508,11 +520,15 @@ class UpdateThemes
             unrepress_debug('getLatestVersionFromMeta: Basic theme_data structure invalid or unrepress_meta missing/not an object for theme: ' . ($theme_data->slug ?? 'unknown'));
             // Fallback logic as before
             if (is_object($theme_data) && !empty($theme_data->version)) {
-                $mock_tag = new \stdClass();
-                $mock_tag->name = $theme_data->version;
-                unrepress_debug('getLatestVersionFromMeta: Falling back to version from theme JSON (structure issue): ' . $theme_data->version);
+                // Security: Validate version before using as fallback
+                $validatedVersion = $this->inputValidator->validateVersion($theme_data->version);
+                if ($validatedVersion) {
+                    $mock_tag = new \stdClass();
+                    $mock_tag->name = $validatedVersion;
+                    unrepress_debug('getLatestVersionFromMeta: Falling back to version from theme JSON (structure issue): ' . $validatedVersion);
 
-                return $mock_tag;
+                    return $mock_tag;
+                }
             }
 
             return false;
@@ -528,18 +544,28 @@ class UpdateThemes
             unrepress_debug('getLatestVersionFromMeta: unrepress_meta missing repository URL for theme: ' . ($theme_data->slug ?? 'unknown'));
             // Fallback logic as before
             if (!empty($theme_data->version)) {
-                $mock_tag = new \stdClass();
-                $mock_tag->name = $theme_data->version;
-                unrepress_debug('getLatestVersionFromMeta: Falling back to version from theme JSON (meta content issue): ' . $theme_data->version);
+                // Security: Validate version before using as fallback
+                $validatedVersion = $this->inputValidator->validateVersion($theme_data->version);
+                if ($validatedVersion) {
+                    $mock_tag = new \stdClass();
+                    $mock_tag->name = $validatedVersion;
+                    unrepress_debug('getLatestVersionFromMeta: Falling back to version from theme JSON (meta content issue): ' . $validatedVersion);
 
-                return $mock_tag;
+                    return $mock_tag;
+                }
             }
 
             return false;
         }
 
-        // Proceed with valid meta - use GitProviderWrapper instead of manual HTTP calls
+        // Security: Validate repository URL format
         $repository_url = $meta->repository;
+        if (!filter_var($repository_url, FILTER_VALIDATE_URL)) {
+            unrepress_debug('getLatestVersionFromMeta: Invalid repository URL format for theme: ' . ($theme_data->slug ?? 'unknown'));
+
+            return false;
+        }
+
         unrepress_debug('getLatestVersionFromMeta: Fetching latest version from: ' . $repository_url . ' for theme: ' . ($theme_data->slug ?? 'unknown'));
 
         try {
@@ -552,9 +578,17 @@ class UpdateThemes
                 return false;
             }
 
+            // Security: Validate returned version format
+            $validatedVersion = $this->inputValidator->validateVersion($latest_version);
+            if (!$validatedVersion) {
+                unrepress_debug('getLatestVersionFromMeta: Invalid version format returned: ' . $latest_version);
+
+                return false;
+            }
+
             // Create a mock tag object to maintain compatibility with existing code
             $latest_tag = new \stdClass();
-            $latest_tag->name = $latest_version;
+            $latest_tag->name = $validatedVersion;
 
             unrepress_debug('getLatestVersionFromMeta: Determined latest tag: ' . $latest_tag->name . ' for theme: ' . ($theme_data->slug ?? 'unknown'));
 
@@ -582,19 +616,44 @@ class UpdateThemes
             return false;
         }
 
+        // Security: Validate version format
+        $validatedVersion = $this->inputValidator->validateVersion($tag_name);
+        if (!$validatedVersion) {
+            unrepress_debug('getDownloadUrlFromMeta: Invalid version format: ' . $tag_name);
+
+            return false;
+        }
+
         $repo_url = $theme_data->unrepress_meta->repository;
+
+        // Security: Validate repository URL format
+        if (!filter_var($repo_url, FILTER_VALIDATE_URL)) {
+            unrepress_debug('getDownloadUrlFromMeta: Invalid repository URL format: ' . $repo_url);
+
+            return false;
+        }
 
         try {
             $wrapper = new GitProviderWrapper();
-            $download_url = $wrapper->getDownloadUrl($repo_url, $tag_name);
+            $download_url = $wrapper->getDownloadUrl($repo_url, $validatedVersion);
 
             if (!$download_url) {
                 unrepress_debug('getDownloadUrlFromMeta: GitProviderWrapper returned no download URL for theme: ' . ($theme_data->slug ?? 'unknown'));
 
                 // Fallback to a direct download_url if present in unrepress_meta or theme_data itself, as a last resort.
                 if (!empty($theme_data->download_url)) {
-                    return $theme_data->download_url;
+                    // Security: Validate fallback URL
+                    if (filter_var($theme_data->download_url, FILTER_VALIDATE_URL)) {
+                        return $theme_data->download_url;
+                    }
                 }
+
+                return false;
+            }
+
+            // Security: Validate returned URL
+            if (!filter_var($download_url, FILTER_VALIDATE_URL)) {
+                unrepress_debug('getDownloadUrlFromMeta: Invalid download URL returned: ' . $download_url);
 
                 return false;
             }
@@ -608,7 +667,10 @@ class UpdateThemes
 
             // Fallback to a direct download_url if present in unrepress_meta or theme_data itself, as a last resort.
             if (!empty($theme_data->download_url)) {
-                return $theme_data->download_url;
+                // Security: Validate fallback URL
+                if (filter_var($theme_data->download_url, FILTER_VALIDATE_URL)) {
+                    return $theme_data->download_url;
+                }
             }
 
             return false;
