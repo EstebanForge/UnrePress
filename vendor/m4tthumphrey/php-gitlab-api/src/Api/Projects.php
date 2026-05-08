@@ -194,9 +194,29 @@ class Projects extends AbstractApi
         return $this->put('projects/'.self::encodePath($project_id), $parameters);
     }
 
-    public function remove(int|string $project_id): mixed
+    /**
+     * @param array $parameters {
+     *
+     *     @var string      $full_path           full path of project to use with permanently_remove
+     *     @var bool|string $permanently_remove Immediately delete a project that is already marked for deletion.
+     * }
+     */
+    public function remove(int|string $project_id, array $parameters = []): mixed
     {
-        return $this->delete('projects/'.self::encodePath($project_id));
+        $resolver = new OptionsResolver();
+        $resolver->setDefined('full_path')
+            ->setAllowedTypes('full_path', 'string')
+        ;
+        $resolver->setDefined('permanently_remove')
+            ->setAllowedTypes('permanently_remove', ['bool', 'string'])
+        ;
+
+        return $this->delete('projects/'.self::encodePath($project_id), $resolver->resolve($parameters));
+    }
+
+    public function restore(int|string $project_id): mixed
+    {
+        return $this->post('projects/'.self::encodePath($project_id).'/restore');
     }
 
     public function archive(int|string $project_id): mixed
@@ -231,7 +251,7 @@ class Projects extends AbstractApi
         return $this->delete($this->getProjectPath($project_id, 'triggers/'.self::encodePath($trigger_id)));
     }
 
-    public function triggerPipeline(int|string $project_id, string $ref, string $token, array $variables = []): mixed
+    public function triggerPipeline(int|string $project_id, string $ref, #[\SensitiveParameter] string $token, array $variables = []): mixed
     {
         return $this->post($this->getProjectPath($project_id, 'trigger/pipeline'), [
             'ref' => $ref,
@@ -257,16 +277,18 @@ class Projects extends AbstractApi
     /**
      * @param array      $parameters {
      *
-     *     @var string $scope       the scope of pipelines, one of: running, pending, finished, branches, tags
-     *     @var string $status      the status of pipelines, one of: running, pending, success, failed, canceled, skipped
-     *     @var string $ref         the ref of pipelines
-     *     @var string $sha         the sha of pipelines
-     *     @var bool   $yaml_errors returns pipelines with invalid configurations
-     *     @var string $name        the name of the user who triggered pipelines
-     *     @var string $username    the username of the user who triggered pipelines
-     *     @var string $order_by    order pipelines by id, status, ref, updated_at, or user_id (default: id)
-     *     @var string $order       sort pipelines in asc or desc order (default: desc)
-     *     @var string $source      the source of the pipeline
+     *     @var string             $scope          the scope of pipelines, one of: running, pending, finished, branches, tags
+     *     @var string             $status         the status of pipelines, one of: running, pending, success, failed, canceled, skipped
+     *     @var string             $ref            the ref of pipelines
+     *     @var string             $sha            the sha of pipelines
+     *     @var bool               $yaml_errors    returns pipelines with invalid configurations
+     *     @var string             $name           the name of the user who triggered pipelines
+     *     @var string             $username       the username of the user who triggered pipelines
+     *     @var \DateTimeInterface $updated_after  Return pipelines updated on or after the given date and time
+     *     @var \DateTimeInterface $updated_before Return pipelines updated on or before the given date and time
+     *     @var string             $order_by       order pipelines by id, status, ref, updated_at, or user_id (default: id)
+     *     @var string             $sort           sort pipelines in asc or desc order (default: desc)
+     *     @var string             $source         the source of the pipeline
      * }
      */
     public function pipelines(int|string $project_id, array $parameters = []): mixed
@@ -276,7 +298,7 @@ class Projects extends AbstractApi
             return $value ? 'true' : 'false';
         };
         $datetimeNormalizer = function (Options $resolver, \DateTimeInterface $value): string {
-            return $value->format('Y-m-d');
+            return $value->format('c');
         };
 
         $resolver->setDefined('scope')
@@ -294,12 +316,12 @@ class Projects extends AbstractApi
         $resolver->setDefined('name');
         $resolver->setDefined('username');
         $resolver->setDefined('updated_after')
-                 ->setAllowedTypes('updated_after', \DateTimeInterface::class)
-                 ->setNormalizer('updated_after', $datetimeNormalizer)
+            ->setAllowedTypes('updated_after', \DateTimeInterface::class)
+            ->setNormalizer('updated_after', $datetimeNormalizer)
         ;
         $resolver->setDefined('updated_before')
-                 ->setAllowedTypes('updated_before', \DateTimeInterface::class)
-                 ->setNormalizer('updated_before', $datetimeNormalizer)
+            ->setAllowedTypes('updated_before', \DateTimeInterface::class)
+            ->setNormalizer('updated_before', $datetimeNormalizer)
         ;
         $resolver->setDefined('order_by')
             ->setAllowedValues('order_by', ['id', 'status', 'ref', 'updated_at', 'user_id'])
@@ -317,6 +339,22 @@ class Projects extends AbstractApi
     public function pipeline(int|string $project_id, int $pipeline_id): mixed
     {
         return $this->get($this->getProjectPath($project_id, 'pipelines/'.self::encodePath($pipeline_id)));
+    }
+
+    /**
+     * @param array $parameters {
+     *
+     *     @var string $ref branch or tag to check for the latest pipeline
+     * }
+     */
+    public function latestPipeline(int|string $project_id, array $parameters = []): mixed
+    {
+        $resolver = new OptionsResolver();
+        $resolver->setDefined('ref')
+            ->setAllowedTypes('ref', 'string')
+        ;
+
+        return $this->get($this->getProjectPath($project_id, 'pipelines/latest'), $resolver->resolve($parameters));
     }
 
     public function pipelineJobs(int|string $project_id, int $pipeline_id): mixed
@@ -346,10 +384,20 @@ class Projects extends AbstractApi
      *     @var mixed $value           The value of the variable
      *     @var string $variable_type  env_var (default) or file
      * }
+     *
+     * @param array $parameters {
+     *
+     *     @var array $inputs Inputs to use when creating the pipeline.
+     * }
      */
-    public function createPipeline(int|string $project_id, string $commit_ref, ?array $variables = null): mixed
+    public function createPipeline(int|string $project_id, string $commit_ref, ?array $variables = null, array $parameters = []): mixed
     {
-        $parameters = [];
+        $resolver = new OptionsResolver();
+        $resolver->setDefined('inputs')
+            ->setAllowedTypes('inputs', 'array')
+        ;
+
+        $parameters = $resolver->resolve($parameters);
 
         if (null !== $variables) {
             $parameters['variables'] = $variables;
@@ -581,6 +629,26 @@ class Projects extends AbstractApi
         ]);
     }
 
+    /**
+     * @param array $parameters {
+     *
+     *     @var bool   $can_push can deploy key push to the project's repository
+     *     @var string $title    new deploy key's title
+     * }
+     */
+    public function updateDeployKey(int|string $project_id, int $key_id, array $parameters = []): mixed
+    {
+        $resolver = new OptionsResolver();
+        $resolver->setDefined('can_push')
+            ->setAllowedTypes('can_push', 'bool')
+        ;
+        $resolver->setDefined('title')
+            ->setAllowedTypes('title', 'string')
+        ;
+
+        return $this->put($this->getProjectPath($project_id, 'deploy_keys/'.self::encodePath($key_id)), $resolver->resolve($parameters));
+    }
+
     public function deleteDeployKey(int|string $project_id, int $key_id): mixed
     {
         return $this->delete($this->getProjectPath($project_id, 'deploy_keys/'.self::encodePath($key_id)));
@@ -645,6 +713,68 @@ class Projects extends AbstractApi
     public function deleteDeployToken(int|string $project_id, int $token_id): mixed
     {
         return $this->delete($this->getProjectPath($project_id, 'deploy_tokens/'.self::encodePath($token_id)));
+    }
+
+    public function pushRule(int|string $project_id): mixed
+    {
+        return $this->get($this->getProjectPath($project_id, 'push_rule'));
+    }
+
+    /**
+     * @param array $parameters {
+     *
+     *     @var string $author_email_regex            all commit author emails must match this regular expression
+     *     @var string $branch_name_regex             all branch names must match this regular expression
+     *     @var bool   $commit_committer_check        only allow commits when the committer email is one of the user's verified emails
+     *     @var bool   $commit_committer_name_check   only allow commits when the author name matches the user's GitLab account name
+     *     @var string $commit_message_negative_regex reject commit messages matching this regular expression
+     *     @var string $commit_message_regex          require commit messages to match this regular expression
+     *     @var bool   $deny_delete_tag               deny deleting tags
+     *     @var string $file_name_regex               reject committed filenames matching this regular expression
+     *     @var int    $max_file_size                 maximum file size in MB
+     *     @var bool   $member_check                  restrict commit authors by email to existing GitLab users
+     *     @var bool   $prevent_secrets               reject files likely to contain secrets
+     *     @var bool   $reject_non_dco_commits        reject commits that are not DCO certified
+     *     @var bool   $reject_unsigned_commits       reject unsigned commits
+     * }
+     *
+     * @throws UndefinedOptionsException If an option name is undefined
+     * @throws InvalidOptionsException   If an option doesn't fulfill the specified validation rules
+     */
+    public function createPushRule(int|string $project_id, array $parameters = []): mixed
+    {
+        return $this->post($this->getProjectPath($project_id, 'push_rule'), self::createPushRuleOptionsResolver()->resolve($parameters));
+    }
+
+    /**
+     * @param array $parameters {
+     *
+     *     @var string $author_email_regex            all commit author emails must match this regular expression
+     *     @var string $branch_name_regex             all branch names must match this regular expression
+     *     @var bool   $commit_committer_check        only allow commits when the committer email is one of the user's verified emails
+     *     @var bool   $commit_committer_name_check   only allow commits when the author name matches the user's GitLab account name
+     *     @var string $commit_message_negative_regex reject commit messages matching this regular expression
+     *     @var string $commit_message_regex          require commit messages to match this regular expression
+     *     @var bool   $deny_delete_tag               deny deleting tags
+     *     @var string $file_name_regex               reject committed filenames matching this regular expression
+     *     @var int    $max_file_size                 maximum file size in MB
+     *     @var bool   $member_check                  restrict commit authors by email to existing GitLab users
+     *     @var bool   $prevent_secrets               reject files likely to contain secrets
+     *     @var bool   $reject_non_dco_commits        reject commits that are not DCO certified
+     *     @var bool   $reject_unsigned_commits       reject unsigned commits
+     * }
+     *
+     * @throws UndefinedOptionsException If an option name is undefined
+     * @throws InvalidOptionsException   If an option doesn't fulfill the specified validation rules
+     */
+    public function updatePushRule(int|string $project_id, array $parameters = []): mixed
+    {
+        return $this->put($this->getProjectPath($project_id, 'push_rule'), self::createPushRuleOptionsResolver()->resolve($parameters));
+    }
+
+    public function deletePushRule(int|string $project_id): mixed
+    {
+        return $this->delete($this->getProjectPath($project_id, 'push_rule'));
     }
 
     /**
@@ -735,28 +865,29 @@ class Projects extends AbstractApi
      * @param array      $parameters {
      *
      *     @var bool               $archived                    Limit by archived status
-     *     @var string             $visibility                  Limit by visibility public, internal, or private
-     *     @var string             $order_by                    Return projects ordered by id, name, path, created_at, updated_at,
-     *                                                          last_activity_at, repository_size, storage_size, packages_size or
-     *                                                          wiki_size fields (default is created_at)
-     *     @var string             $sort                        Return projects sorted in asc or desc order (default is desc)
-     *     @var string             $search                      Return list of projects matching the search criteria
-     *     @var bool               $simple                      Return only the ID, URL, name, and path of each project
-     *     @var bool               $owned                       Limit by projects owned by the current user
      *     @var bool               $membership                  Limit by projects that the current user is a member of
+     *     @var int                $min_access_level            Limit by current user minimal access level
+     *     @var string             $order_by                    Return projects ordered by id, name, path, created_at, updated_at, star_count, or last_activity_at
+     *     @var bool               $owned                       Limit by projects owned by the current user
+     *     @var string             $search                      Return list of projects matching the search criteria
+     *     @var bool               $simple                      Return only limited fields for each project
+     *     @var string             $sort                        Return projects sorted in asc or desc order
      *     @var bool               $starred                     Limit by projects starred by the current user
      *     @var bool               $statistics                  Include project statistics
+     *     @var \DateTimeInterface $updated_after               Limit results to projects last updated after the specified time
+     *     @var \DateTimeInterface $updated_before              Limit results to projects last updated before the specified time
+     *     @var string             $visibility                  Limit by visibility public, internal, or private
+     *     @var bool               $with_custom_attributes      Include custom attributes in response
      *     @var bool               $with_issues_enabled         Limit by enabled issues feature
      *     @var bool               $with_merge_requests_enabled Limit by enabled merge requests feature
-     *     @var int                $min_access_level            Limit by current user minimal access level
-     *     @var \DateTimeInterface $updated_before              limit results to projects last updated before the specified time
-     *     @var \DateTimeInterface $updated_after               limit results to projects last updated after the specified time
-     *     @var bool               $with_custom_attributes      Include custom attributes in response
      * }
+     *
+     * @throws UndefinedOptionsException If an option name is undefined
+     * @throws InvalidOptionsException   If an option doesn't fulfill the specified validation rules
      */
     public function forks(int|string $project_id, array $parameters = []): mixed
     {
-        $resolver = $this->createOptionsResolver();
+        $resolver = new OptionsResolver();
         $booleanNormalizer = function (Options $resolver, $value): string {
             return $value ? 'true' : 'false';
         };
@@ -767,31 +898,30 @@ class Projects extends AbstractApi
             ->setAllowedTypes('archived', 'bool')
             ->setNormalizer('archived', $booleanNormalizer)
         ;
-        $resolver->setDefined('visibility')
-            ->setAllowedValues('visibility', ['public', 'internal', 'private'])
+        $resolver->setDefined('membership')
+            ->setAllowedTypes('membership', 'bool')
+            ->setNormalizer('membership', $booleanNormalizer)
         ;
-        $orderBy = [
-            'id', 'name', 'path', 'created_at', 'updated_at', 'last_activity_at',
-            'repository_size', 'storage_size', 'packages_size', 'wiki_size',
-        ];
+        $resolver->setDefined('min_access_level')
+            ->setAllowedValues('min_access_level', [null, 5, 10, 15, 20, 25, 30, 40, 50])
+        ;
+        $orderBy = ['id', 'name', 'path', 'created_at', 'updated_at', 'star_count', 'last_activity_at'];
         $resolver->setDefined('order_by')
             ->setAllowedValues('order_by', $orderBy)
-        ;
-        $resolver->setDefined('sort')
-            ->setAllowedValues('sort', ['asc', 'desc'])
-        ;
-        $resolver->setDefined('search');
-        $resolver->setDefined('simple')
-            ->setAllowedTypes('simple', 'bool')
-            ->setNormalizer('simple', $booleanNormalizer)
         ;
         $resolver->setDefined('owned')
             ->setAllowedTypes('owned', 'bool')
             ->setNormalizer('owned', $booleanNormalizer)
         ;
-        $resolver->setDefined('membership')
-            ->setAllowedTypes('membership', 'bool')
-            ->setNormalizer('membership', $booleanNormalizer)
+        $resolver->setDefined('search')
+            ->setAllowedTypes('search', 'string')
+        ;
+        $resolver->setDefined('simple')
+            ->setAllowedTypes('simple', 'bool')
+            ->setNormalizer('simple', $booleanNormalizer)
+        ;
+        $resolver->setDefined('sort')
+            ->setAllowedValues('sort', ['asc', 'desc'])
         ;
         $resolver->setDefined('starred')
             ->setAllowedTypes('starred', 'bool')
@@ -801,6 +931,21 @@ class Projects extends AbstractApi
             ->setAllowedTypes('statistics', 'bool')
             ->setNormalizer('statistics', $booleanNormalizer)
         ;
+        $resolver->setDefined('updated_after')
+            ->setAllowedTypes('updated_after', \DateTimeInterface::class)
+            ->setNormalizer('updated_after', $datetimeNormalizer)
+        ;
+        $resolver->setDefined('updated_before')
+            ->setAllowedTypes('updated_before', \DateTimeInterface::class)
+            ->setNormalizer('updated_before', $datetimeNormalizer)
+        ;
+        $resolver->setDefined('visibility')
+            ->setAllowedValues('visibility', ['public', 'internal', 'private'])
+        ;
+        $resolver->setDefined('with_custom_attributes')
+            ->setAllowedTypes('with_custom_attributes', 'bool')
+            ->setNormalizer('with_custom_attributes', $booleanNormalizer)
+        ;
         $resolver->setDefined('with_issues_enabled')
             ->setAllowedTypes('with_issues_enabled', 'bool')
             ->setNormalizer('with_issues_enabled', $booleanNormalizer)
@@ -809,21 +954,6 @@ class Projects extends AbstractApi
             ->setAllowedTypes('with_merge_requests_enabled', 'bool')
             ->setNormalizer('with_merge_requests_enabled', $booleanNormalizer)
         ;
-        $resolver->setDefined('min_access_level')
-            ->setAllowedValues('min_access_level', [null, 10, 20, 30, 40, 50])
-        ;
-        $resolver->setDefined('updated_before')
-            ->setAllowedTypes('updated_before', \DateTimeInterface::class)
-            ->setNormalizer('updated_before', $datetimeNormalizer)
-        ;
-        $resolver->setDefined('updated_after')
-            ->setAllowedTypes('updated_after', \DateTimeInterface::class)
-            ->setNormalizer('updated_after', $datetimeNormalizer)
-        ;
-        $resolver->setDefined('with_custom_attributes')
-            ->setAllowedTypes('with_custom_attributes', 'bool')
-            ->setNormalizer('with_custom_attributes', $booleanNormalizer)
-        ;
 
         return $this->get($this->getProjectPath($project_id, 'forks'), $resolver->resolve($parameters));
     }
@@ -831,19 +961,52 @@ class Projects extends AbstractApi
     /**
      * @param array      $parameters {
      *
-     *     @var string $namespace      The ID or path of the namespace that the project will be forked to
-     *     @var string $path           The path of the forked project (optional)
-     *     @var string $name           The name of the forked project (optional)
+     *     @var string     $branches               Branches to fork (empty for all branches)
+     *     @var string     $description            The description assigned to the resultant project after forking
+     *     @var bool       $mr_default_target_self For forked projects, target merge requests to this project
+     *     @var string     $name                   The name assigned to the resultant project after forking
+     *     @var int        $namespace_id           The ID of the namespace that the project is forked to
+     *     @var string     $namespace_path         The path of the namespace that the project is forked to
+     *     @var int|string $namespace              deprecated; use namespace_id or namespace_path instead
+     *     @var string     $path                   The path assigned to the resultant project after forking
+     *     @var string     $visibility             The visibility level assigned to the resultant project after forking
      * }
+     *
+     * @throws UndefinedOptionsException If an option name is undefined
+     * @throws InvalidOptionsException   If an option doesn't fulfill the specified validation rules
      */
     public function fork(int|string $project_id, array $parameters = []): mixed
     {
         $resolver = new OptionsResolver();
-        $resolver->setDefined(['namespace', 'path', 'name']);
+        $resolver->setDefined('branches')
+            ->setAllowedTypes('branches', 'string')
+        ;
+        $resolver->setDefined('description')
+            ->setAllowedTypes('description', 'string')
+        ;
+        $resolver->setDefined('mr_default_target_self')
+            ->setAllowedTypes('mr_default_target_self', 'bool')
+        ;
+        $resolver->setDefined('name')
+            ->setAllowedTypes('name', 'string')
+        ;
+        $resolver->setDefined('namespace_id')
+            ->setAllowedTypes('namespace_id', 'int')
+        ;
+        $resolver->setDefined('namespace_path')
+            ->setAllowedTypes('namespace_path', 'string')
+        ;
+        $resolver->setDefined('namespace')
+            ->setAllowedTypes('namespace', ['int', 'string'])
+        ;
+        $resolver->setDefined('path')
+            ->setAllowedTypes('path', 'string')
+        ;
+        $resolver->setDefined('visibility')
+            ->setAllowedValues('visibility', ['public', 'internal', 'private'])
+        ;
 
-        $resolved = $resolver->resolve($parameters);
-
-        return $this->post($this->getProjectPath($project_id, 'fork'), $resolved);
+        return $this->post($this->getProjectPath($project_id, 'fork'), $resolver->resolve($parameters));
     }
 
     public function createForkRelation(int|string $project_id, int|string $forked_project_id): mixed
@@ -1126,9 +1289,73 @@ class Projects extends AbstractApi
         return $this->delete($this->getProjectPath($project_id, 'repository/merged_branches'));
     }
 
-    public function projectAccessTokens(int|string $project_id): mixed
+    /**
+     * @param array $parameters {
+     *
+     *     @var string             $search             search text
+     *     @var string             $state              state of the token
+     *     @var bool               $revoked            whether the token is revoked or not
+     *     @var \DateTimeInterface $created_after      return tokens created after the given time
+     *     @var \DateTimeInterface $created_before     return tokens created before the given time
+     *     @var \DateTimeInterface $expires_after      return tokens that expire after the given date
+     *     @var \DateTimeInterface $expires_before     return tokens that expire before the given date
+     *     @var \DateTimeInterface $last_used_after    return tokens last used after the given time
+     *     @var \DateTimeInterface $last_used_before   return tokens last used before the given time
+     *     @var string             $sort               sort by created, expires, last_used, or name
+     * }
+     */
+    public function projectAccessTokens(int|string $project_id, array $parameters = []): mixed
     {
-        return $this->get($this->getProjectPath($project_id, 'access_tokens'));
+        $resolver = new OptionsResolver();
+        $datetimeNormalizer = function (Options $resolver, \DateTimeInterface $value): string {
+            return $value->format('c');
+        };
+        $dateNormalizer = function (Options $resolver, \DateTimeInterface $value): string {
+            return $value->format('Y-m-d');
+        };
+        $booleanNormalizer = function (Options $resolver, $value): string {
+            return $value ? 'true' : 'false';
+        };
+
+        $resolver->setDefined('search')
+            ->setAllowedTypes('search', 'string')
+        ;
+        $resolver->setDefined('state')
+            ->setAllowedValues('state', ['active', 'inactive'])
+        ;
+        $resolver->setDefined('revoked')
+            ->setAllowedTypes('revoked', 'bool')
+            ->setNormalizer('revoked', $booleanNormalizer)
+        ;
+        $resolver->setDefined('created_after')
+            ->setAllowedTypes('created_after', \DateTimeInterface::class)
+            ->setNormalizer('created_after', $datetimeNormalizer)
+        ;
+        $resolver->setDefined('created_before')
+            ->setAllowedTypes('created_before', \DateTimeInterface::class)
+            ->setNormalizer('created_before', $datetimeNormalizer)
+        ;
+        $resolver->setDefined('expires_after')
+            ->setAllowedTypes('expires_after', \DateTimeInterface::class)
+            ->setNormalizer('expires_after', $dateNormalizer)
+        ;
+        $resolver->setDefined('expires_before')
+            ->setAllowedTypes('expires_before', \DateTimeInterface::class)
+            ->setNormalizer('expires_before', $dateNormalizer)
+        ;
+        $resolver->setDefined('last_used_after')
+            ->setAllowedTypes('last_used_after', \DateTimeInterface::class)
+            ->setNormalizer('last_used_after', $datetimeNormalizer)
+        ;
+        $resolver->setDefined('last_used_before')
+            ->setAllowedTypes('last_used_before', \DateTimeInterface::class)
+            ->setNormalizer('last_used_before', $datetimeNormalizer)
+        ;
+        $resolver->setDefined('sort')
+            ->setAllowedValues('sort', ['created_asc', 'created_desc', 'expires_asc', 'expires_desc', 'last_used_asc', 'last_used_desc', 'name_asc', 'name_desc'])
+        ;
+
+        return $this->get($this->getProjectPath($project_id, 'access_tokens'), $resolver->resolve($parameters));
     }
 
     public function projectAccessToken(int|string $project_id, int|string $token_id): mixed
@@ -1184,9 +1411,101 @@ class Projects extends AbstractApi
         return $this->post($this->getProjectPath($project_id, 'access_tokens'), $resolver->resolve($parameters));
     }
 
+    /**
+     * @param array $parameters {
+     *
+     *     @var \DateTimeInterface $expires_at expiration date of the access token
+     * }
+     */
+    public function rotateProjectAccessToken(int|string $project_id, int|string $token_id, array $parameters = []): mixed
+    {
+        $resolver = new OptionsResolver();
+        $dateNormalizer = function (Options $resolver, \DateTimeInterface $value): string {
+            return $value->format('Y-m-d');
+        };
+        $resolver->setDefined('expires_at')
+            ->setAllowedTypes('expires_at', \DateTimeInterface::class)
+            ->setNormalizer('expires_at', $dateNormalizer)
+        ;
+
+        return $this->post($this->getProjectPath($project_id, 'access_tokens/'.self::encodePath($token_id).'/rotate'), $resolver->resolve($parameters));
+    }
+
     public function deleteProjectAccessToken(int|string $project_id, int|string $token_id): mixed
     {
         return $this->delete($this->getProjectPath($project_id, 'access_tokens/'.$token_id));
+    }
+
+    public function jobTokenScope(int|string $project_id): mixed
+    {
+        return $this->get($this->getProjectPath($project_id, 'job_token_scope'));
+    }
+
+    public function updateJobTokenScope(int|string $project_id, bool $enabled): mixed
+    {
+        return $this->patch($this->getProjectPath($project_id, 'job_token_scope'), ['enabled' => $enabled]);
+    }
+
+    public function jobTokenScopeAllowlistProjects(int|string $project_id): mixed
+    {
+        return $this->get($this->getProjectPath($project_id, 'job_token_scope/allowlist'));
+    }
+
+    public function addJobTokenScopeAllowlistProject(int|string $project_id, int $target_project_id): mixed
+    {
+        return $this->post(
+            $this->getProjectPath($project_id, 'job_token_scope/allowlist'),
+            ['target_project_id' => $target_project_id]
+        );
+    }
+
+    public function removeJobTokenScopeAllowlistProject(int|string $project_id, int $target_project_id): mixed
+    {
+        return $this->delete($this->getProjectPath($project_id, 'job_token_scope/allowlist/'.self::encodePath($target_project_id)));
+    }
+
+    public function jobTokenScopeAllowlistGroups(int|string $project_id): mixed
+    {
+        return $this->get($this->getProjectPath($project_id, 'job_token_scope/groups_allowlist'));
+    }
+
+    public function addJobTokenScopeAllowlistGroup(int|string $project_id, int $target_group_id): mixed
+    {
+        return $this->post(
+            $this->getProjectPath($project_id, 'job_token_scope/groups_allowlist'),
+            ['target_group_id' => $target_group_id]
+        );
+    }
+
+    public function removeJobTokenScopeAllowlistGroup(int|string $project_id, int $target_group_id): mixed
+    {
+        return $this->delete($this->getProjectPath($project_id, 'job_token_scope/groups_allowlist/'.self::encodePath($target_group_id)));
+    }
+
+    /**
+     * @param array $parameters {
+     *
+     *     @var bool $tags       include an array of tags in each repository
+     *     @var bool $tags_count include tags_count in each repository
+     * }
+     */
+    public function registryRepositories(int|string $project_id, array $parameters = []): mixed
+    {
+        $resolver = new OptionsResolver();
+        $booleanNormalizer = function (Options $resolver, $value): string {
+            return $value ? 'true' : 'false';
+        };
+
+        $resolver->setDefined('tags')
+            ->setAllowedTypes('tags', 'bool')
+            ->setNormalizer('tags', $booleanNormalizer)
+        ;
+        $resolver->setDefined('tags_count')
+            ->setAllowedTypes('tags_count', 'bool')
+            ->setNormalizer('tags_count', $booleanNormalizer)
+        ;
+
+        return $this->get($this->getProjectPath($project_id, 'registry/repositories'), $resolver->resolve($parameters));
     }
 
     public function protectedTags(int|string $project_id): mixed
@@ -1230,6 +1549,21 @@ class Projects extends AbstractApi
     public function deleteProtectedTag(int|string $project_id, string $tag_name): mixed
     {
         return $this->delete($this->getProjectPath($project_id, 'protected_tags/'.self::encodePath($tag_name)));
+    }
+
+    public function remoteMirrors(int|string $project_id): mixed
+    {
+        return $this->get($this->getProjectPath($project_id, 'remote_mirrors'));
+    }
+
+    public function remoteMirror(int|string $project_id, int $mirror_id): mixed
+    {
+        return $this->get($this->getProjectPath($project_id, 'remote_mirrors/'.self::encodePath($mirror_id)));
+    }
+
+    public function remoteMirrorPublicKey(int|string $project_id, int $mirror_id): mixed
+    {
+        return $this->get($this->getProjectPath($project_id, 'remote_mirrors/'.self::encodePath($mirror_id).'/public_key'));
     }
 
     /**
@@ -1279,5 +1613,42 @@ class Projects extends AbstractApi
             ->setAllowedValues('state', ['opened', 'closed']);
 
         return $this->get('projects/'.self::encodePath($id).'/search', $resolver->resolve($parameters));
+    }
+
+    private static function createPushRuleOptionsResolver(): OptionsResolver
+    {
+        $resolver = new OptionsResolver();
+
+        foreach ([
+            'author_email_regex',
+            'branch_name_regex',
+            'commit_message_negative_regex',
+            'commit_message_regex',
+            'file_name_regex',
+        ] as $option) {
+            $resolver->setDefined($option)
+                ->setAllowedTypes($option, 'string')
+            ;
+        }
+
+        foreach ([
+            'commit_committer_check',
+            'commit_committer_name_check',
+            'deny_delete_tag',
+            'member_check',
+            'prevent_secrets',
+            'reject_non_dco_commits',
+            'reject_unsigned_commits',
+        ] as $option) {
+            $resolver->setDefined($option)
+                ->setAllowedTypes($option, 'bool')
+            ;
+        }
+
+        $resolver->setDefined('max_file_size')
+            ->setAllowedTypes('max_file_size', 'int')
+        ;
+
+        return $resolver;
     }
 }

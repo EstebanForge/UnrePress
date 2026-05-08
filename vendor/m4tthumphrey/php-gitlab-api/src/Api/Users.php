@@ -15,21 +15,23 @@ declare(strict_types=1);
 namespace Gitlab\Api;
 
 use Symfony\Component\OptionsResolver\Options;
+use Symfony\Component\OptionsResolver\OptionsResolver;
 
 class Users extends AbstractApi
 {
     /**
      * @param array $parameters {
      *
-     *     @var string             $search         search for user by email or username
-     *     @var string             $username       lookup for user by username
-     *     @var bool               $external       search for external users only
-     *     @var string             $extern_uid     lookup for users by external uid
-     *     @var string             $provider       lookup for users by provider
-     *     @var \DateTimeInterface $created_before return users created before the given time (inclusive)
-     *     @var \DateTimeInterface $created_after  return users created after the given time (inclusive)
-     *     @var bool               $active         Return only active users. It does not support filtering inactive users.
-     *     @var bool               $blocked        Return only blocked users. It does not support filtering non-blocked users.
+     *     @var string             $search               search for user by email or username
+     *     @var string             $username             lookup for user by username
+     *     @var bool               $external             search for external users only
+     *     @var string             $extern_uid           lookup for users by external uid
+     *     @var string             $provider             lookup for users by provider
+     *     @var \DateTimeInterface $created_before       return users created before the given time (inclusive)
+     *     @var \DateTimeInterface $created_after        return users created after the given time (inclusive)
+     *     @var bool               $active               Return only active users. It does not support filtering inactive users.
+     *     @var bool               $blocked              Return only blocked users. It does not support filtering non-blocked users.
+     *     @var bool               $without_project_bots Exclude project and group bot users.
      * }
      */
     public function all(array $parameters = []): mixed
@@ -61,6 +63,10 @@ class Users extends AbstractApi
         $resolver->setDefined('blocked')
             ->setAllowedTypes('blocked', 'bool')
             ->setAllowedValues('blocked', true)
+        ;
+        $resolver->setDefined('without_project_bots')
+            ->setAllowedTypes('without_project_bots', 'bool')
+            ->setAllowedValues('without_project_bots', true)
         ;
 
         return $this->get('users', $resolver->resolve($parameters));
@@ -164,6 +170,36 @@ class Users extends AbstractApi
     /**
      * @param array $parameters {
      *
+     *     @var string $order_by return projects ordered by id, name, path, created_at, updated_at,
+     *                           star_count, or last_activity_at fields
+     *     @var string $sort     return projects sorted in asc or desc order
+     *     @var bool   $simple   return only the ID, URL, name, and path of each project
+     * }
+     */
+    public function usersContributedProjects(int|string $id, array $parameters = []): mixed
+    {
+        $resolver = new OptionsResolver();
+        $booleanNormalizer = function (Options $resolver, $value): string {
+            return $value ? 'true' : 'false';
+        };
+
+        $resolver->setDefined('order_by')
+            ->setAllowedValues('order_by', ['id', 'name', 'path', 'created_at', 'updated_at', 'star_count', 'last_activity_at'])
+        ;
+        $resolver->setDefined('sort')
+            ->setAllowedValues('sort', ['asc', 'desc'])
+        ;
+        $resolver->setDefined('simple')
+            ->setAllowedTypes('simple', 'bool')
+            ->setNormalizer('simple', $booleanNormalizer)
+        ;
+
+        return $this->get('users/'.self::encodePath($id).'/contributed_projects', $resolver->resolve($parameters));
+    }
+
+    /**
+     * @param array $parameters {
+     *
      *     @var bool   $archived                    limit by archived status
      *     @var string $visibility                  limit by visibility public, internal, or private
      *     @var string $order_by                    Return projects ordered by id, name, path, created_at, updated_at,
@@ -245,7 +281,7 @@ class Users extends AbstractApi
         return $this->get('user');
     }
 
-    public function create(string $email, string $password, array $params = []): mixed
+    public function create(string $email, #[\SensitiveParameter] string $password, array $params = []): mixed
     {
         $params['email'] = $email;
         $params['password'] = $password;

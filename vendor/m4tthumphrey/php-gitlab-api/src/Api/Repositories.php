@@ -32,14 +32,24 @@ class Repositories extends AbstractApi
     /**
      * @param array      $parameters {
      *
-     *     @var string $search
+     *     @var string $search     return branches matching the search string
+     *     @var string $regex      return branches matching an RE2 regex
+     *     @var string $sort       return branches sorted by name_asc, updated_asc, or updated_desc
      * }
      */
     public function branches(int|string $project_id, array $parameters = []): mixed
     {
         $resolver = $this->createOptionsResolver();
         $resolver->setDefined('search')
-            ->setAllowedTypes('search', 'string');
+            ->setAllowedTypes('search', 'string')
+        ;
+        $resolver->setDefined('regex')
+            ->setAllowedTypes('regex', 'string')
+        ;
+        $resolver->setDefined('sort')
+            ->setAllowedTypes('sort', 'string')
+            ->setAllowedValues('sort', ['name_asc', 'updated_asc', 'updated_desc'])
+        ;
 
         return $this->get($this->getProjectPath($project_id, 'repository/branches'), $resolver->resolve($parameters));
     }
@@ -186,11 +196,31 @@ class Repositories extends AbstractApi
     }
 
     /**
+     * @param array $parameters {
+     *
+     *     @var string $state Returns merge requests with the specified state: opened, closed, locked, or merged.
+     * }
+     */
+    public function commitMergeRequests(int|string $project_id, string $sha, array $parameters = []): mixed
+    {
+        $resolver = new OptionsResolver();
+        $resolver->setDefined('state')
+            ->setAllowedValues('state', ['opened', 'closed', 'locked', 'merged'])
+        ;
+
+        return $this->get(
+            $this->getProjectPath($project_id, 'repository/commits/'.self::encodePath($sha).'/merge_requests'),
+            $resolver->resolve($parameters)
+        );
+    }
+
+    /**
      * @param array      $parameters {
      *
      *     @var string $branch         Name of the branch to commit into. To create a new branch, also provide start_branch.
      *     @var string $commit_message commit message
      *     @var string $start_branch   name of the branch to start the new commit from
+     *     @var bool $force            true if the new changes should override existing ones
      *     @var array $actions {
      *         @var string $action        he action to perform, create, delete, move, update
      *         @var string $file_path     full path to the file
@@ -212,6 +242,8 @@ class Repositories extends AbstractApi
             ->setRequired('commit_message')
         ;
         $resolver->setDefined('start_branch');
+        $resolver->setDefined('force')
+            ->setAllowedTypes('force', 'bool');
         $resolver->setDefined('actions')
             ->setRequired('actions')
             ->setAllowedTypes('actions', 'array')

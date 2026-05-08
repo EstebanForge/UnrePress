@@ -24,6 +24,7 @@ use Bitbucket\Api\Repositories\Workspaces\Deployments;
 use Bitbucket\Api\Repositories\Workspaces\Diffs;
 use Bitbucket\Api\Repositories\Workspaces\DiffStat;
 use Bitbucket\Api\Repositories\Workspaces\Downloads;
+use Bitbucket\Api\Repositories\Workspaces\EffectiveBranchingModel;
 use Bitbucket\Api\Repositories\Workspaces\Environments;
 use Bitbucket\Api\Repositories\Workspaces\FileHistory;
 use Bitbucket\Api\Repositories\Workspaces\Forks;
@@ -32,6 +33,7 @@ use Bitbucket\Api\Repositories\Workspaces\Issues;
 use Bitbucket\Api\Repositories\Workspaces\MergeBases;
 use Bitbucket\Api\Repositories\Workspaces\Milestones;
 use Bitbucket\Api\Repositories\Workspaces\Patches;
+use Bitbucket\Api\Repositories\Workspaces\PermissionsConfig;
 use Bitbucket\Api\Repositories\Workspaces\Pipelines;
 use Bitbucket\Api\Repositories\Workspaces\PipelinesConfig;
 use Bitbucket\Api\Repositories\Workspaces\Properties;
@@ -104,6 +106,11 @@ class Workspaces extends AbstractRepositoriesApi
         return new BranchingModel($this->getClient(), $this->workspace, $repo);
     }
 
+    public function effectiveBranchingModel(string $repo): EffectiveBranchingModel
+    {
+        return new EffectiveBranchingModel($this->getClient(), $this->workspace, $repo);
+    }
+
     public function branchRestrictions(string $repo): BranchRestrictions
     {
         return new BranchRestrictions($this->getClient(), $this->workspace, $repo);
@@ -119,6 +126,9 @@ class Workspaces extends AbstractRepositoriesApi
         return new Commits($this->getClient(), $this->workspace, $repo);
     }
 
+    /**
+     * @deprecated bitbucket has deprecated native issue tracker APIs
+     */
     public function components(string $repo): Components
     {
         return new Components($this->getClient(), $this->workspace, $repo);
@@ -174,6 +184,9 @@ class Workspaces extends AbstractRepositoriesApi
         return new Hooks($this->getClient(), $this->workspace, $repo);
     }
 
+    /**
+     * @deprecated bitbucket has deprecated native issue tracker APIs
+     */
     public function issues(string $repo): Issues
     {
         return new Issues($this->getClient(), $this->workspace, $repo);
@@ -184,6 +197,9 @@ class Workspaces extends AbstractRepositoriesApi
         return new MergeBases($this->getClient(), $this->workspace, $repo);
     }
 
+    /**
+     * @deprecated bitbucket has deprecated native issue tracker APIs
+     */
     public function milestones(string $repo): Milestones
     {
         return new Milestones($this->getClient(), $this->workspace, $repo);
@@ -192,6 +208,11 @@ class Workspaces extends AbstractRepositoriesApi
     public function patches(string $repo): Patches
     {
         return new Patches($this->getClient(), $this->workspace, $repo);
+    }
+
+    public function permissionsConfig(string $repo): PermissionsConfig
+    {
+        return new PermissionsConfig($this->getClient(), $this->workspace, $repo);
     }
 
     public function pipelines(string $repo): Pipelines
@@ -224,6 +245,9 @@ class Workspaces extends AbstractRepositoriesApi
         return new Src($this->getClient(), $this->workspace, $repo);
     }
 
+    /**
+     * @deprecated bitbucket has deprecated native issue tracker APIs
+     */
     public function versions(string $repo): Versions
     {
         return new Versions($this->getClient(), $this->workspace, $repo);

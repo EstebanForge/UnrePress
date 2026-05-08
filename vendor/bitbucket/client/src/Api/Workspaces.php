@@ -18,6 +18,7 @@ use Bitbucket\Api\Workspaces\Members;
 use Bitbucket\Api\Workspaces\Permissions;
 use Bitbucket\Api\Workspaces\PipelinesConfig;
 use Bitbucket\Api\Workspaces\Projects;
+use Bitbucket\Api\Workspaces\PullRequests as WorkspacesPullRequests;
 use Bitbucket\Client;
 use Bitbucket\HttpClient\Util\UriBuilder;
 
@@ -48,6 +49,8 @@ class Workspaces extends AbstractApi
 
     /**
      * @throws \Http\Client\Exception
+     *
+     * @deprecated bitbucket has deprecated legacy code search
      */
     public function codeSearch(array $params = []): array
     {
@@ -79,6 +82,11 @@ class Workspaces extends AbstractApi
     public function projects(): Projects
     {
         return new Projects($this->getClient(), $this->workspace);
+    }
+
+    public function pullRequests(): WorkspacesPullRequests
+    {
+        return new WorkspacesPullRequests($this->getClient(), $this->workspace);
     }
 
     /**

@@ -21,7 +21,9 @@ use Gitlab\Api\Events;
 use Gitlab\Api\Groups;
 use Gitlab\Api\GroupsBoards;
 use Gitlab\Api\GroupsEpics;
+use Gitlab\Api\GroupsHooks;
 use Gitlab\Api\GroupsMilestones;
+use Gitlab\Api\Integrations;
 use Gitlab\Api\IssueBoards;
 use Gitlab\Api\IssueLinks;
 use Gitlab\Api\Issues;
@@ -30,8 +32,10 @@ use Gitlab\Api\Jobs;
 use Gitlab\Api\Keys;
 use Gitlab\Api\MergeRequests;
 use Gitlab\Api\Milestones;
+use Gitlab\Api\PersonalAccessTokens;
 use Gitlab\Api\ProjectNamespaces;
 use Gitlab\Api\Projects;
+use Gitlab\Api\Registry;
 use Gitlab\Api\Repositories;
 use Gitlab\Api\RepositoryFiles;
 use Gitlab\Api\ResourceIterationEvents;
@@ -100,7 +104,7 @@ class Client
      *
      * @var string
      */
-    private const USER_AGENT = 'gitlab-php-api-client/12.0';
+    private const USER_AGENT = 'gitlab-php-api-client/12.1';
 
     private readonly Builder $httpClientBuilder;
     private readonly History $responseHistory;
@@ -165,9 +169,19 @@ class Client
         return new GroupsEpics($this);
     }
 
+    public function groupsHooks(): GroupsHooks
+    {
+        return new GroupsHooks($this);
+    }
+
     public function groupsMilestones(): GroupsMilestones
     {
         return new GroupsMilestones($this);
+    }
+
+    public function integrations(): Integrations
+    {
+        return new Integrations($this);
     }
 
     public function issueBoards(): IssueBoards
@@ -235,6 +249,11 @@ class Client
         return new Milestones($this);
     }
 
+    public function personalAccessTokens(): PersonalAccessTokens
+    {
+        return new PersonalAccessTokens($this);
+    }
+
     public function namespaces(): ProjectNamespaces
     {
         return new ProjectNamespaces($this);
@@ -243,6 +262,11 @@ class Client
     public function projects(): Projects
     {
         return new Projects($this);
+    }
+
+    public function registry(): Registry
+    {
+        return new Registry($this);
     }
 
     public function repositories(): Repositories
@@ -301,7 +325,7 @@ class Client
      * @param string      $token      Gitlab private token
      * @param string      $authMethod One of the AUTH_* class constants
      */
-    public function authenticate(string $token, string $authMethod, ?string $sudo = null): void
+    public function authenticate(#[\SensitiveParameter] string $token, string $authMethod, ?string $sudo = null): void
     {
         $this->getHttpClientBuilder()->removePlugin(Authentication::class);
         $this->getHttpClientBuilder()->addPlugin(new Authentication($authMethod, $token, $sudo));

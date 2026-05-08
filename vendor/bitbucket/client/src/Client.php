@@ -76,7 +76,7 @@ class Client
      *
      * @var string
      */
-    private const USER_AGENT = 'bitbucket-php-api-client/5.0';
+    private const USER_AGENT = 'bitbucket-php-api-client/5.1';
 
     private readonly Builder $httpClientBuilder;
     private readonly History $responseHistory;
@@ -151,7 +151,7 @@ class Client
     /**
      * Authenticate a user for all next requests.
      */
-    public function authenticate(string $method, string $token, ?string $password = null): void
+    public function authenticate(string $method, #[\SensitiveParameter] string $token, #[\SensitiveParameter] ?string $password = null): void
     {
         $this->getHttpClientBuilder()->removePlugin(Authentication::class);
         $this->getHttpClientBuilder()->addPlugin(new Authentication($method, $token, $password));

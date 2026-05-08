@@ -24,6 +24,8 @@ class PullRequests extends AbstractApi
 {
     /**
      * @throws \Http\Client\Exception
+     *
+     * @deprecated use workspaces($workspace)->pullRequests()->list() instead
      */
     public function list(string $username, array $params = []): array
     {

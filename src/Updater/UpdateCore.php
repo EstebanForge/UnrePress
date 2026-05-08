@@ -1,5 +1,7 @@
 <?php
 
+namespace UnrePress\Updater;
+
 use UnrePress\Helpers;
 use UnrePress\Security\CapabilityChecker;
 use UnrePress\Security\InputValidator;
@@ -451,7 +453,7 @@ class UpdateCore
         unrepress_debug('UpdateCore::getCoreInfoFromIndex() - Starting to get core info from index');
 
         // Get main index
-        $unrepress = new UnrePress\UnrePress();
+        $unrepress = new \UnrePress\UnrePress();
         $mainIndex = $unrepress->index();
         unrepress_debug('UpdateCore::getCoreInfoFromIndex() - Main index loaded:', $mainIndex);
 
