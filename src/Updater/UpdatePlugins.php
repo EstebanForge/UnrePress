@@ -436,16 +436,15 @@ class UpdatePlugins
             // Fallback if only version is present in main plugin_data
             if (!empty($plugin_data->version) && is_string($plugin_data->version)) {
                 // Security: Validate version format
-                $validatedVersion = $this->inputValidator->validateVersion($plugin_data->version);
-                if (!$validatedVersion) {
+                if (!$this->inputValidator->validateVersion($plugin_data->version)) {
                     Debugger::log('getLatestVersion (Plugin): Invalid version format in plugin JSON');
 
                     return false;
                 }
 
                 $mock_tag = new \stdClass();
-                $mock_tag->name = $validatedVersion;
-                Debugger::log('getLatestVersion (Plugin): Falling back to version from plugin JSON: ' . $validatedVersion);
+                $mock_tag->name = $plugin_data->version;
+                Debugger::log('getLatestVersion (Plugin): Falling back to version from plugin JSON: ' . $plugin_data->version);
                 set_transient($transient_key, $mock_tag, 3 * HOUR_IN_SECONDS); // Cache mock tag too
 
                 return $mock_tag;
@@ -475,8 +474,7 @@ class UpdatePlugins
             }
 
             // Security: Validate returned version format
-            $validatedLatestVersion = $this->inputValidator->validateVersion($latest_version);
-            if (!$validatedLatestVersion) {
+            if (!$this->inputValidator->validateVersion($latest_version)) {
                 Debugger::log('getLatestVersion (Plugin): Invalid version format returned: ' . $latest_version);
 
                 return false;
@@ -484,7 +482,7 @@ class UpdatePlugins
 
             // Create a mock tag object to maintain compatibility with existing code
             $latest_tag_object = new \stdClass();
-            $latest_tag_object->name = $validatedLatestVersion;
+            $latest_tag_object->name = $latest_version;
 
             Debugger::log('getLatestVersion (Plugin): Determined latest tag: ' . $latest_tag_object->name . ' for plugin: ' . $validatedSlug);
             set_transient($transient_key, $latest_tag_object, 3 * HOUR_IN_SECONDS); // Cache the full tag object
@@ -507,8 +505,7 @@ class UpdatePlugins
         }
 
         // Security: Validate version format
-        $validatedVersion = $this->inputValidator->validateVersion($original_tag_name);
-        if (!$validatedVersion) {
+        if (!$this->inputValidator->validateVersion($original_tag_name)) {
             Debugger::log('getDownloadUrl (Plugin): Invalid version format: ' . $original_tag_name);
 
             return false;
@@ -544,7 +541,7 @@ class UpdatePlugins
                 $asset_name = str_replace('{slug}', $plugin_data->slug, $asset_name);
 
                 if (strpos($repo_url, 'github.com') !== false) {
-                    $download_url = rtrim($repo_url, '/') . '/releases/download/' . $validatedVersion . '/' . $asset_name;
+                    $download_url = rtrim($repo_url, '/') . '/releases/download/' . $original_tag_name . '/' . $asset_name;
 
                     // Security: Validate constructed URL
                     if (!filter_var($download_url, FILTER_VALIDATE_URL)) {
@@ -571,7 +568,7 @@ class UpdatePlugins
         // For tags (and other strategies), use GitProviderWrapper
         try {
             $wrapper = new GitProviderWrapper();
-            $download_url = $wrapper->getDownloadUrl($repo_url, $validatedVersion);
+            $download_url = $wrapper->getDownloadUrl($repo_url, $original_tag_name);
 
             if (!$download_url) {
                 Debugger::log('getDownloadUrl (Plugin): GitProviderWrapper returned no download URL for plugin: ' . ($plugin_data->slug ?? 'unknown'));
