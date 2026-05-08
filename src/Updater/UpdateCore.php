@@ -533,8 +533,7 @@ class UpdateCore
 
         try {
             // Security: Validate input parameters
-            $validatedVersion = $this->inputValidator->validateVersion($version);
-            if (!$validatedVersion) {
+            if (!$this->inputValidator->validateVersion($version)) {
                 error_log('UnrePress: Invalid version provided to getDownloadUrl: ' . $version);
 
                 // Fallback to default with error
@@ -555,7 +554,7 @@ class UpdateCore
                     $updaterProvider = new GitHub();
                 }
 
-                return $updaterProvider->getDownloadUrl('WordPress/WordPress', $validatedVersion);
+                return $updaterProvider->getDownloadUrl('WordPress/WordPress', $version);
             }
 
             // Get repository slug from index if not provided in correct format
@@ -570,7 +569,7 @@ class UpdateCore
                 $updaterProvider = new GitHub();
             }
 
-            $downloadUrl = $updaterProvider->getDownloadUrl($validatedRepo, $validatedVersion);
+            $downloadUrl = $updaterProvider->getDownloadUrl($validatedRepo, $version);
 
             // Security: Validate the returned URL
             if (!filter_var($downloadUrl, FILTER_VALIDATE_URL)) {
@@ -581,7 +580,7 @@ class UpdateCore
                     $updaterProvider = new GitHub();
                 }
 
-                return $updaterProvider->getDownloadUrl('WordPress/WordPress', $validatedVersion);
+                return $updaterProvider->getDownloadUrl('WordPress/WordPress', $version);
             }
 
             return $downloadUrl;
