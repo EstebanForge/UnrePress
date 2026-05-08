@@ -81,4 +81,5 @@ return array(
     'Clue\\React\\NDJson\\' => array($vendorDir . '/clue/ndjson-react/src'),
     'Brain\\Monkey\\' => array($vendorDir . '/brain/monkey/src'),
     'Bitbucket\\' => array($vendorDir . '/bitbucket/client/src'),
+    'Automattic\\Jetpack\\Autoloader\\' => array($vendorDir . '/automattic/jetpack-autoloader/src'),
 );

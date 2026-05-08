@@ -161,6 +161,10 @@ class ComposerStaticInit6c4d99730a5d825963afa64d3c73e961
             'Brain\\Monkey\\' => 13,
             'Bitbucket\\' => 10,
         ),
+        'A' =>
+        array (
+            'Automattic\\Jetpack\\Autoloader\\' => 30,
+        ),
     );
 
     public static $prefixDirsPsr4 = array (
@@ -467,11 +471,16 @@ class ComposerStaticInit6c4d99730a5d825963afa64d3c73e961
         array (
             0 => __DIR__ . '/..' . '/bitbucket/client/src',
         ),
+        'Automattic\\Jetpack\\Autoloader\\' =>
+        array (
+            0 => __DIR__ . '/..' . '/automattic/jetpack-autoloader/src',
+        ),
     );
 
     public static $classMap = array (
         'AllowDynamicProperties' => __DIR__ . '/..' . '/symfony/polyfill-php82/Resources/stubs/AllowDynamicProperties.php',
         'Attribute' => __DIR__ . '/..' . '/symfony/polyfill-php80/Resources/stubs/Attribute.php',
+        'Automattic\\Jetpack\\Autoloader\\AutoloadGenerator' => __DIR__ . '/..' . '/automattic/jetpack-autoloader/src/AutoloadGenerator.php',
         'CURLStringFile' => __DIR__ . '/..' . '/symfony/polyfill-php81/Resources/stubs/CURLStringFile.php',
         'Composer\\InstalledVersions' => __DIR__ . '/..' . '/composer/InstalledVersions.php',
         'Deprecated' => __DIR__ . '/..' . '/symfony/polyfill-php84/Resources/stubs/Deprecated.php',

@@ -41,8 +41,12 @@ if (!defined('UNREPRESS_TRANSIENT_EXPIRATION')) {
     define('UNREPRESS_TRANSIENT_EXPIRATION', 60 * MINUTE_IN_SECONDS);
 }
 
-// Composer autoloader
-if (file_exists(UNREPRESS_PLUGIN_PATH . 'vendor/autoload.php')) {
+// Composer autoloader (Jetpack Autoloader for WP plugin conflict resolution)
+if (file_exists(UNREPRESS_PLUGIN_PATH . 'vendor/autoload_packages.php')) {
+    require_once UNREPRESS_PLUGIN_PATH . 'vendor/autoload_packages.php';
+    // Helpers
+    require_once UNREPRESS_PLUGIN_PATH . 'includes/helpers.php';
+} elseif (file_exists(UNREPRESS_PLUGIN_PATH . 'vendor/autoload.php')) {
     require_once UNREPRESS_PLUGIN_PATH . 'vendor/autoload.php';
     // Helpers
     require_once UNREPRESS_PLUGIN_PATH . 'includes/helpers.php';
