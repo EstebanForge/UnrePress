@@ -145,7 +145,7 @@ class CapabilityChecker
     public function requireCapability(string $capability): bool
     {
         if (!$this->userHasCapability($capability)) {
-            throw new \Exception(
+            throw new Exception(
                 sprintf('User does not have the required capability: %s', $capability)
             );
         }
@@ -163,7 +163,7 @@ class CapabilityChecker
     public function requireLogin(): bool
     {
         if (!$this->isUserLoggedIn()) {
-            throw new \Exception('User must be logged in to perform this action');
+            throw new Exception('User must be logged in to perform this action');
         }
 
         return true;

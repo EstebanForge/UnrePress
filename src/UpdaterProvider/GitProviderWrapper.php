@@ -116,7 +116,7 @@ class GitProviderWrapper implements ProviderInterface
         // Otherwise assume it's in "owner/repo" format
         $parts = explode('/', $repo);
         if (count($parts) < 2) {
-            throw new \InvalidArgumentException(sprintf('Invalid repository format: %s', $repo));
+            throw new InvalidArgumentException(sprintf('Invalid repository format: %s', $repo));
         }
 
         $owner = $parts[0];

@@ -50,7 +50,7 @@ class ServiceContainer implements ArrayAccess
     public function register(string $id, callable $factory, bool $singleton = true): void
     {
         if (empty($id)) {
-            throw new \InvalidArgumentException('Service ID cannot be empty');
+            throw new InvalidArgumentException('Service ID cannot be empty');
         }
 
         $this->factories[$id] = $factory;
@@ -86,7 +86,7 @@ class ServiceContainer implements ArrayAccess
     public function get(string $id)
     {
         if (!$this->has($id)) {
-            throw new \InvalidArgumentException(sprintf('Service not found: %s', $id));
+            throw new InvalidArgumentException(sprintf('Service not found: %s', $id));
         }
 
         // Return cached singleton if available
@@ -118,7 +118,7 @@ class ServiceContainer implements ArrayAccess
     public function make(string $id, array $parameters = [])
     {
         if (!$this->has($id)) {
-            throw new \InvalidArgumentException(sprintf('Service not found: %s', $id));
+            throw new InvalidArgumentException(sprintf('Service not found: %s', $id));
         }
 
         return $this->factories[$id]($this, ...$parameters);
