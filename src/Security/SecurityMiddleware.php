@@ -34,7 +34,13 @@ class SecurityMiddleware
      */
     public function verifyAdminNonce(string $action, bool $die = true)
     {
-        return check_admin_referer($action, $die);
+        $result = check_admin_referer($action);
+
+        if (!$result && $die) {
+            wp_die(__('You are not allowed to perform this action.', 'unrepress'));
+        }
+
+        return $result;
     }
 
     /**

@@ -98,24 +98,24 @@ class UpdatePlugins
             return;
         }
 
-        $actual_tag_name_for_url = $latest_tag_object->name;
-        $latest_version_string = ltrim($actual_tag_name_for_url, 'v');
+        $actualTagNameForUrl = $latest_tag_object->name;
+        $latestVersionString = ltrim($actualTagNameForUrl, 'v');
 
-        $download_url = $this->getDownloadUrl($remoteData, $actual_tag_name_for_url);
+        $download_url = $this->getDownloadUrl($remoteData, $actualTagNameForUrl);
 
         if (!$download_url) {
-            // Debugger::log('checkForPluginUpdate: Could not determine download URL for slug: ' . $slug . ' version: ' . $latest_version_string);
+            // Debugger::log('checkForPluginUpdate: Could not determine download URL for slug: ' . $slug . ' version: ' . $latestVersionString);
             return;
         }
 
-        if (version_compare($installedVersion, $latest_version_string, '<')) {
-            // Debugger::log('checkForPluginUpdate: Update available for ' . $slug . '. Installed: ' . $installedVersion . ', Latest: ' . $latest_version_string);
+        if (version_compare($installedVersion, $latestVersionString, '<')) {
+            // Debugger::log('checkForPluginUpdate: Update available for ' . $slug . '. Installed: ' . $installedVersion . ', Latest: ' . $latestVersionString);
             $updateInfo = new \stdClass();
 
             // Populate with data from $remoteData and our determined values
             $updateInfo->slug = $slug; // Ensure slug is set for the update array key
             $updateInfo->name = $remoteData->name ?? $slug;
-            $updateInfo->version = $latest_version_string; // This is the new version
+            $updateInfo->version = $latestVersionString; // This is the new version
             $updateInfo->package = $download_url; // This is the correct download URL
             $updateInfo->download_link = $download_url; // Redundant but often set
 
@@ -291,12 +291,12 @@ class UpdatePlugins
         $latest_tag_object = $this->getLatestVersion($remote);
 
         // Extract the actual tag name string for use in URLs
-        $actual_tag_name_for_url = (is_object($latest_tag_object) && isset($latest_tag_object->name)) ? $latest_tag_object->name : null;
+        $actualTagNameForUrl = (is_object($latest_tag_object) && isset($latest_tag_object->name)) ? $latest_tag_object->name : null;
 
         // Determine the version string for display (e.g., '1.2.3')
         $display_version = null;
-        if ($actual_tag_name_for_url) {
-            $display_version = ltrim($actual_tag_name_for_url, 'v');
+        if ($actualTagNameForUrl) {
+            $display_version = ltrim($actualTagNameForUrl, 'v');
         } elseif (isset($remote->version) && is_string($remote->version)) {
             $display_version = $remote->version;
         } else {
@@ -304,9 +304,9 @@ class UpdatePlugins
         }
 
         // Get the download URL using the actual tag name string
-        $download_url = $this->getDownloadUrl($remote, $actual_tag_name_for_url);
+        $download_url = $this->getDownloadUrl($remote, $actualTagNameForUrl);
 
-        Debugger::log('getInformation (Plugin): Slug: ' . $args->slug . ' | Actual Tag: ' . ($actual_tag_name_for_url ?? 'N/A') . ' | Display Version: ' . $display_version . ' | Download URL: ' . ($download_url ?: 'N/A'));
+        Debugger::log('getInformation (Plugin): Slug: ' . $args->slug . ' | Actual Tag: ' . ($actualTagNameForUrl ?? 'N/A') . ' | Display Version: ' . $display_version . ' | Download URL: ' . ($download_url ?: 'N/A'));
 
         if (empty($download_url)) {
             Debugger::log('getInformation (Plugin): Could not determine download_url for: ' . $args->slug . '. Returning basic info.');
@@ -465,24 +465,24 @@ class UpdatePlugins
 
         try {
             $wrapper = new GitProviderWrapper();
-            $latest_version = $wrapper->getLatestVersion($repository_url);
+            $latestVersion = $wrapper->getLatestVersion($repository_url);
 
-            if (!$latest_version) {
+            if (!$latestVersion) {
                 Debugger::log('getLatestVersion (Plugin): GitProviderWrapper returned no version for plugin: ' . $validatedSlug);
 
                 return false;
             }
 
             // Security: Validate returned version format
-            if (!$this->inputValidator->validateVersion($latest_version)) {
-                Debugger::log('getLatestVersion (Plugin): Invalid version format returned: ' . $latest_version);
+            if (!$this->inputValidator->validateVersion($latestVersion)) {
+                Debugger::log('getLatestVersion (Plugin): Invalid version format returned: ' . $latestVersion);
 
                 return false;
             }
 
             // Create a mock tag object to maintain compatibility with existing code
             $latest_tag_object = new \stdClass();
-            $latest_tag_object->name = $latest_version;
+            $latest_tag_object->name = $latestVersion;
 
             Debugger::log('getLatestVersion (Plugin): Determined latest tag: ' . $latest_tag_object->name . ' for plugin: ' . $validatedSlug);
             set_transient($transient_key, $latest_tag_object, 3 * HOUR_IN_SECONDS); // Cache the full tag object
@@ -496,33 +496,33 @@ class UpdatePlugins
         }
     }
 
-    private function getDownloadUrl($plugin_data, $original_tag_name)
+    private function getDownloadUrl($plugin_data, $originalTagName)
     {
-        if (empty($original_tag_name) || !is_object($plugin_data) || !isset($plugin_data->unrepress_meta) || !is_object($plugin_data->unrepress_meta)) {
-            Debugger::log('getDownloadUrl (Plugin): Missing original_tag_name or invalid plugin_data/unrepress_meta for plugin: ' . ($plugin_data->slug ?? 'unknown'));
+        if (empty($originalTagName) || !is_object($plugin_data) || !isset($plugin_data->unrepress_meta) || !is_object($plugin_data->unrepress_meta)) {
+            Debugger::log('getDownloadUrl (Plugin): Missing originalTagName or invalid plugin_data/unrepress_meta for plugin: ' . ($plugin_data->slug ?? 'unknown'));
 
             return false;
         }
 
         // Security: Validate version format
-        if (!$this->inputValidator->validateVersion($original_tag_name)) {
-            Debugger::log('getDownloadUrl (Plugin): Invalid version format: ' . $original_tag_name);
+        if (!$this->inputValidator->validateVersion($originalTagName)) {
+            Debugger::log('getDownloadUrl (Plugin): Invalid version format: ' . $originalTagName);
 
             return false;
         }
 
         $meta = $plugin_data->unrepress_meta;
-        $repo_url = $meta->repository ?? '';
+        $repoUrl = $meta->repository ?? '';
         $update_from = $meta->update_from ?? 'tags'; // Default to tags
 
-        if (empty($repo_url) || !is_string($repo_url)) {
+        if (empty($repoUrl) || !is_string($repoUrl)) {
             Debugger::log('getDownloadUrl (Plugin): Repository URL missing or not a string in unrepress_meta for plugin: ' . ($plugin_data->slug ?? 'unknown'));
 
             return false;
         }
 
         // Security: Validate repository URL format
-        if (!filter_var($repo_url, FILTER_VALIDATE_URL)) {
+        if (!filter_var($repoUrl, FILTER_VALIDATE_URL)) {
             Debugger::log('getDownloadUrl (Plugin): Invalid repository URL format for plugin: ' . ($plugin_data->slug ?? 'unknown'));
 
             return false;
@@ -540,8 +540,8 @@ class UpdatePlugins
                 $asset_name = str_replace('{version}', $normalized_version_for_asset, $asset_name);
                 $asset_name = str_replace('{slug}', $plugin_data->slug, $asset_name);
 
-                if (strpos($repo_url, 'github.com') !== false) {
-                    $download_url = rtrim($repo_url, '/') . '/releases/download/' . $original_tag_name . '/' . $asset_name;
+                if (strpos($repoUrl, 'github.com') !== false) {
+                    $download_url = rtrim($repoUrl, '/') . '/releases/download/' . $originalTagName . '/' . $asset_name;
 
                     // Security: Validate constructed URL
                     if (!filter_var($download_url, FILTER_VALIDATE_URL)) {
@@ -554,7 +554,7 @@ class UpdatePlugins
 
                     return $download_url;
                 } else {
-                    Debugger::log('getDownloadUrl (Plugin): Release asset downloads for non-GitHub providers not fully implemented. Repo: ' . $repo_url);
+                    Debugger::log('getDownloadUrl (Plugin): Release asset downloads for non-GitHub providers not fully implemented. Repo: ' . $repoUrl);
 
                     return !empty($meta->download_url) && is_string($meta->download_url) ? $meta->download_url : false;
                 }
@@ -568,7 +568,7 @@ class UpdatePlugins
         // For tags (and other strategies), use GitProviderWrapper
         try {
             $wrapper = new GitProviderWrapper();
-            $download_url = $wrapper->getDownloadUrl($repo_url, $original_tag_name);
+            $download_url = $wrapper->getDownloadUrl($repoUrl, $originalTagName);
 
             if (!$download_url) {
                 Debugger::log('getDownloadUrl (Plugin): GitProviderWrapper returned no download URL for plugin: ' . ($plugin_data->slug ?? 'unknown'));
@@ -736,12 +736,12 @@ class UpdatePlugins
         $latest_tag_object = $this->getLatestVersion($plugin_data);
 
         // Extract the actual tag name string for use in URLs
-        $actual_tag_name_for_url = (is_object($latest_tag_object) && isset($latest_tag_object->name)) ? $latest_tag_object->name : null;
+        $actualTagNameForUrl = (is_object($latest_tag_object) && isset($latest_tag_object->name)) ? $latest_tag_object->name : null;
 
         // Determine the version string for display (e.g., '1.2.3')
         $display_version = null;
-        if ($actual_tag_name_for_url) {
-            $display_version = ltrim($actual_tag_name_for_url, 'v');
+        if ($actualTagNameForUrl) {
+            $display_version = ltrim($actualTagNameForUrl, 'v');
         } elseif (isset($plugin_data->version) && is_string($plugin_data->version)) {
             $display_version = $plugin_data->version;
         } else {
@@ -780,8 +780,8 @@ class UpdatePlugins
                 'low' => (!empty($plugin_data->icons->low)) ? $plugin_data->icons->low : UNREPRESS_PLUGIN_URL . 'assets/images/icon-256.webp',
                 'high' => (!empty($plugin_data->icons->high)) ? $plugin_data->icons->high : UNREPRESS_PLUGIN_URL . 'assets/images/icon-1024.webp',
             ],
-            'download_url' => $this->getDownloadUrl($plugin_data, $actual_tag_name_for_url),
-            'download_link' => $this->getDownloadUrl($plugin_data, $actual_tag_name_for_url),
+            'download_url' => $this->getDownloadUrl($plugin_data, $actualTagNameForUrl),
+            'download_link' => $this->getDownloadUrl($plugin_data, $actualTagNameForUrl),
             'homepage' => $plugin_data->homepage ?? '',
             'short_description' => isset($plugin_data->sections->description) ? substr($plugin_data->sections->description, 0, 150) . '&hellip;' : (isset($plugin_data->description) ? substr($plugin_data->description, 0, 150) . '&hellip;' : ''),
             'rating' => $plugin_data->rating ?? 100,

@@ -83,23 +83,23 @@ class UpdateThemes
             return;
         }
 
-        $actual_tag_name_for_url = $latest_tag_object->name;
-        $latest_version_string = ltrim($actual_tag_name_for_url, 'v');
+        $actualTagNameForUrl = $latest_tag_object->name;
+        $latestVersionString = ltrim($actualTagNameForUrl, 'v');
 
         // Get the proper download URL using the consistent method
-        $download_url = $this->getDownloadUrlFromMeta($remoteData, $actual_tag_name_for_url);
+        $download_url = $this->getDownloadUrlFromMeta($remoteData, $actualTagNameForUrl);
 
         if (!$download_url) {
             return;
         }
 
-        if (version_compare($installedVersion, $latest_version_string, '<')) {
+        if (version_compare($installedVersion, $latestVersionString, '<')) {
             $updateInfo = new \stdClass();
             $theme = wp_get_theme($slug); // Get local theme object for some details
 
             // Populate with data from $remoteData, local theme, and our determined values
             $updateInfo->theme = $slug; // WordPress uses 'theme' key for slug in transient
-            $updateInfo->new_version = $latest_version_string;
+            $updateInfo->new_version = $latestVersionString;
             $updateInfo->url = $remoteData->homepage ?? $theme->get('ThemeURI'); // A presentation URL
             $updateInfo->package = $download_url; // The actual download zip
 
@@ -259,12 +259,12 @@ class UpdateThemes
         // This mirrors the logic in UpdatePlugins::getInformation
         $latest_tag_object = $this->getLatestVersionFromMeta($theme_data_from_index);
 
-        $actual_tag_name_for_url = (is_object($latest_tag_object) && isset($latest_tag_object->name)) ? $latest_tag_object->name : null;
+        $actualTagNameForUrl = (is_object($latest_tag_object) && isset($latest_tag_object->name)) ? $latest_tag_object->name : null;
         $display_version = (is_object($latest_tag_object) && isset($latest_tag_object->name)) ? ltrim($latest_tag_object->name, 'v') : ($theme_data_from_index->version ?? '0.0.0');
 
-        $download_url = $this->getDownloadUrlFromMeta($theme_data_from_index, $actual_tag_name_for_url);
+        $download_url = $this->getDownloadUrlFromMeta($theme_data_from_index, $actualTagNameForUrl);
 
-        unrepress_debug('UpdateThemes::getInformation - Slug: ' . $args->slug . ' | Latest Tag Name: ' . ($actual_tag_name_for_url ?? 'N/A') . ' | Display Version: ' . $display_version . ' | Download URL: ' . ($download_url ?? 'N/A'));
+        unrepress_debug('UpdateThemes::getInformation - Slug: ' . $args->slug . ' | Latest Tag Name: ' . ($actualTagNameForUrl ?? 'N/A') . ' | Display Version: ' . $display_version . ' | Download URL: ' . ($download_url ?? 'N/A'));
 
         // If we couldn't determine a download URL, we can't proceed with installation info
         if (empty($download_url)) {
@@ -521,11 +521,10 @@ class UpdateThemes
             // Fallback logic as before
             if (is_object($theme_data) && !empty($theme_data->version)) {
                 // Security: Validate version before using as fallback
-                $validatedVersion = $this->inputValidator->validateVersion($theme_data->version);
-                if ($validatedVersion) {
+                if ($this->inputValidator->validateVersion($theme_data->version)) {
                     $mock_tag = new \stdClass();
-                    $mock_tag->name = $validatedVersion;
-                    unrepress_debug('getLatestVersionFromMeta: Falling back to version from theme JSON (structure issue): ' . $validatedVersion);
+                    $mock_tag->name = $theme_data->version;
+                    unrepress_debug('getLatestVersionFromMeta: Falling back to version from theme JSON (structure issue): ' . $theme_data->version);
 
                     return $mock_tag;
                 }
@@ -545,11 +544,10 @@ class UpdateThemes
             // Fallback logic as before
             if (!empty($theme_data->version)) {
                 // Security: Validate version before using as fallback
-                $validatedVersion = $this->inputValidator->validateVersion($theme_data->version);
-                if ($validatedVersion) {
+                if ($this->inputValidator->validateVersion($theme_data->version)) {
                     $mock_tag = new \stdClass();
-                    $mock_tag->name = $validatedVersion;
-                    unrepress_debug('getLatestVersionFromMeta: Falling back to version from theme JSON (meta content issue): ' . $validatedVersion);
+                    $mock_tag->name = $theme_data->version;
+                    unrepress_debug('getLatestVersionFromMeta: Falling back to version from theme JSON (meta content issue): ' . $theme_data->version);
 
                     return $mock_tag;
                 }
@@ -579,8 +577,7 @@ class UpdateThemes
             }
 
             // Security: Validate returned version format
-            $validatedVersion = $this->inputValidator->validateVersion($latest_version);
-            if (!$validatedVersion) {
+            if (!$this->inputValidator->validateVersion($latest_version)) {
                 unrepress_debug('getLatestVersionFromMeta: Invalid version format returned: ' . $latest_version);
 
                 return false;
@@ -588,7 +585,7 @@ class UpdateThemes
 
             // Create a mock tag object to maintain compatibility with existing code
             $latest_tag = new \stdClass();
-            $latest_tag->name = $validatedVersion;
+            $latest_tag->name = $latest_version;
 
             unrepress_debug('getLatestVersionFromMeta: Determined latest tag: ' . $latest_tag->name . ' for theme: ' . ($theme_data->slug ?? 'unknown'));
 
@@ -605,37 +602,36 @@ class UpdateThemes
      * Get the download URL for the theme using GitProviderWrapper.
      *
      * @param object $theme_data Theme data object from the UnrePress index JSON file.
-     * @param string|null $tag_name The specific tag name (e.g., "v1.2.3" or "1.2.3") to download. Null if not found.
+     * @param string|null $tagName The specific tag name (e.g., "v1.2.3" or "1.2.3") to download. Null if not found.
      * @return string|false The direct download URL or false on failure.
      */
-    private function getDownloadUrlFromMeta($theme_data, $tag_name)
+    private function getDownloadUrlFromMeta($theme_data, $tagName)
     {
-        if (empty($tag_name) || empty($theme_data->unrepress_meta->repository)) {
+        if (empty($tagName) || empty($theme_data->unrepress_meta->repository)) {
             unrepress_debug('getDownloadUrlFromMeta: Missing tag_name or repository URL for theme: ' . ($theme_data->slug ?? 'unknown'));
 
             return false;
         }
 
         // Security: Validate version format
-        $validatedVersion = $this->inputValidator->validateVersion($tag_name);
-        if (!$validatedVersion) {
-            unrepress_debug('getDownloadUrlFromMeta: Invalid version format: ' . $tag_name);
+        if (!$this->inputValidator->validateVersion($tagName)) {
+            unrepress_debug('getDownloadUrlFromMeta: Invalid version format: ' . $tagName);
 
             return false;
         }
 
-        $repo_url = $theme_data->unrepress_meta->repository;
+        $repoUrl = $theme_data->unrepress_meta->repository;
 
         // Security: Validate repository URL format
-        if (!filter_var($repo_url, FILTER_VALIDATE_URL)) {
-            unrepress_debug('getDownloadUrlFromMeta: Invalid repository URL format: ' . $repo_url);
+        if (!filter_var($repoUrl, FILTER_VALIDATE_URL)) {
+            unrepress_debug('getDownloadUrlFromMeta: Invalid repository URL format: ' . $repoUrl);
 
             return false;
         }
 
         try {
             $wrapper = new GitProviderWrapper();
-            $download_url = $wrapper->getDownloadUrl($repo_url, $validatedVersion);
+            $download_url = $wrapper->getDownloadUrl($repoUrl, $tagName);
 
             if (!$download_url) {
                 unrepress_debug('getDownloadUrlFromMeta: GitProviderWrapper returned no download URL for theme: ' . ($theme_data->slug ?? 'unknown'));
