@@ -617,7 +617,7 @@ class UpdateCore
 
         // Security: Ensure URL is from expected source (GitHub for core updates)
         $host = parse_url($downloadUrl, PHP_URL_HOST);
-        if ($host !== 'github.com' && $host !== 'codeload.github.com') {
+        if ($host !== 'github.com' && $host !== 'codeload.github.com' && $host !== 'api.github.com') {
             error_log('UnrePress: Unexpected download source: ' . $host);
 
             return false;
