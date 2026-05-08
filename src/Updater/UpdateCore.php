@@ -533,7 +533,7 @@ class UpdateCore
 
         try {
             // Security: Validate input parameters
-            $validatedVersion = InputValidator::validateVersion($version);
+            $validatedVersion = $this->inputValidator->validateVersion($version);
             if (!$validatedVersion) {
                 error_log('UnrePress: Invalid version provided to getDownloadUrl: ' . $version);
 
@@ -546,7 +546,7 @@ class UpdateCore
             }
 
             // Security: Validate repository format
-            $validatedRepo = InputValidator::validateRepository($repo);
+            $validatedRepo = $this->inputValidator->validateRepository($repo);
             if (!$validatedRepo) {
                 error_log('UnrePress: Invalid repository format provided to getDownloadUrl: ' . $repo);
 
@@ -610,7 +610,7 @@ class UpdateCore
     public function downloadUpdate(string $downloadUrl): mixed
     {
         // Security: Validate download URL before proceeding
-        if (!filter_var($downloadUrl, FILTER_VALIDATE_URL) || !InputValidator::validateGithubUrl($downloadUrl)) {
+        if (!filter_var($downloadUrl, FILTER_VALIDATE_URL) || !$this->inputValidator->validateGitHubUrl($downloadUrl)) {
             error_log('UnrePress: Invalid download URL provided to downloadUpdate: ' . $downloadUrl);
 
             return false;
@@ -627,7 +627,7 @@ class UpdateCore
         $downloadPath = UNREPRESS_TEMP_PATH . 'wordpress_core_' . uniqid() . '.zip';
 
         // Security: Validate temp path is within allowed directory
-        if (!InputValidator::validatePath($downloadPath)) {
+        if (!$this->inputValidator->sanitizeFilePath($downloadPath)) {
             error_log('UnrePress: Invalid download path: ' . $downloadPath);
 
             return false;
