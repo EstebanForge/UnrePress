@@ -327,7 +327,7 @@ class UpdateCore
             $this->helpers->writeUpdateLog(':)');
 
             return true;
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             $this->helpers->writeUpdateLog(sprintf(
                 __('Update exception: %s', 'unrepress'),
                 $e->getMessage()
@@ -435,7 +435,7 @@ class UpdateCore
 
             return $latestVersion;
 
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             unrepress_debug('UpdateCore::getLatestCoreVersion() - Exception caught: ' . $e->getMessage());
             error_log('UnrePress: Error getting core version from index: ' . $e->getMessage());
 
@@ -586,7 +586,7 @@ class UpdateCore
 
             return $downloadUrl;
 
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             error_log('UnrePress: Error getting download URL: ' . $e->getMessage());
             // Fallback to default
             if ($this->provider == 'github') {
@@ -739,17 +739,17 @@ class UpdateCore
             // Get or create the update_core transient
             $current = get_site_transient('update_core');
             if (!is_object($current)) {
-                $current = new stdClass();
+                $current = new \stdClass();
                 $current->updates = [];
                 $current->version_checked = $wp_version;
             }
 
             // Create update object matching WordPress core format
-            $update = new stdClass();
+            $update = new \stdClass();
             $update->response = 'upgrade';
             $update->download = $this->getDownloadUrl('WordPress/WordPress', $latestVersion);
             $update->locale = get_locale();
-            $update->packages = new stdClass();
+            $update->packages = new \stdClass();
             $update->packages->full = $update->download;
             $update->packages->no_content = '';
             $update->packages->new_bundled = '';
@@ -773,7 +773,7 @@ class UpdateCore
             // Log success for debugging
             error_log("UnrePress: Core update detected - WordPress {$latestVersion} available from GitHub");
 
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             // Log error but don't break the update process
             error_log('UnrePress Core Update Check Error: ' . $e->getMessage());
         }

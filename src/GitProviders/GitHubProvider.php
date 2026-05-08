@@ -22,13 +22,19 @@ class GitHubProvider implements GitProviderInterface
 
     public function getLatestRelease(string $owner, string $repo): ?string
     {
+        // Try GitHub Releases API first
         try {
             $release = $this->client->api('repo')->releases()->latest($owner, $repo);
 
             return $release['tag_name'] ?? null;
         } catch (ErrorException|RuntimeException $e) {
-            return null;
+            // No release found — fall through to tags
         }
+
+        // Fallback: use the latest tag (many repos like WordPress use tags, not releases)
+        $tags = $this->getTags($owner, $repo);
+
+        return $tags[0] ?? null;
     }
 
     public function getRepository(string $owner, string $repo): array

@@ -44,7 +44,7 @@ class GitProviderFactory
             'github' => self::createGitHub($token),
             'gitlab' => self::createGitLab($token),
             'bitbucket' => self::createBitbucket($token),
-            default => throw new InvalidArgumentException(sprintf('Unknown provider: %s', $provider)),
+            default => throw new \InvalidArgumentException(sprintf('Unknown provider: %s', $provider)),
         };
     }
 
@@ -89,7 +89,7 @@ class GitProviderFactory
     {
         $host = parse_url($url, PHP_URL_HOST);
         if ($host === false || $host === null) {
-            throw new InvalidArgumentException(sprintf('Invalid URL: %s', $url));
+            throw new \InvalidArgumentException(sprintf('Invalid URL: %s', $url));
         }
 
         $host = strtolower($host);
@@ -106,7 +106,7 @@ class GitProviderFactory
             return 'bitbucket';
         }
 
-        throw new InvalidArgumentException(sprintf('Unknown Git provider in URL: %s', $url));
+        throw new \InvalidArgumentException(sprintf('Unknown Git provider in URL: %s', $url));
     }
 
     /**
@@ -120,7 +120,7 @@ class GitProviderFactory
     {
         $path = parse_url($url, PHP_URL_PATH);
         if ($path === false || $path === null) {
-            throw new InvalidArgumentException(sprintf('Invalid URL: %s', $url));
+            throw new \InvalidArgumentException(sprintf('Invalid URL: %s', $url));
         }
 
         // Remove leading slash and .git extension
@@ -128,12 +128,12 @@ class GitProviderFactory
         $path = preg_replace('/\.git$/', '', $path);
 
         if ($path === null || $path === '') {
-            throw new InvalidArgumentException(sprintf('Invalid URL: %s', $url));
+            throw new \InvalidArgumentException(sprintf('Invalid URL: %s', $url));
         }
 
         $parts = explode('/', $path);
         if (count($parts) < 2) {
-            throw new InvalidArgumentException(sprintf('Invalid repository URL: %s', $url));
+            throw new \InvalidArgumentException(sprintf('Invalid repository URL: %s', $url));
         }
 
         $owner = $parts[0];
