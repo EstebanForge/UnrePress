@@ -1,8 +1,4 @@
-# AGENTS.md
-
-Guidance for AI agents working with this codebase.
-
-## Project Overview
+# Project Overview
 
 UnrePress replaces WordPress.org updates with git provider updates (GitHub, BitBucket, GitLab). It fetches WordPress core from the official WordPress GitHub repo and plugin/theme updates from a community-maintained index.
 
