@@ -1,199 +1,166 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for AI agents working with this codebase.
 
 ## Project Overview
 
-UnrePress is a WordPress plugin that replaces WordPress.org updates with git provider updates (GitHub, BitBucket, GitLab). It fetches WordPress core updates from the official WordPress GitHub repository and plugin/theme updates from a community-maintained index, liberating the WordPress ecosystem from centralized control.
+UnrePress replaces WordPress.org updates with git provider updates (GitHub, BitBucket, GitLab). It fetches WordPress core from the official WordPress GitHub repo and plugin/theme updates from a community-maintained index.
 
-**Requirements:** PHP 8.1+, WordPress 6.5+
+**Requirements:** PHP 8.3+, WordPress 6.5+
 
 ## Architecture
 
 ### Entry Point & Bootstrap
-- **`unrepress.php`**: Plugin bootstrap file
+- **`unrepress.php`**: Plugin bootstrap
   - Defines constants (version, paths, blocked hosts, index URL)
-  - Loads Composer autoloader from `vendor/autoload.php`
+  - Loads `vendor/autoload_packages.php` (Jetpack Autoloader) with fallback to `vendor/autoload.php`
   - Initializes `UnrePress\UnrePress::run()` on `plugins_loaded` hook
 
-### Core Components (src/)
+### Core Components (`src/`)
 - **`UnrePress.php`**: Main plugin class
   - Entry point: `run()` method
   - Fetches and caches main index from `UNREPRESS_INDEX` (30-day transient)
   - Initializes all subsystems
-  - Only runs in admin context (not frontend/REST API)
+  - Only runs in admin context
 
 - **`EgoBlocker.php`**: Blocks requests to WordPress.org domains
-- **`Helpers.php`**: Utility functions (debugging, filesystem operations, API requests)
+- **`Helpers.php`**: Utility functions (debugging, filesystem, API requests, transient clearing)
+- **`Debugger.php`**: Debug logging via `Debugger::log()`
 
 ### Subsystems
-- **`Admin/`**: Admin interface
-  - `Hider` - Hides WordPress.org references in admin
-  - `UpdaterPages` - Customizes update UI pages
 
-- **`Index/`**: Community-maintained index management
-  - `Index` - Main index handler
-  - `PluginsIndex` - Plugin index operations
-  - `ThemesIndex` - Theme index operations
+#### `Admin/` — Admin interface
+- `Hider` — Hides WordPress.org references in admin
+- `UpdaterPages` — Customizes update UI pages
 
-- **`Updater/`**: Update orchestration with security integration
-  - `UpdateCore` - WordPress core updates from GitHub with security validation
-  - `UpdatePlugins` - Plugin updates from git providers with security validation
-  - `UpdateThemes` - Theme updates from git providers with security validation
-  - `UpdateLock` - Update locking mechanism
+#### `Index/` — Index management
+- `Index` — Main index handler
+- `PluginsIndex` — Plugin index operations
+- `ThemesIndex` — Theme index operations
 
-- **`UpdaterProvider/`**: Modern Git provider implementations
-  - `GitHub` - GitHub provider using modern API client (knplabs/github-api)
-  - `GitLab` - GitLab provider using modern API client (m4tthumphrey/php-gitlab-api)
-  - `BitBucket` - Bitbucket provider using modern API client (bitbucket/client)
-  - `GitProviderWrapper` - Unified wrapper for all git providers with auto-detection
+#### `Updater/` — Update orchestration
+- `UpdateCore` — WordPress core updates from GitHub
+- `UpdatePlugins` — Plugin updates from git providers
+- `UpdateThemes` — Theme updates from git providers
+- `UpdateLock` — Prevents concurrent updates
 
-- **`Security/`**: Security modules for input validation and capability checking
-  - `SecurityMiddleware` - Main security orchestration with CSRF/capability checks
-  - `CapabilityChecker` - WordPress capability verification (update_core, update_plugins, etc.)
-  - `InputValidator` - Input sanitization (slugs, URLs, versions, JSON, file extensions)
-  - `XssProtection` - XSS attack prevention
-  - `SqlInjectionProtection` - SQL injection prevention
-  - `PathTraversalProtection` - Directory traversal prevention
+#### `UpdaterProvider/` — Git provider implementations (modern API clients)
+- `GitHub` — GitHub provider (knplabs/github-api v3)
+- `GitLab` — GitLab provider (m4tthumphrey/php-gitlab-api v12)
+- `BitBucket` — Bitbucket provider (bitbucket/client v5)
+- `GitProviderWrapper` — Unified wrapper with auto-detection from URL
+- `ProviderInterface` — Common interface
 
-- **`GitProviders/`**: Git provider API clients (modern replacements for manual wp_remote_* calls)
-  - `GitHubProvider` - GitHub API client implementation
-  - `GitLabProvider` - GitLab API client implementation
-  - `BitbucketProvider` - Bitbucket API client implementation
-  - `GitProviderFactory` - Factory pattern for provider instantiation
-  - `ProviderInterface` - Common interface for all git providers
+#### `GitProviders/` — Low-level Git provider API clients
+- `GitHubProvider` — GitHub API client (knplabs)
+- `GitLabProvider` — GitLab API client
+- `BitbucketProvider` — Bitbucket API client
+- `GitProviderFactory` — Factory for provider instantiation
+- `GitProviderInterface` — Common interface
+
+#### `Security/` — Security modules
+- `SecurityMiddleware` — CSRF/capability checks
+- `CapabilityChecker` — WordPress capability verification
+- `InputValidator` — Input sanitization (slugs, URLs, versions, JSON, file extensions). **Instance methods only** — not static
+- `SecureFileOperations` — Secure file handling
+- `XssProtection` — XSS prevention (referenced but check usage)
+- `SqlInjectionProtection` — SQL injection prevention (referenced but check usage)
+- `PathTraversalProtection` — Path traversal prevention (referenced but check usage)
+
+#### `Container/`
+- `ServiceContainer` — DI container
+
+### Views (`views/`)
+- `updater/unrepress-updater.php` — Main updater page (handles force-check, core update UI)
+- `updater/unrepress-doing-core-update.php` — Core update progress page
+
+## Critical Coding Rules
+
+### Namespace Resolution
+All source files use `namespace UnrePress\*`. PHP builtins **must** use leading `\`:
+```php
+// WRONG — resolves to UnrePress\Updater\stdClass
+new stdClass();
+catch (Exception $e)
+
+// CORRECT — resolves to global namespace
+new \stdClass();
+catch (\Exception $e)
+```
+Applies to: `stdClass`, `Exception`, `InvalidArgumentException`, `RuntimeException`, all PHP built-in classes.
+
+### InputValidator — Instance, Not Static
+All `InputValidator` methods are **instance methods**. Use `$this->inputValidator->method()`, never `InputValidator::method()`.
+
+### Autoloading
+Plugin uses **Jetpack Autoloader** (`automattic/jetpack-autoloader ^2`). Entry point is `vendor/autoload_packages.php`, which ensures the latest version of shared packages is loaded when multiple WP plugins bundle the same Composer dependencies.
 
 ## Development Commands
 
-### Code Style
 ```bash
-# Check code style (PSR-12 + custom rules)
+# Code style (PSR-12)
 composer cs:check
-
-# Fix code style automatically
 composer cs:fix
-```
 
-### Testing
-```bash
-# Run all Pest tests (modern replacement for PHPUnit)
+# Tests (Pest v4)
 vendor/bin/pest
-
-# Run specific test suite
 vendor/bin/pest --filter=<TestName>
 
-# Run tests in specific directory
-vendor/bin/pest tests/Unit/UpdaterProvider/
-```
-
-### Version Bumping
-```bash
-# Bump version (interactive)
+# Version bump
 composer version-bump
 
-# Bump version to specific version
-composer version-bump 1.2.3
-```
-
-### Composer Autoloading
-```bash
-# Regenerate autoloader (after adding classes)
-composer dump-autoload
-
-# Optimized autoloader (for production)
-composer dump-autoload --optimize --no-dev
+# Production build
+composer production
 ```
 
 ## Configuration Constants
 
-Define in `wp-config.php` or via environment to customize behavior:
+Define in `wp-config.php` or via environment:
 
 - **`UNREPRESS_INDEX`**: URL to community index (default: `https://raw.githubusercontent.com/EstebanForge/UnrePress-index/`)
-- **`UNREPRESS_TOKEN_GITHUB`**: GitHub API token for private repos/authenticated requests (use `unrepress_github_token` filter)
-- **`UNREPRESS_TRANSIENT_EXPIRATION`**: Transient cache expiration (default: 60 minutes)
-- **`UNREPRESS_BLOCK_WPORG`**: Enable/disable WordPress.org blocking (default: `true`)
-- **`UNREPRESS_BLOCKED_HOSTS`**: Comma-separated list of blocked domains
+- **`UNREPRESS_TOKEN_GITHUB`**: GitHub API token (use `unrepress_github_token` filter)
+- **`UNREPRESS_TRANSIENT_EXPIRATION`**: Cache TTL (default: 60 minutes)
+- **`UNREPRESS_BLOCK_WPORG`**: Enable/disable WP.org blocking (default: `true`)
+- **`UNREPRESS_BLOCKED_HOSTS`**: Comma-separated blocked domains
+
+## Transient Naming
+
+All UnrePress transients use prefix `UNREPRESS_PREFIX` (`unrepress_`):
+- `unrepress_main_index` — Main index cache
+- `unrepress_updates_core_latest_version` — Latest core version
+- `unrepress_updates_count` — Update count cache
+- `unrepress_updates_plugin_latest_tag_object_<slug>` — Per-plugin cached tag
+- `unrepress_updates_theme_*` — Per-theme caches
+
+`Helpers::clearUpdateTransients()` clears all of the above (queries `wp_options` for matching keys, deletes via `delete_transient()` for cache-backend compatibility).
 
 ## Code Standards
 
-- **PHP**: 8.1+, strict types enabled, PSR-12 coding style
-- **Autoloading**: PSR-4 (`UnrePress\` namespace → `src/` directory)
-- **Formatting**: PHP CS Fixer (see `.php-cs-fixer.php`)
-- **Testing**: Pest v4 (modern replacement for PHPUnit - see `phpunit.xml`)
-
-## Modern Architecture & Design Patterns
-
-### Provider Pattern
-- **GitProviderInterface**: Common interface for all git providers
-- **Factory Pattern**: `GitProviderFactory` for provider instantiation
-- **Wrapper Pattern**: `GitProviderWrapper` for unified API access
-- **Auto-detection**: Automatic provider detection from repository URLs
-
-### Security Architecture
-- **Defense in Depth**: Multiple layers of security validation
-- **Input Validation**: All user inputs validated via `InputValidator`
-- **Capability Checking**: WordPress capability verification via `CapabilityChecker`
-- **CSRF Protection**: Nonce verification for all state-changing operations
-- **XSS Prevention**: Output escaping and sanitization
-- **SQL Injection Prevention**: Prepared statements and input sanitization
-- **Path Traversal Prevention**: File path validation and sanitization
-
-### Performance Optimizations
-- **Modern API Clients**: Replaced manual `wp_remote_*` calls with dedicated API clients
-  - `knplabs/github-api` (v3.16.0) for GitHub
-  - `m4tthumphrey/php-gitlab-api` (v12.0.0) for GitLab
-  - `bitbucket/client` (v5.0.0) for Bitbucket
-- **Caching**: Transient caching for index data and version information
-- **Lazy Loading**: Providers instantiated only when needed
-- **No closing PHP tags** in files (PSR-12)
-- **Always declare strict types**: `declare(strict_types=1);`
-- **Use early returns** and **guard clauses**
-- **WordPress coding standards**: Use WP functions over PHP equivalents (e.g., `wp_sprintf` vs `sprintf`)
+- **PHP 8.3+**, `declare(strict_types=1)`, PSR-12
+- **PSR-4**: `UnrePress\` namespace → `src/` directory
+- **No closing PHP tags**
+- **Early returns**, guard clauses
+- `vendor/` is committed (WP plugin distribution needs it bundled)
 
 ## Key Patterns
 
-### Transient Caching
-Index data is cached in transients for performance:
-```php
-$cachedIndex = get_transient($transient_key);
-if (false !== $cachedIndex) {
-    return $cachedIndex;
-}
-// Fetch data...
-set_transient($transient_key, $data, 30 * DAY_IN_SECONDS);
-```
-
 ### Debug Logging
-Use `unrepress_debug()` helper function (controlled by WP_DEBUG).
+- `unrepress_debug()` — Global helper (controlled by `WP_DEBUG`)
+- `Debugger::log()` — Class-based logging
 
-### WordPress Filesystem API
-Always use WP Filesystem API for file operations (respecting filesystem credentials).
+### Git Provider Flow
+1. Index JSON provides repo URL + tags/releases URLs
+2. `GitProviderFactory` auto-detects provider from URL
+3. Provider fetches latest version (releases API first, tags fallback for GitHub)
+4. `GitProviderWrapper` unifies the interface
 
-### Security Best Practices
-- **Never Trust User Input**: Always validate and sanitize via `InputValidator`
-- **Capability Checks**: Always verify user capabilities before operations
-- **Nonce Verification**: Use nonces for all state-changing operations
-- **Prepared Statements**: Never use raw SQL - always use prepared statements
-- **Output Escaping**: Escape all output to prevent XSS attacks
-- **File Validation**: Validate file paths and extensions to prevent path traversal
-- **Error Handling**: Never expose internal errors to users
+### WordPress Core Update Flow
+1. `UpdateCore::getLatestCoreVersion()` fetches version from GitHub tags
+2. `checkCoreUpdatesFromGitHub()` populates `update_core` transient with GitHub download URL
+3. WP native update UI triggers the actual update
 
-### Git Provider Integration
-- **Auto-detection**: Providers automatically detected from repository URLs
-- **Factory Pattern**: Use `GitProviderFactory::createFromUrl()` for instantiation
-- **Unified Interface**: All providers implement `GitProviderInterface`
-- **Error Handling**: Graceful fallbacks for API failures
-- **Caching**: API responses cached to minimize requests
-- **Authentication**: Token support for private repositories
-
-### Hook Integration
-- Plugin hooks into `wp_version_check` for core updates
-- Uses standard WP hooks for plugin/theme updates
-- Filters applied for customization (e.g., `unrepress_github_token`)
-
-## Build Process
-
-1. **Code style fixes**: `composer cs:fix`
-2. **Autoloader optimization**: `composer dump-autoload --optimize --no-dev`
-3. **Version bump**: Update `unrepress.php` and `composer.json`
-4. **Production build**: `composer production` (fixes CS, installs prod dependencies, optimizes autoloader)
+### Plugin/Theme Update Flow
+1. `UpdatePlugins::checkForPluginUpdate()` / `UpdateThemes` equivalent
+2. `getLatestVersion()` fetches latest tag from git provider
+3. Tag objects cached in transients per-plugin
+4. `getDownloadUrl()` builds download URL from tag name
