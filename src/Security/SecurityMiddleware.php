@@ -21,7 +21,7 @@ class SecurityMiddleware
      */
     public function verifyAjaxNonce(string $action, bool $die = true): bool
     {
-        return check_ajax_referer($action, false, $die);
+        return (bool) check_ajax_referer($action, false, $die);
     }
 
     /**
