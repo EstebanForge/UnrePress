@@ -590,6 +590,23 @@ class Helpers
         delete_transient(UNREPRESS_PREFIX . 'updates_core_latest_version');
         delete_transient(UNREPRESS_PREFIX . 'log_last_pos');
 
+        // Clear all plugin and theme tag/version caches
+        // Must use WP API to work with all cache backends (memcache, redis, etc.)
+        global $wpdb;
+        $prefix = $wpdb->esc_like('_transient_' . UNREPRESS_PREFIX . 'updates_plugin_');
+        $theme_prefix = $wpdb->esc_like('_transient_' . UNREPRESS_PREFIX . 'updates_theme_');
+        $keys = $wpdb->get_col(
+            $wpdb->prepare(
+                "SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE %s OR option_name LIKE %s",
+                $prefix . '%',
+                $theme_prefix . '%'
+            )
+        );
+        foreach ($keys as $key) {
+            $transient_name = str_replace('_transient_', '', $key);
+            delete_transient($transient_name);
+        }
+
         delete_transient('update_plugins');
         delete_transient('update_themes');
         delete_transient('update_core');
