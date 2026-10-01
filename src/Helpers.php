@@ -421,6 +421,17 @@ class Helpers
             $slug = $slug['slug'];
         }
 
+        // Security gate: reject symlinks, dangerous files and oversized trees
+        // before anything moves. Applies to curated and GitHub archives alike.
+        // Fourth arg keeps hidden dotfiles (.htaccess, php.ini) in the listing.
+        $guard = self::checkArchiveContents($source, $wp_filesystem->dirlist($source, false, true, true));
+
+        if (is_wp_error($guard)) {
+            Debugger::log('fixSourceDir: archive rejected: ' . $guard->get_error_message());
+
+            return $guard;
+        }
+
         // Remove unwanted directories like .git, .github, etc.
         $directories_to_remove = ['.git', '.github', '.wordpress-org', '.ci', '.gitignore'];
         foreach ($directories_to_remove as $dir) {
@@ -488,6 +499,97 @@ class Helpers
         }
 
         return $source;
+    }
+
+    /**
+     * Inspect a recursive dirlist of an extracted archive and reject it when
+     * it carries symlinks, dangerous root filenames or exceeds the size
+     * ceiling. Pure: takes the listing, so it is unit-testable.
+     *
+     * @param string     $source  Extracted archive root path (for messages)
+     * @param array|null $listing Recursive dirlist from WP_Filesystem
+     * @param int|null   $maxBytes Size ceiling in bytes, default constant
+     *
+     * @return WP_Error|null Null when the archive is acceptable
+     */
+    public static function checkArchiveContents($source, $listing, ?int $maxBytes = null)
+    {
+        if (!is_array($listing)) {
+            return null;
+        }
+
+        $ceiling = $maxBytes ?? (defined('UNREPRESS_MAX_ARCHIVE_BYTES') ? UNREPRESS_MAX_ARCHIVE_BYTES : 50 * 1024 * 1024);
+        $total_bytes = 0;
+
+        return self::scanArchiveListing($source, $listing, $ceiling, $total_bytes);
+    }
+
+    /**
+     * Recursive walker for checkArchiveContents.
+     *
+     * @param string $source Extracted archive root path
+     * @param array  $listing dirlist entries (name => {type, size, files?})
+     * @param int    $ceiling Size ceiling in bytes
+     * @param int    $total_bytes Accumulated size, passed by reference
+     *
+     * @return WP_Error|null
+     */
+    private static function scanArchiveListing($source, array $listing, int $ceiling, &$total_bytes)
+    {
+        $dangerous_names = ['wp-config.php', '.htaccess', 'php.ini'];
+
+        foreach ($listing as $name => $info) {
+            if (!is_array($info)) {
+                continue;
+            }
+
+            $type = $info['type'] ?? '';
+
+            // WP dirlist tags entries only 'f'/'d', so symlink detection needs
+            // is_link() on the local path; the 's' check covers transports that
+            // report it. A cyclic symlink dies inside dirlist(), which aborts
+            // the install — failing closed.
+            $entry_path = rtrim($source, '/') . '/' . $name;
+
+            if ('s' === $type || @is_link($entry_path)) {
+                return new \WP_Error(
+                    'unrepress_archive_symlink',
+                    sprintf(__('Archive contains a symlink: %s', 'unrepress'), $name)
+                );
+            }
+
+            if ('d' === $type) {
+                $children = $info['files'] ?? [];
+
+                if (is_array($children)) {
+                    $found = self::scanArchiveListing($source . $name . '/', $children, $ceiling, $total_bytes);
+
+                    if (is_wp_error($found)) {
+                        return $found;
+                    }
+                }
+
+                continue;
+            }
+
+            if (in_array(strtolower((string) $name), $dangerous_names, true)) {
+                return new \WP_Error(
+                    'unrepress_archive_dangerous_file',
+                    sprintf(__('Archive contains a protected file: %s', 'unrepress'), $name)
+                );
+            }
+
+            $total_bytes += (int) ($info['size'] ?? 0);
+
+            if ($total_bytes > $ceiling) {
+                return new \WP_Error(
+                    'unrepress_archive_too_large',
+                    __('Archive exceeds the allowed size limit.', 'unrepress')
+                );
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -589,6 +691,12 @@ class Helpers
         delete_transient(UNREPRESS_PREFIX . 'updates_count');
         delete_transient(UNREPRESS_PREFIX . 'updates_core_latest_version');
         delete_transient(UNREPRESS_PREFIX . 'log_last_pos');
+        delete_transient(UNREPRESS_PREFIX . 'main_index');
+        delete_transient(UNREPRESS_PREFIX . 'plugins_index');
+        delete_transient(UNREPRESS_PREFIX . 'discovery_featured_plugins');
+        delete_transient(UNREPRESS_PREFIX . 'discovery_featured_themes');
+        delete_transient(UNREPRESS_PREFIX . 'github_catalog_plugins');
+        delete_transient(UNREPRESS_PREFIX . 'github_catalog_themes');
 
         // Clear all plugin and theme tag/version caches
         // Must use WP API to work with all cache backends (memcache, redis, etc.)

@@ -28,11 +28,14 @@ class UpdateThemes
 
     private InputValidator $inputValidator;
 
+    private \UnrePress\Index\GitHubCatalog $githubCatalog;
+
     public function __construct()
     {
         $this->helpers = new Helpers();
         $this->security = new SecurityMiddleware();
         $this->capabilityChecker = new CapabilityChecker();
+        $this->githubCatalog = new \UnrePress\Index\GitHubCatalog();
         $this->inputValidator = new InputValidator();
         $this->version = '';
         $this->cache_key = UNREPRESS_PREFIX . 'updates_theme_';
@@ -68,6 +71,9 @@ class UpdateThemes
 
         // If we can't get theme info, skip this theme
         if (!$remoteData) {
+            // Not in the curated index: try the GitHub catalog.
+            $this->checkCatalogForThemeUpdate($slug);
+
             return;
         }
 
@@ -120,6 +126,69 @@ class UpdateThemes
         $version = $theme->get('Version');
 
         return !empty($version) ? $version : false;
+    }
+
+    /**
+     * Update check against the GitHub catalog for owner--repo theme slugs.
+     * All fields are precomputed crawler-side; no runtime GitHub calls.
+     */
+    private function checkCatalogForThemeUpdate($slug)
+    {
+        if (!\UnrePress\Index\GitHubCatalog::isEnabled()) {
+            return;
+        }
+
+        $entry = $this->githubCatalog->getEntry(\UnrePress\Index\GitHubCatalog::KIND_THEMES, (string) $slug);
+
+        if (!$entry) {
+            // Entry left the catalog slice: fall back to the repo URL we
+            // recorded at install time, resolved against a refreshed catalog.
+            $tracked = $this->githubCatalog->getTrackedEntry((string) $slug);
+
+            if (!$tracked) {
+                return;
+            }
+
+            $entry = $this->githubCatalog->getEntryByRepoUrl(
+                \UnrePress\Index\GitHubCatalog::KIND_THEMES,
+                (string) ($tracked['repo_url'] ?? '')
+            );
+
+            if (!$entry) {
+                return;
+            }
+        }
+
+        $installedVersion = $this->getInstalledVersion($slug);
+
+        if (!$installedVersion) {
+            return;
+        }
+
+        $latest_version = (string) ($entry['version'] ?? '');
+        $download_url = (string) ($entry['download_url'] ?? '');
+
+        if ('' === $latest_version || '' === $download_url || !filter_var($download_url, FILTER_VALIDATE_URL)) {
+            return;
+        }
+
+        if (!version_compare($installedVersion, $latest_version, '<')) {
+            return;
+        }
+
+        $updateInfo = new \stdClass();
+        $updateInfo->theme = $slug;
+        $updateInfo->new_version = $latest_version;
+        $updateInfo->version = $latest_version;
+        $updateInfo->url = $entry['homepage'] ?? '';
+        $updateInfo->theme_uri = $entry['homepage'] ?? '';
+        $updateInfo->package = $download_url;
+        $updateInfo->download_link = $download_url;
+        $updateInfo->requires = $entry['requires'] ?? '6.0';
+        $updateInfo->requires_php = $entry['requires_php'] ?? '7.4';
+        $updateInfo->tested = $entry['tested'] ?? '6.7';
+
+        $this->updateInfo[$slug] = $updateInfo;
     }
 
     public function requestRemoteInfo($slug = null)
@@ -252,7 +321,8 @@ class UpdateThemes
         if (!$theme_data_from_index) {
             unrepress_debug('UpdateThemes::getInformation - Could not fetch remote theme data for slug: ' . $args->slug);
 
-            return $response; // Return original $response if our index doesn't have it
+            // Not in the curated index: resolve GitHub catalog entries.
+            return $this->getCatalogThemeInformation($response, (string) $args->slug);
         }
 
         // Now, dynamically determine the latest version and download URL
@@ -416,6 +486,58 @@ class UpdateThemes
         return $response;
     }
 
+    /**
+     * Build a theme_information response from a GitHub catalog entry.
+     * Labeled server-side with the not-verified note.
+     */
+    private function getCatalogThemeInformation($response, string $slug)
+    {
+        if (!\UnrePress\Index\GitHubCatalog::isEnabled()) {
+            return $response;
+        }
+
+        $entry = $this->githubCatalog->getEntry(\UnrePress\Index\GitHubCatalog::KIND_THEMES, $slug);
+
+        if (!$entry) {
+            return $response;
+        }
+
+        $download_url = (string) ($entry['download_url'] ?? '');
+
+        if ('' === $download_url || !filter_var($download_url, FILTER_VALIDATE_URL)) {
+            return $response;
+        }
+
+        $api_response = new \stdClass();
+        $api_response->name = sanitize_text_field($entry['name'] ?? $slug);
+        $api_response->slug = $slug;
+        $api_response->version = sanitize_text_field((string) ($entry['version'] ?? '0.0.0'));
+        $api_response->author = wp_strip_all_tags($entry['author'] ?? '');
+        $api_response->author_profile = $entry['author_profile'] ?? '';
+        $api_response->requires = $entry['requires'] ?? '6.0';
+        $api_response->tested = $entry['tested'] ?? '6.7';
+        $api_response->requires_php = $entry['requires_php'] ?? '7.4';
+        $api_response->homepage = $entry['homepage'] ?? '';
+        $api_response->preview_url = $entry['homepage'] ?? '';
+        $api_response->description = wp_kses_post(nl2br(sanitize_text_field($entry['description'] ?? '')));
+        $api_response->rating = 0;
+        $api_response->num_ratings = 0;
+        $api_response->downloaded = 0;
+        $api_response->last_updated = sanitize_text_field((string) ($entry['last_updated'] ?? ''));
+        $api_response->sections = [
+            'description' => wp_kses_post(nl2br(sanitize_text_field($entry['description'] ?? ''))),
+        ];
+        $api_response->download_link = $download_url;
+
+        // Trust labels, consumed by the admin UI renderers.
+        $api_response->source = 'github';
+        $api_response->stars = (int) ($entry['stars'] ?? 0);
+        $api_response->build = sanitize_key($entry['build'] ?? 'tag-archive');
+        $api_response->unrepress_notice = __('Downloaded from GitHub. Not verified by the UnrePress index.', 'unrepress');
+
+        return $api_response;
+    }
+
     public function hasUpdate($transient)
     {
         if (!is_object($transient)) {
@@ -463,7 +585,50 @@ class UpdateThemes
 
     public function cleanAfterUpdate($upgrader, $options)
     {
+        $this->maybeTrackGitHubInstall($upgrader, $options);
         $this->helpers->cleanAfterUpdate($upgrader, $options, $this->cache_key, 'theme');
+    }
+
+    /**
+     * Record installed GitHub theme extensions so updates survive catalog drift.
+     */
+    private function maybeTrackGitHubInstall($upgrader, $options): void
+    {
+        if (!is_array($options)
+            || ($options['action'] ?? '') !== 'install'
+            || ($options['type'] ?? '') !== 'theme'
+        ) {
+            return;
+        }
+
+        $slug = '';
+
+        // A failed install leaves a WP_Error in result; tracking only valid
+        // successful results avoids recording rejected packages.
+        if (!is_array($upgrader->result ?? null) || is_wp_error($upgrader->result)) {
+            return;
+        }
+
+        if (!empty($upgrader->result['destination_name'])) {
+            $slug = sanitize_text_field((string) $upgrader->result['destination_name']);
+        }
+
+        // Only GitHub catalog installs carry the owner--repo slug shape.
+        if ('' === $slug || !str_contains($slug, '--')) {
+            return;
+        }
+
+        $entry = $this->githubCatalog->getEntry(\UnrePress\Index\GitHubCatalog::KIND_THEMES, $slug);
+
+        if (!$entry) {
+            return;
+        }
+
+        $this->githubCatalog->track(
+            $slug,
+            (string) ($entry['homepage'] ?? ''),
+            (string) ($entry['version'] ?? '')
+        );
     }
 
     private $current_theme_slug = null;

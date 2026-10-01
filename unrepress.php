@@ -36,6 +36,15 @@ if (!defined('UNREPRESS_TOKEN_GITHUB')) {
     define('UNREPRESS_TOKEN_GITHUB', apply_filters('unrepress_github_token', ''));
 }
 
+// Define: GitHub discovery toggle (Settings page mirrors it; only honor the
+// constant when the host defines it explicitly — never define it here)
+// define('UNREPRESS_GITHUB_DISCOVERY', false);
+
+// Define: extracted archive size ceiling for zip installs (50 MB)
+if (!defined('UNREPRESS_MAX_ARCHIVE_BYTES')) {
+    define('UNREPRESS_MAX_ARCHIVE_BYTES', 50 * 1024 * 1024);
+}
+
 // Define transient expiration time (60 minutes by default)
 if (!defined('UNREPRESS_TRANSIENT_EXPIRATION')) {
     define('UNREPRESS_TRANSIENT_EXPIRATION', 60 * MINUTE_IN_SECONDS);

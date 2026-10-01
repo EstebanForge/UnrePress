@@ -17,7 +17,21 @@ class GitHubProvider implements GitProviderInterface
 
     public function __construct(?Client $client = null)
     {
-        $this->client = $client ?? new Client();
+        if (null !== $client) {
+            $this->client = $client;
+
+            return;
+        }
+
+        $this->client = new Client();
+
+        // Authenticate with the user's token (Settings option or constant)
+        // to lift the 60 req/hr per-IP anonymous limit.
+        $token = \UnrePress\Admin\Settings::getProviderToken('github');
+
+        if (is_string($token) && '' !== $token) {
+            $this->client->authenticate($token, null, Client::AUTH_ACCESS_TOKEN);
+        }
     }
 
     public function getLatestRelease(string $owner, string $repo): ?string

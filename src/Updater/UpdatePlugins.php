@@ -32,6 +32,8 @@ class UpdatePlugins
 
     private InputValidator $inputValidator;
 
+    private \UnrePress\Index\GitHubCatalog $githubCatalog;
+
     public function __construct()
     {
         $this->helpers = new Helpers();
@@ -39,6 +41,7 @@ class UpdatePlugins
         $this->unrepress = new UnrePress();
         $this->capabilityChecker = new CapabilityChecker();
         $this->inputValidator = new InputValidator();
+        $this->githubCatalog = new \UnrePress\Index\GitHubCatalog();
         $this->version = '';
         $this->cache_key = UNREPRESS_PREFIX . 'updates_plugin_';
         $this->cache_results = true;
@@ -81,7 +84,10 @@ class UpdatePlugins
         $remoteData = $this->requestRemoteInfo($slug);
 
         if (!$remoteData) {
-            // Debugger::log('checkForPluginUpdate: No remote data for slug: ' . $slug);
+            // Not in the curated index: try the GitHub catalog, so installed
+            // GitHub extensions keep receiving updates.
+            $this->checkCatalogForPluginUpdate($slug);
+
             return;
         }
 
@@ -160,6 +166,135 @@ class UpdatePlugins
             $this->updateInfo[$slug] = $updateInfo;
             // Debugger::log('checkForPluginUpdate: Stored update info for ' . $slug . ': ' . print_r($updateInfo, true));
         }
+    }
+
+    /**
+     * Update check against the GitHub catalog for owner--repo slugs.
+     * All fields are precomputed crawler-side; no runtime GitHub calls.
+     */
+    private function checkCatalogForPluginUpdate($slug)
+    {
+        if (!\UnrePress\Index\GitHubCatalog::isEnabled()) {
+            return;
+        }
+
+        $entry = $this->githubCatalog->getEntry(\UnrePress\Index\GitHubCatalog::KIND_PLUGINS, (string) $slug);
+
+        if (!$entry) {
+            // Entry left the catalog slice: fall back to the repo URL we
+            // recorded at install time, resolved against a refreshed catalog.
+            $tracked = $this->githubCatalog->getTrackedEntry((string) $slug);
+
+            if (!$tracked) {
+                return;
+            }
+
+            $entry = $this->githubCatalog->getEntryByRepoUrl(
+                \UnrePress\Index\GitHubCatalog::KIND_PLUGINS,
+                (string) ($tracked['repo_url'] ?? '')
+            );
+
+            if (!$entry) {
+                return;
+            }
+        }
+
+        $installedVersion = $this->getInstalledVersion($slug);
+
+        if (!$installedVersion) {
+            return;
+        }
+
+        $latest_version = (string) ($entry['version'] ?? '');
+        $download_url = (string) ($entry['download_url'] ?? '');
+
+        if ('' === $latest_version || '' === $download_url || !filter_var($download_url, FILTER_VALIDATE_URL)) {
+            return;
+        }
+
+        if (!version_compare($installedVersion, $latest_version, '<')) {
+            return;
+        }
+
+        $updateInfo = new \stdClass();
+        $updateInfo->slug = $slug;
+        $updateInfo->name = sanitize_text_field($entry['name'] ?? $slug);
+        $updateInfo->version = $latest_version;
+        $updateInfo->package = $download_url;
+        $updateInfo->download_link = $download_url;
+        $updateInfo->requires = $entry['requires'] ?? '6.0';
+        $updateInfo->tested = $entry['tested'] ?? (defined('get_bloginfo') ? get_bloginfo('version') : '0.0');
+        $updateInfo->requires_php = $entry['requires_php'] ?? '7.4';
+        $updateInfo->plugin_uri = $entry['homepage'] ?? '';
+        $updateInfo->description = sanitize_text_field($entry['description'] ?? '');
+        $updateInfo->author = wp_strip_all_tags($entry['author'] ?? '');
+        $updateInfo->author_profile = $entry['author_profile'] ?? '';
+
+        $this->updateInfo[$slug] = $updateInfo;
+    }
+
+    /**
+     * Build a plugin_information response from a GitHub catalog entry.
+     * Labeled server-side: source, stars, build and the not-verified note.
+     */
+    private function getCatalogPluginInformation($response, string $slug)
+    {
+        if (!\UnrePress\Index\GitHubCatalog::isEnabled()) {
+            return $response;
+        }
+
+        $entry = $this->githubCatalog->getEntry(\UnrePress\Index\GitHubCatalog::KIND_PLUGINS, $slug);
+
+        if (!$entry) {
+            return $response;
+        }
+
+        $download_url = (string) ($entry['download_url'] ?? '');
+
+        if ('' === $download_url || !filter_var($download_url, FILTER_VALIDATE_URL)) {
+            return $response;
+        }
+
+        $description = sanitize_text_field($entry['description'] ?? '');
+        $build = sanitize_key($entry['build'] ?? 'tag-archive');
+
+        $api_response = new \stdClass();
+        $api_response->name = sanitize_text_field($entry['name'] ?? $slug);
+        $api_response->slug = $slug;
+        $api_response->version = sanitize_text_field((string) ($entry['version'] ?? '0.0.0'));
+        $api_response->author = wp_strip_all_tags($entry['author'] ?? '');
+        $api_response->author_profile = $entry['author_profile'] ?? '';
+        $api_response->requires = $entry['requires'] ?? '6.0';
+        $api_response->tested = $entry['tested'] ?? '6.7';
+        $api_response->requires_php = $entry['requires_php'] ?? '7.4';
+        $api_response->homepage = $entry['homepage'] ?? '';
+        $api_response->download_link = $download_url;
+        $api_response->external = true;
+        $api_response->last_updated = sanitize_text_field((string) ($entry['last_updated'] ?? ''));
+        $api_response->sections = [
+            'description' => wp_kses_post(nl2br($description)),
+            'installation' => '',
+            'changelog' => '',
+        ];
+        $api_response->icons = [
+            'default' => UNREPRESS_PLUGIN_URL . 'assets/images/icon-256.webp',
+        ];
+        $api_response->banners = [
+            'low' => UNREPRESS_PLUGIN_URL . 'assets/images/banner-772x250.webp',
+            'high' => UNREPRESS_PLUGIN_URL . 'assets/images/banner-1544x500.webp',
+        ];
+
+        // Trust labels, consumed by the admin UI renderers.
+        $api_response->source = 'github';
+        $api_response->stars = (int) ($entry['stars'] ?? 0);
+        $api_response->build = $build;
+        $api_response->unrepress_notice = __('Downloaded from GitHub. Not verified by the UnrePress index.', 'unrepress');
+
+        if ('tag-archive' === $build) {
+            $api_response->unrepress_notice .= ' ' . __('This is a raw source archive from the repository tag.', 'unrepress');
+        }
+
+        return $api_response;
     }
 
     private function getInstalledVersion($slug)
@@ -282,9 +417,8 @@ class UpdatePlugins
         $remote = $this->requestRemoteInfo($args->slug); // This is the plugin's data from UnrePress index
 
         if (!$remote) {
-            Debugger::log('getInformation (Plugin): No remote data found for slug: ' . $args->slug);
-
-            return $response; // Return original $response if UnrePress index doesn't have it
+            // Not in the curated index: resolve GitHub catalog entries.
+            return $this->getCatalogPluginInformation($response, (string) $args->slug);
         }
 
         // This now returns the full tag object or false
@@ -659,7 +793,50 @@ class UpdatePlugins
 
     public function cleanAfterUpdate($upgrader, $options)
     {
+        $this->maybeTrackGitHubInstall($upgrader, $options);
         $this->helpers->cleanAfterUpdate($upgrader, $options, $this->cache_key);
+    }
+
+    /**
+     * Record installed GitHub extensions so updates survive catalog drift.
+     */
+    private function maybeTrackGitHubInstall($upgrader, $options): void
+    {
+        if (!is_array($options)
+            || ($options['action'] ?? '') !== 'install'
+            || ($options['type'] ?? '') !== 'plugin'
+        ) {
+            return;
+        }
+
+        $slug = '';
+
+        // A failed install leaves a WP_Error in result; tracking only valid
+        // successful results avoids recording rejected packages.
+        if (!is_array($upgrader->result ?? null) || is_wp_error($upgrader->result)) {
+            return;
+        }
+
+        if (!empty($upgrader->result['destination_name'])) {
+            $slug = sanitize_text_field((string) $upgrader->result['destination_name']);
+        }
+
+        // Only GitHub catalog installs carry the owner--repo slug shape.
+        if ('' === $slug || !str_contains($slug, '--')) {
+            return;
+        }
+
+        $entry = $this->githubCatalog->getEntry(\UnrePress\Index\GitHubCatalog::KIND_PLUGINS, $slug);
+
+        if (!$entry) {
+            return;
+        }
+
+        $this->githubCatalog->track(
+            $slug,
+            (string) ($entry['homepage'] ?? ''),
+            (string) ($entry['version'] ?? '')
+        );
     }
 
     /**
