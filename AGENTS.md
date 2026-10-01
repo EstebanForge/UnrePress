@@ -28,11 +28,14 @@ UnrePress replaces WordPress.org updates with git provider updates (GitHub, BitB
 #### `Admin/` — Admin interface
 - `Hider` — Hides WordPress.org references in admin
 - `UpdaterPages` — Customizes update UI pages
+- `Settings` — Settings page: git provider tokens, discovery toggle, cache flush
+- `SearchBadges` — GitHub star badges in the plugin/theme install grids
 
 #### `Index/` — Index management
 - `Index` — Main index handler
 - `PluginsIndex` — Plugin index operations
 - `ThemesIndex` — Theme index operations
+- `GitHubCatalog` — GitHub topic catalog access: search, card building, install tracking
 
 #### `Updater/` — Update orchestration
 - `UpdateCore` — WordPress core updates from GitHub
@@ -69,6 +72,7 @@ UnrePress replaces WordPress.org updates with git provider updates (GitHub, BitB
 ### Views (`views/`)
 - `updater/unrepress-updater.php` — Main updater page (handles force-check, core update UI)
 - `updater/unrepress-doing-core-update.php` — Core update progress page
+- `admin/settings.php` — Settings page form
 
 ## Critical Coding Rules
 
@@ -118,6 +122,8 @@ Define in `wp-config.php` or via environment:
 - **`UNREPRESS_TRANSIENT_EXPIRATION`**: Cache TTL (default: 60 minutes)
 - **`UNREPRESS_BLOCK_WPORG`**: Enable/disable WP.org blocking (default: `true`)
 - **`UNREPRESS_BLOCKED_HOSTS`**: Comma-separated blocked domains
+- **`UNREPRESS_GITHUB_DISCOVERY`**: Include GitHub topic catalogs in search (default `true`; the Settings toggle governs when the constant is undefined)
+- **`UNREPRESS_MAX_ARCHIVE_BYTES`**: Archive size ceiling before extraction (default: 50 MB)
 
 ## Transient Naming
 
@@ -127,6 +133,8 @@ All UnrePress transients use prefix `UNREPRESS_PREFIX` (`unrepress_`):
 - `unrepress_updates_count` — Update count cache
 - `unrepress_updates_plugin_latest_tag_object_<slug>` — Per-plugin cached tag
 - `unrepress_updates_theme_*` — Per-theme caches
+- `unrepress_github_catalog_plugins` / `unrepress_github_catalog_themes` — GitHub catalog caches (3 hours)
+- `unrepress_tracked_repos` — Option persisting installed GitHub extensions (autoload off)
 
 `Helpers::clearUpdateTransients()` clears all of the above (queries `wp_options` for matching keys, deletes via `delete_transient()` for cache-backend compatibility).
 

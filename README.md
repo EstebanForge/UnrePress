@@ -58,12 +58,12 @@ Without fear of retaliation or repression.
 - **Enhanced Security** - Input validation, capability checking, CSRF protection, and XSS prevention.
 - **Auto-detection** - Automatically detects git provider from repository URLs.
 - Community maintained index of plugins and themes, so UnrePress can update them. Somewhat like package managers do (dnf, brew, npm, etc.).
+- **GitHub discovery** - Plugin and theme search also covers GitHub topic-tagged repositories (`wp-plugin`, `wordpress-theme`, etc.), with real star counts and clear "not verified" labeling.
+- **Settings page** - Git provider tokens, GitHub discovery toggle, and cache flush, under Dashboard → Settings.
 
 ## Planned Features
 
-- Integrate the index into WordPress itself, so users can search and install plugins/themes from within the admin panel.
 - Add the ability to point UnrePress to a different index.
-- Configuration interface.
 - Expose the index vía web, for easy plugin/theme discoverability.
 
 See more in [Planned Features Discussions](https://github.com/EstebanForge/UnrePress/discussions/categories/planned-features).

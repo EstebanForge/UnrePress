@@ -1,5 +1,27 @@
 # UnrePress changelog
 
+# 0.9.0 - 2026-10-01
+
+### Added
+* GitHub topic discovery: plugin and theme search merges the UnrePress-index GitHub catalogs (`discovery/github-plugins.json`, `github-themes.json`) with curated results. Curated entries rank first; GitHub entries carry real star counts, an `owner--repo` slug, and the notice "Downloaded from GitHub. Not verified by the UnrePress index."
+* Star badges in the admin plugin and theme install grids showing real GitHub star counts (DOM-injected, `textContent`-only, transport-independent).
+* Install path for GitHub entries: release asset preferred, tag zip fallback; the extracted folder is renamed to the `owner--repo` slug.
+* `unrepress_tracked_repos` option: installed GitHub extensions keep receiving updates even after falling out of the catalog's top-1000.
+* Settings page (Dashboard → Settings): GitHub/GitLab/Bitbucket tokens (write-only inputs, keep-on-empty, explicit delete checkboxes), GitHub discovery toggle, and a cache flush button.
+* Token resolution order: `wp-config.php` constant → saved option → `unrepress_github_token` filter → anonymous.
+* Archive safety gate before extraction: rejects symlinks, `wp-config.php`, `.htaccess`, `php.ini`, and archives over 50 MB.
+* `uninstall.php`: purges settings, tracked repos, and all `unrepress_*` transients on deletion.
+* Companion UnrePress-index release: topic crawler (`.ci/crawl-github-topics.py`) with a daily GitHub Actions workflow publishing the catalogs.
+
+### Fixed
+* Stale Jetpack autoloader classmaps: classes added in this release were missing from the committed maps, fataling every admin page load. Maps regenerated and shipped with the release.
+* Theme AJAX responses dropped the `source` marker (and could drop `stars`), losing GitHub identity in the theme grid.
+* Badge script no longer depends on `ajaxSuccess` — the theme grid fetches without jQuery; badges render through a MutationObserver instead.
+* GitHub plugin cards pass `last_updated` as a date string; unix timestamps rendered "Last Updated: 57 years ago".
+
+### Changed
+* `GitHubProvider` authenticates with the configured token when one resolves, lifting the 60 req/hr/IP anonymous API quota.
+
 # 0.8.0 - 2025-05-08
 
 ### Added

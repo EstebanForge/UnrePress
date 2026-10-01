@@ -1,6 +1,6 @@
 # GitHub Topic Discovery — Plan
 
-**Status:** Approved. Revised after adversarial peer review (agy) + grill rounds 1–3.
+**Status:** Implemented. Shipped 2026-10-01 after two independent adversarial peer reviews + grill rounds 1–3. Rollout commits recorded in §8.
 **Author:** Esteban
 **Date:** 2026-10
 **Scope:** UnrePress-index (crawler + workflow) and UnrePress plugin (settings, search merge, install/update, badge)
@@ -203,10 +203,10 @@ Rules:
 
 ## 8. Rollout
 
-1. **P1 — crawler, full schema**: in-query filters, verification + vendor check + static checks, semver + `download_url` precompute, crawler-side dedup, Actions workflow, router keys. Manual first run, commit catalogs.
-2. **P2 — install/update/tracking + settings**: tracked-repos option, `plugin_information` resolution, zip hardening (§5.3), Settings page + token wiring, `uninstall.php`. Pest tests alongside: slug map, version compare, zip guard, token resolution. Fixtures = real output of the P1 manual crawl, not handwritten JSON.
-3. **P3 — search merge + badge**: catalog fetch/merge, degrade path, inline badge script with escaping. Pest: merge order, `source` flagging, degrade.
-4. **P4 — E2E on docker stack** (`./devenv start`): search a GitHub-only term → badge + ranking; install a `release-asset` entry and a `tag-archive` entry; bump a mock repo tag → update check resolves; `UNREPRESS_GITHUB_DISCOVERY=false` → curated behavior identical.
+1. **P1 — crawler, full schema**: in-query filters, verification + vendor check + static checks, semver + `download_url` precompute, crawler-side dedup, Actions workflow, router keys. Manual first run, commit catalogs. — **SHIPPED** in UnrePress-index `82cd21a`; first full crawl ran on schedule 2026-10-01 and published 168 plugins / 66 themes.
+2. **P2 — install/update/tracking + settings**: tracked-repos option, `plugin_information` resolution, zip hardening (§5.3), Settings page + token wiring, `uninstall.php`. Pest tests alongside: slug map, version compare, zip guard, token resolution. Fixtures = real output of the P1 manual crawl, not handwritten JSON. — **SHIPPED** `db92041`.
+3. **P3 — search merge + badge**: catalog fetch/merge, degrade path, inline badge script with escaping. Pest: merge order, `source` flagging, degrade. — **SHIPPED** `ff00fbe` (badge renders as `GitHub ★ N` instead of the planned "From GitHub" label).
+4. **P4 — E2E on docker stack** (`./devenv start`): search a GitHub-only term → badge + ranking; install a `release-asset` entry and a `tag-archive` entry; bump a mock repo tag → update check resolves; `UNREPRESS_GITHUB_DISCOVERY=false` → curated behavior identical. — **SHIPPED** `963da90`; verified against the live scheduled-crawl catalogs (search merge, detail, toggle-off, real install, badges in both grids).
 
 Search stays disabled for GitHub entries until P3; install/update machinery ships tested first.
 
