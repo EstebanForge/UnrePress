@@ -32,15 +32,30 @@ class SearchBadges
     }
 
     /**
-     * Print the badge injector. Always printed: the theme grid needs the
-     * ajaxSuccess watcher even when this request produced no stars.
-     */
+ * Print the badge injector with the full catalog star maps. Plugin cards
+ * render server-side and badge immediately; theme cards render through
+ * Backbone without jQuery, so a MutationObserver badges whatever appears.
+ * Injection uses textContent and CSS escaping only, so catalog strings
+ * can never inject markup.
+ */
     public function printBadgeScript(): void
     {
-        $starMap = GitHubCatalog::starMap();
+        $catalog = new \UnrePress\Index\GitHubCatalog();
+
+        $plugins = GitHubCatalog::starMap();
+
+        // Full theme map: the grid renders through Backbone without jQuery,
+        // so the page needs the complete slug-to-stars set up front.
+        $themes = [];
+
+        foreach ((array) ($catalog->getCatalog(GitHubCatalog::KIND_THEMES)['themes'] ?? []) as $entry) {
+            if (is_array($entry) && isset($entry['slug'], $entry['stars'])) {
+                $themes[(string) $entry['slug']] = (int) $entry['stars'];
+            }
+        }
 
         $payload = wp_json_encode(
-            [] === $starMap ? new \stdClass() : $starMap,
+            ['plugins' => [] === $plugins ? new \stdClass() : $plugins, 'themes' => [] === $themes ? new \stdClass() : $themes],
             JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP
         );
 
@@ -52,7 +67,7 @@ class SearchBadges
 (function () {
 	'use strict';
 
-	var inlineStars = <?php echo $payload; // phpcs:ignore WordPress.WP.EnqueuedResources -- static, HEX-encoded server data ?>;
+	var maps = <?php echo $payload; // phpcs:ignore WordPress.WP.EnqueuedResources -- static, HEX-encoded server data ?>;
 	var badgeCss = 'margin-left:8px;padding:0 8px;border-radius:10px;background:#f0f0f1;color:#50575e;display:inline-block;font-size:12px;line-height:20px;vertical-align:middle;';
 
 	function formatCount(n) {
@@ -67,8 +82,7 @@ class SearchBadges
 		return badge;
 	}
 
-	// Plugin grid: core marks each card with the plugin-card-<slug> class.
-	function injectPluginBadge(slug, starCount) {
+	function badgePluginCard(slug, starCount) {
 		var card = document.querySelector('.plugin-card-' + window.CSS.escape(slug));
 
 		if (!card || card.querySelector('.unrepress-github-badge')) {
@@ -82,8 +96,7 @@ class SearchBadges
 		}
 	}
 
-	// Theme grid: cards carry data-slug on the .theme element.
-	function injectThemeBadge(slug, starCount) {
+	function badgeThemeCard(slug, starCount) {
 		var card = document.querySelector('.theme[data-slug="' + window.CSS.escape(slug) + '"]');
 
 		if (!card || card.querySelector('.unrepress-github-badge')) {
@@ -100,50 +113,26 @@ class SearchBadges
 		}
 	}
 
-	function inject(map) {
+	function inject(map, injector) {
 		Object.keys(map).forEach(function (slug) {
 			var stars = map[slug];
 
-			if (typeof stars !== 'number' || stars < 0) {
-				return;
-			}
-
-			injectPluginBadge(slug, stars);
-
-			if (document.querySelector('.theme[data-slug="' + window.CSS.escape(slug) + '"]')) {
-				injectThemeBadge(slug, stars);
+			if (typeof stars === 'number' && stars >= 0) {
+				injector(slug, stars);
 			}
 		});
 	}
 
-	inject(inlineStars);
+	inject(maps.plugins, badgePluginCard);
+	inject(maps.themes, badgeThemeCard);
 
-	// Theme results arrive via admin-ajax after the footer ran; Backbone
-	// syncs through jQuery, so ajaxSuccess sees every rendered batch.
-	if (window.jQuery) {
-		window.jQuery(document).on('ajaxSuccess', function (event, xhr, settings, data) {
-			if (!data || typeof data !== 'object') {
-				return;
-			}
-
-			(['themes', 'plugins']).forEach(function (key) {
-				var items = data[key];
-
-				if (!Array.isArray(items)) {
-					return;
-				}
-
-				var map = {};
-
-				items.forEach(function (item) {
-					if (item && item.slug && typeof item.stars === 'number' && item.stars > 0) {
-						map[item.slug] = item.stars;
-					}
-				});
-
-				inject(map);
-			});
-		});
+	// Theme results render through Backbone without jQuery: watch the DOM
+	// instead of the transport.
+	if (typeof MutationObserver === 'function') {
+		new MutationObserver(function () {
+			inject(maps.themes, badgeThemeCard);
+			inject(maps.plugins, badgePluginCard);
+		}).observe(document.body, {childList: true, subtree: true});
 	}
 })();
 </script>

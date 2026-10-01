@@ -2538,6 +2538,14 @@ return array(
 		'version' => '0.8.0.0',
 		'path'    => $baseDir . '/src/Admin/Hider.php'
 	),
+	'UnrePress\\Admin\\SearchBadges' => array(
+		'version' => '0.8.0.0',
+		'path'    => $baseDir . '/src/Admin/SearchBadges.php'
+	),
+	'UnrePress\\Admin\\Settings' => array(
+		'version' => '0.8.0.0',
+		'path'    => $baseDir . '/src/Admin/Settings.php'
+	),
 	'UnrePress\\Admin\\UpdaterPages' => array(
 		'version' => '0.8.0.0',
 		'path'    => $baseDir . '/src/Admin/UpdaterPages.php'
@@ -2578,6 +2586,10 @@ return array(
 		'version' => '0.8.0.0',
 		'path'    => $baseDir . '/src/Helpers.php'
 	),
+	'UnrePress\\Index\\GitHubCatalog' => array(
+		'version' => '0.8.0.0',
+		'path'    => $baseDir . '/src/Index/GitHubCatalog.php'
+	),
 	'UnrePress\\Index\\Index' => array(
 		'version' => '0.8.0.0',
 		'path'    => $baseDir . '/src/Index/Index.php'
@@ -2610,6 +2622,10 @@ return array(
 		'version' => '0.8.0.0',
 		'path'    => $baseDir . '/tests/Helpers/WordPressTestHelper.php'
 	),
+	'UnrePress\\Tests\\Unit\\Admin\\SettingsTest' => array(
+		'version' => '0.8.0.0',
+		'path'    => $baseDir . '/tests/Unit/Admin/SettingsTest.php'
+	),
 	'UnrePress\\Tests\\Unit\\Container\\ServiceContainerTest' => array(
 		'version' => '0.8.0.0',
 		'path'    => $baseDir . '/tests/Unit/Container/ServiceContainerTest.php'
@@ -2626,9 +2642,17 @@ return array(
 		'version' => '0.8.0.0',
 		'path'    => $baseDir . '/tests/Unit/Core/UpdateThemesTest.php'
 	),
+	'UnrePress\\Tests\\Unit\\Helpers\\ArchiveGuardTest' => array(
+		'version' => '0.8.0.0',
+		'path'    => $baseDir . '/tests/Unit/Helpers/ArchiveGuardTest.php'
+	),
 	'UnrePress\\Tests\\Unit\\Helpers\\HelpersTest' => array(
 		'version' => '0.8.0.0',
 		'path'    => $baseDir . '/tests/Unit/Helpers/HelpersTest.php'
+	),
+	'UnrePress\\Tests\\Unit\\Index\\GitHubCatalogTest' => array(
+		'version' => '0.8.0.0',
+		'path'    => $baseDir . '/tests/Unit/Index/GitHubCatalogTest.php'
 	),
 	'UnrePress\\Tests\\Unit\\Security\\CapabilityTest' => array(
 		'version' => '0.8.0.0',

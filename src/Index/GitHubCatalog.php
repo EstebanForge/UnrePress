@@ -327,7 +327,7 @@ class GitHubCatalog
             'support_threads' => 0,
             'support_threads_resolved' => 0,
             'active_installs' => 0,
-            'last_updated' => strtotime((string) ($entry['pushed_at'] ?? '')) ?: time(),
+            'last_updated' => sanitize_text_field((string) ($entry['pushed_at'] ?? '')) ?: gmdate('Y-m-d'),
             'added' => substr((string) ($entry['created_at'] ?? ''), 0, 10) ?: gmdate('Y-m-d'),
             'tags' => array_slice(array_map('sanitize_text_field', (array) ($entry['tags'] ?? [])), 0, 5),
             'compatibility' => [],
