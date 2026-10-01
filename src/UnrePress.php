@@ -36,6 +36,7 @@ class UnrePress
         $adminHider = new Admin\Hider();
         $adminUpdaterPages = new Admin\UpdaterPages();
         $adminSettings = new Admin\Settings();
+        $searchBadges = new Admin\SearchBadges();
         $updateLock = new Updater\UpdateLock();
         $index = new Index\Index();
         $indexPlugins = new Index\PluginsIndex();

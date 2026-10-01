@@ -124,6 +124,8 @@ class GitHubCatalogTest extends WordPressTestHelper
                 false
             );
 
+        \Brain\Monkey\Functions\when('gmdate')->justReturn('2026-10-01 00:00:00');
+
         $catalog = new GitHubCatalog();
         $catalog->track('acme--plugin', 'https://github.com/acme/plugin', '1.2.0');
     }
@@ -135,5 +137,129 @@ class GitHubCatalogTest extends WordPressTestHelper
         $catalog = new GitHubCatalog();
         $catalog->track('', 'https://github.com/acme/plugin', '1.0.0');
         $catalog->track('acme--plugin', '', '1.0.0');
+    }
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        if (!defined('UNREPRESS_PLUGIN_URL')) {
+            define('UNREPRESS_PLUGIN_URL', 'https://example.test/wp-content/plugins/unrepress/');
+        }
+        if (!defined('UNREPRESS_PREFIX')) {
+            define('UNREPRESS_PREFIX', 'unrepress_');
+        }
+
+        GitHubCatalog::resetStarMap();
+    }
+
+    public function testSearchEntriesMatchesNameDescriptionTagsAndTopics(): void
+    {
+        $catalog = new GitHubCatalog();
+        $data = [
+            'plugins' => [
+                [
+                    'slug' => 'acme--one',
+                    'name' => 'Super Cacher',
+                    'description' => 'Speeds up your site',
+                    'tags' => ['cache'],
+                    'topics' => ['performance'],
+                ],
+                [
+                    'slug' => 'acme--two',
+                    'name' => ' unrelated',
+                    'description' => 'Does something else',
+                    'tags' => [],
+                    'topics' => ['misc'],
+                ],
+            ],
+        ];
+
+        $hits = $catalog->searchEntries($data, 'plugins', 'cacher');
+
+        $this->assertCount(1, $hits);
+        $this->assertSame('acme--one', $hits[0]['slug']);
+
+        // Topic matches count too
+        $this->assertCount(1, $catalog->searchEntries($data, 'plugins', 'performance'));
+
+        // Empty term matches nothing; other kinds stay isolated
+        $this->assertSame([], $catalog->searchEntries($data, 'plugins', ''));
+        $this->assertSame([], $catalog->searchEntries($data, 'themes', 'cacher'));
+    }
+
+    public function testPluginCardBuildsFullWpShape(): void
+    {
+        \Brain\Monkey\Functions\when('get_bloginfo')->justReturn('6.7');
+
+        $catalog = new GitHubCatalog();
+        $card = $catalog->pluginCard([
+            'slug' => 'acme--plugin',
+            'name' => 'Acme <b>Plugin</b>',
+            'description' => 'A plugin <script>alert(1)</script>',
+            'version' => '1.2.3',
+            'requires' => '6.0',
+            'requires_php' => '8.0',
+            'download_url' => 'https://github.com/acme/plugin/releases/download/v1.2.3/plugin.zip',
+            'homepage' => 'https://github.com/acme/plugin',
+            'author' => '<a href="https://github.com/acme">acme</a>',
+            'stars' => 1234,
+            'pushed_at' => '2026-09-30T12:00:00Z',
+            'build' => 'release-asset',
+            'tags' => ['cache', 'speed'],
+        ]);
+
+        $this->assertSame('acme--plugin', $card['slug']);
+        $this->assertSame('Acme Plugin', $card['name']);
+        $this->assertStringNotContainsString('<script>', $card['sections']['description']);
+        $this->assertSame('1.2.3', $card['version']);
+        $this->assertSame('github', $card['source']);
+        $this->assertSame(1234, $card['stars']);
+        $this->assertSame(0, $card['active_installs']);
+        $this->assertSame(0, $card['rating']);
+        $this->assertSame('release-asset', $card['build']);
+        $this->assertNotFalse(filter_var($card['download_url'], FILTER_VALIDATE_URL));
+        $this->assertArrayHasKey('icons', $card);
+        $this->assertArrayHasKey('banners', $card);
+
+        // Card builders feed the badge map
+        $this->assertSame(['acme--plugin' => 1234], GitHubCatalog::starMap());
+    }
+
+    public function testThemeCardMatchesCuratedShape(): void
+    {
+        $catalog = new GitHubCatalog();
+        $card = $catalog->themeCard([
+            'slug' => 'acme--theme',
+            'name' => 'Acme Theme',
+            'description' => 'Nice theme',
+            'tags' => ['blog'],
+            'stars' => 42,
+            'homepage' => 'https://github.com/acme/theme',
+            'author' => 'acme',
+            'version' => '2.0.0',
+        ]);
+
+        // Curated contract: slug, name, description, tags
+        $this->assertSame('acme--theme', $card['slug']);
+        $this->assertSame('Acme Theme', $card['name']);
+        $this->assertSame('Nice theme', $card['description']);
+        $this->assertSame(['blog'], $card['tags']);
+        $this->assertSame(42, $card['stars']);
+        $this->assertSame('github', $card['source']);
+        $this->assertSame(['acme--theme' => 42], GitHubCatalog::starMap());
+    }
+
+    public function testStarMapCollectsAcrossCardsAndResets(): void
+    {
+        $catalog = new GitHubCatalog();
+        $catalog->themeCard(['slug' => 'a--one', 'name' => 'One', 'stars' => 5]);
+        $catalog->themeCard(['slug' => 'a--two', 'name' => 'Two', 'stars' => 7]);
+
+        $this->assertSame(['a--one' => 5, 'a--two' => 7], GitHubCatalog::starMap());
+
+        GitHubCatalog::resetStarMap();
+
+        $this->assertSame([], GitHubCatalog::starMap());
     }
 }

@@ -144,6 +144,16 @@ class ThemesIndex extends Index
             }
         }
 
+        $curated_matches = $found_themes;
+
+        // GitHub catalog matches append after curated ones (crawler-side
+        // dedup keeps repos out of both catalogs).
+        $github_catalog = new \UnrePress\Index\GitHubCatalog();
+        $github_themes = $github_catalog->themeCards(
+            $github_catalog->search(\UnrePress\Index\GitHubCatalog::KIND_THEMES, $search_term_lower)
+        );
+        $found_themes = array_merge($curated_matches, $github_themes);
+
         unrepress_debug('ThemesIndex::searchThemes - Found ' . count($found_themes) . ' themes matching "' . $search_term . '" before pagination.');
 
         // Apply pagination
@@ -152,12 +162,13 @@ class ThemesIndex extends Index
         // Ensure $per_page is a positive integer for pagination calculation
         $per_page_safe = ($per_page > 0) ? (int) $per_page : 24; // Default to 24 if invalid
 
+        $page_safe = max(1, (int) $page);
         $num_pages = ceil($total_found / $per_page_safe);
         if ($total_found === 0) {
             $num_pages = 0; // No pages if no themes found
         }
 
-        $start_index = ((int) $page - 1) * $per_page_safe;
+        $start_index = ($page_safe - 1) * $per_page_safe;
         $paged_themes = array_slice($found_themes, $start_index, $per_page_safe);
 
         // Build response object

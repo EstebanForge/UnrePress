@@ -186,6 +186,207 @@ class GitHubCatalog
         return null;
     }
 
+    /**
+     * Page-scoped star map for the search badge script. Card builders
+     * register stars here; the admin footer prints the map as JSON and a
+     * small script injects badges into the rendered grids.
+     */
+    private static array $starMap = [];
+
+    public static function addStar(string $slug, int $stars): void
+    {
+        if ('' !== $slug && $stars >= 0) {
+            self::$starMap[$slug] = $stars;
+        }
+    }
+
+    public static function starMap(): array
+    {
+        return self::$starMap;
+    }
+
+    public static function resetStarMap(): void
+    {
+        self::$starMap = [];
+    }
+
+    /**
+     * Catalog entries whose name, description, tags or topics contain the
+     * search term. Pure, for testability.
+     */
+    public function searchEntries(array $catalog, string $kind, string $term): array
+    {
+        if (!isset($catalog[$kind]) || !is_array($catalog[$kind])) {
+            return [];
+        }
+
+        $term = strtolower(trim($term));
+
+        if ('' === $term) {
+            return [];
+        }
+
+        $matches = [];
+
+        foreach ($catalog[$kind] as $entry) {
+            if (!is_array($entry)) {
+                continue;
+            }
+
+            $tags = array_merge(
+                (array) ($entry['tags'] ?? []),
+                (array) ($entry['topics'] ?? [])
+            );
+
+            $haystack = strtolower(
+                ($entry['name'] ?? '') . ' '
+                . ($entry['description'] ?? '') . ' '
+                . implode(' ', array_map('strval', $tags))
+            );
+
+            if (str_contains($haystack, $term)) {
+                $matches[] = $entry;
+            }
+        }
+
+        return $matches;
+    }
+
+    /**
+     * Search matches from the cached catalog.
+     *
+     * @return array[] Empty when discovery is off or the catalog is unreachable
+     */
+    public function search(string $kind, string $term): array
+    {
+        if (!self::isEnabled()) {
+            return [];
+        }
+
+        $catalog = $this->getCatalog($kind);
+
+        if (null === $catalog) {
+            return [];
+        }
+
+        return $this->searchEntries($catalog, $kind, $term);
+    }
+
+    /**
+     * Full WordPress plugin card for a catalog entry, in the same shape
+     * getPluginData() produces for curated plugins. Stars are registered
+     * for the search badge as the social proof (no fake install counts).
+     */
+    public function pluginCard(array $entry): array
+    {
+        $slug = sanitize_text_field((string) ($entry['slug'] ?? ''));
+        $name = sanitize_text_field((string) ($entry['name'] ?? ''));
+        $description = sanitize_text_field((string) ($entry['description'] ?? ''));
+        $version = sanitize_text_field((string) ($entry['version'] ?? '0.0.0'));
+        $requires = sanitize_text_field((string) ($entry['requires'] ?? '6.0'));
+        $requiresPhp = sanitize_text_field((string) ($entry['requires_php'] ?? '7.4'));
+        $download = esc_url_raw((string) ($entry['download_url'] ?? ''));
+        $repoUrl = esc_url_raw((string) ($entry['homepage'] ?? ''));
+        $authorLink = (string) ($entry['author'] ?? '');
+        $stars = (int) ($entry['stars'] ?? 0);
+        $icon = UNREPRESS_PLUGIN_URL . 'assets/images/icon-256.webp';
+
+        self::addStar($slug, $stars);
+
+        return [
+            'name' => '' !== $name ? $name : $slug,
+            'slug' => $slug,
+            'version' => $version,
+            'author' => wp_kses_post($authorLink),
+            'author_profile' => $repoUrl,
+            'requires' => $requires,
+            'tested' => get_bloginfo('version'),
+            'requires_php' => $requiresPhp,
+            'sections' => [
+                'description' => wp_kses_post(nl2br($description)),
+                'installation' => '',
+                'changelog' => '',
+            ],
+            'banners' => [
+                'low' => UNREPRESS_PLUGIN_URL . 'assets/images/banner-772x250.webp',
+                'high' => UNREPRESS_PLUGIN_URL . 'assets/images/banner-1544x500.webp',
+            ],
+            'icons' => [
+                'default' => $icon,
+                'low' => $icon,
+                'high' => $icon,
+            ],
+            'download_url' => $download,
+            'download_link' => $download,
+            'homepage' => $repoUrl,
+            'short_description' => '' !== $description
+                ? substr($description, 0, 150) . (strlen($description) > 150 ? '&hellip;' : '')
+                : '',
+            'rating' => 0,
+            'num_ratings' => 0,
+            'support_threads' => 0,
+            'support_threads_resolved' => 0,
+            'active_installs' => 0,
+            'last_updated' => strtotime((string) ($entry['pushed_at'] ?? '')) ?: time(),
+            'added' => substr((string) ($entry['created_at'] ?? ''), 0, 10) ?: gmdate('Y-m-d'),
+            'tags' => array_slice(array_map('sanitize_text_field', (array) ($entry['tags'] ?? [])), 0, 5),
+            'compatibility' => [],
+            'contributors' => [],
+            'screenshots' => [],
+            'external' => true,
+            'source' => 'github',
+            'stars' => $stars,
+            'build' => sanitize_text_field((string) ($entry['build'] ?? '')),
+        ];
+    }
+
+    /**
+     * Theme card in the curated themes-index entry shape (slug, name,
+     * description, tags) plus GitHub extras the grid tolerates.
+     */
+    public function themeCard(array $entry): array
+    {
+        $slug = sanitize_text_field((string) ($entry['slug'] ?? ''));
+        $name = sanitize_text_field((string) ($entry['name'] ?? ''));
+        $description = sanitize_text_field((string) ($entry['description'] ?? ''));
+        $stars = (int) ($entry['stars'] ?? 0);
+
+        self::addStar($slug, $stars);
+
+        return [
+            'slug' => $slug,
+            'name' => '' !== $name ? $name : $slug,
+            'description' => $description,
+            'tags' => array_slice(array_map('sanitize_text_field', (array) ($entry['tags'] ?? [])), 0, 10),
+            'author' => wp_strip_all_tags((string) ($entry['author'] ?? '')),
+            'version' => sanitize_text_field((string) ($entry['version'] ?? '0.0.0')),
+            'homepage' => esc_url_raw((string) ($entry['homepage'] ?? '')),
+            'preview_url' => esc_url_raw((string) ($entry['homepage'] ?? '')),
+            'screenshot_url' => '',
+            'rating' => 0,
+            'num_ratings' => 0,
+            'active_installs' => 0,
+            'source' => 'github',
+            'stars' => $stars,
+        ];
+    }
+
+    /**
+     * Plugin cards for many entries, empties dropped.
+     */
+    public function pluginCards(array $entries): array
+    {
+        return array_values(array_filter(array_map([$this, 'pluginCard'], $entries)));
+    }
+
+    /**
+     * Theme cards for many entries.
+     */
+    public function themeCards(array $entries): array
+    {
+        return array_values(array_map([$this, 'themeCard'], $entries));
+    }
+
     private function normalizeRepoUrl(string $url): string
     {
         $url = strtolower(trim($url));

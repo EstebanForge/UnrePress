@@ -1062,15 +1062,23 @@ class UpdatePlugins
 
         Debugger::log('Found ' . count($matching_plugins) . ' matching plugins');
 
-        if (empty($matching_plugins)) {
-            return [];
+        $matching_data = [];
+
+        if (!empty($matching_plugins)) {
+            $plugins_data = array_map([$this, 'getPluginData'], $matching_plugins);
+            $matching_data = array_values(array_filter($plugins_data));
         }
 
-        // Get full plugin data for each matching plugin
-        $plugins_data = array_map([$this, 'getPluginData'], $matching_plugins);
-        $filtered_plugins = array_filter($plugins_data);
+        // GitHub catalog matches append after curated ones. The crawler
+        // deduplicates against the curated index, so no client-side pass.
+        $github_catalog = new \UnrePress\Index\GitHubCatalog();
+        $github_cards = $github_catalog->pluginCards(
+            $github_catalog->search(\UnrePress\Index\GitHubCatalog::KIND_PLUGINS, $term)
+        );
 
-        Debugger::log('Search for ' . $term . ' processed: ' . count($matching_plugins) . ' initial matches, ' . count($filtered_plugins) . ' valid plugins returned.');
+        $filtered_plugins = array_merge($matching_data, $github_cards);
+
+        Debugger::log('Search for ' . $term . ' processed: ' . count($matching_data) . ' curated, ' . count($github_cards) . ' GitHub matches.');
 
         return $filtered_plugins;
     }

@@ -430,6 +430,7 @@ class UpdateThemes
                 $theme->screenshot_url = $theme_data_object->screenshot_url ?? '';
                 $theme->rating = intval($theme_data_object->rating ?? 0);
                 $theme->num_ratings = intval($theme_data_object->num_ratings ?? 0);
+                $theme->stars = intval($theme_data_object->stars ?? 0);
                 $theme->downloaded = intval($theme_data_object->downloaded ?? 0);
                 $theme->last_updated = $theme_data_object->last_updated ?? '';
                 $theme->requires = $theme_data_object->requires ?? '6.0';
